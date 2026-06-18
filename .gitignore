@@ -1,0 +1,46 @@
+# Data files (large, regenerable)
+data/raw/
+data/staging/
+data/marts/
+*.parquet
+*.duckdb
+*.duckdb.wal
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+.uv/
+
+# Node
+node_modules/
+.next/
+out/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Misc
+*.log

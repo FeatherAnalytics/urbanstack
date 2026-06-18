@@ -1,0 +1,46 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Ensure MapLibre attribution sits above deck.gl canvas */
+.maplibregl-ctrl-bottom-right,
+.maplibregl-ctrl-bottom-left {
+  z-index: 20 !important;
+  position: relative;
+}
+
+/* deck.gl canvas should fill its container */
+.deck-container canvas {
+  position: absolute;
+  inset: 0;
+}
+
+/* County detail popup animation */
+.popup-enter {
+  animation: popup-fade-in 0.2s ease-out;
+}
+
+@keyframes popup-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Bottom sheet animation for mobile */
+.sheet-enter {
+  animation: sheet-slide-up 0.25s ease-out;
+}
+
+@keyframes sheet-slide-up {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
