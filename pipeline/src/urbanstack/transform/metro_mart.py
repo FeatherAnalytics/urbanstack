@@ -1,28 +1,27 @@
 import json
 import logging
-from pathlib import Path
 
 import polars as pl
 
 from urbanstack.config import Settings
+from urbanstack.metro import MetroConfig
+from urbanstack.transform._shared import sanitize_records
 from urbanstack.transform.county_mart import build_county_mart
 from urbanstack.transform.derived import apply_derived_metrics
 from urbanstack.utils import find_parquet
 
 logger = logging.getLogger(__name__)
 
-METRO_FIPS = "48DFW"
-METRO_NAME = "Dallas-Fort Worth-Arlington MSA"
 
-
-def build_metro_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame:
-    mart_path = settings.marts_dir / "metro_summary.parquet"
+def build_metro_mart(settings: Settings, metro: MetroConfig, *, force: bool = False) -> pl.DataFrame:
+    staging = settings.metro_staging_dir(metro.metro_id)
+    mart_path = settings.metro_marts_dir(metro.metro_id) / "metro_summary.parquet"
 
     if mart_path.exists() and not force:
         logger.info("Mart exists, skipping: %s", mart_path)
         return pl.read_parquet(mart_path)
 
-    county = build_county_mart(settings)
+    county = build_county_mart(settings, metro)
 
     sum_cols = ["population", "total_commuters", "vehicles_available"]
     sum_exprs = [
@@ -73,8 +72,8 @@ def build_metro_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame
 
     total_pop = row["_total_pop"]
     result: dict[str, object] = {
-        "county_fips": METRO_FIPS,
-        "county_name": METRO_NAME,
+        "county_fips": metro.metro_fips,
+        "county_name": metro.metro_name,
     }
 
     for c in sum_cols:
@@ -151,7 +150,7 @@ def build_metro_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame
     else:
         result["crashes_per_capita"] = None
 
-    umr_path = settings.staging_dir / "umr" / "umr_dfw.parquet"
+    umr_path = staging / "umr" / f"umr_{metro.metro_id}.parquet"
     if umr_path.exists():
         umr = pl.read_parquet(umr_path)
         latest = umr.sort("year", descending=True).head(1).to_dicts()[0]
@@ -193,7 +192,7 @@ def build_metro_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame
     else:
         result["ridership_per_capita"] = None
 
-    ntd_path = find_parquet(settings.staging_dir / "ntd")
+    ntd_path = find_parquet(staging / "ntd")
     if ntd_path:
         ntd = pl.read_parquet(ntd_path)
         full_years = (
@@ -232,17 +231,15 @@ def build_metro_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame
 
     metro_df = pl.DataFrame([result])
     metro_df = apply_derived_metrics(metro_df)
+    metro_df = metro_df.with_columns(pl.lit(metro.metro_id).alias("metro_id"))
 
-    settings.marts_dir.mkdir(parents=True, exist_ok=True)
+    mart_path.parent.mkdir(parents=True, exist_ok=True)
     metro_df.write_parquet(mart_path)
     logger.info("Wrote metro mart: %s", mart_path)
 
-    json_path = (
-        Path(settings.data_dir).resolve().parent.parent
-        / "web" / "public" / "data" / "metro_summary.json"
-    )
+    json_path = settings.web_data_dir(metro.metro_id) / "metro_summary.json"
     json_path.parent.mkdir(parents=True, exist_ok=True)
-    records = metro_df.to_dicts()
+    records = sanitize_records(metro_df.to_dicts())
     json_path.write_text(json.dumps(records, default=str))
     logger.info("Wrote metro JSON: %s", json_path)
 

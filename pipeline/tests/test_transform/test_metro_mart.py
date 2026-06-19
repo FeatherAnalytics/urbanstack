@@ -1,16 +1,16 @@
 import polars as pl
 
 from urbanstack.config import Settings
-from urbanstack.geography import DFW_COUNTY_FIPS, DFW_STATE_FIPS
-from urbanstack.transform.metro_mart import METRO_FIPS, METRO_NAME, build_metro_mart
+from urbanstack.metro import DFW, MetroConfig
+from urbanstack.transform.metro_mart import build_metro_mart
 
 
 def _make_acs_df() -> pl.DataFrame:
     rows = []
-    for name, fips in DFW_COUNTY_FIPS.items():
+    for name, fips in DFW.counties.items():
         rows.append(
             {
-                "state_fips": DFW_STATE_FIPS,
+                "state_fips": DFW.state_fips,
                 "county_fips": fips,
                 "name": f"{name} County, Texas",
                 "tract_fips": None,
@@ -33,10 +33,10 @@ def _make_acs_df() -> pl.DataFrame:
 
 def _make_gazetteer_df() -> pl.DataFrame:
     rows = []
-    for name, fips in DFW_COUNTY_FIPS.items():
+    for name, fips in DFW.counties.items():
         rows.append(
             {
-                "county_fips": f"{DFW_STATE_FIPS}{fips}",
+                "county_fips": f"{DFW.state_fips}{fips}",
                 "county_name": f"{name} County",
                 "state_abbr": "TX",
                 "land_area_sqm": 2_589_988_000,
@@ -50,12 +50,12 @@ def _make_gazetteer_df() -> pl.DataFrame:
 
 def _make_epa_sld_df() -> pl.DataFrame:
     rows = []
-    for fips in DFW_COUNTY_FIPS.values():
+    for fips in DFW.counties.values():
         for bg in range(3):
             rows.append(
                 {
-                    "geoid": f"{DFW_STATE_FIPS}{fips}01010{bg}",
-                    "state_fips": DFW_STATE_FIPS,
+                    "geoid": f"{DFW.state_fips}{fips}01010{bg}",
+                    "state_fips": DFW.state_fips,
                     "county_fips": fips,
                     "tract_fips": "010100",
                     "cbsa": "19100",
@@ -80,13 +80,13 @@ def _make_epa_sld_df() -> pl.DataFrame:
 def _make_fars_df() -> pl.DataFrame:
     rows = []
     case_id = 1000
-    for fips in DFW_COUNTY_FIPS.values():
+    for fips in DFW.counties.values():
         for _ in range(2):
             case_id += 1
             rows.append(
                 {
                     "case_id": case_id,
-                    "state_fips": DFW_STATE_FIPS,
+                    "state_fips": DFW.state_fips,
                     "county_fips": fips,
                     "year": 2022,
                     "month": 6,
@@ -103,10 +103,10 @@ def _make_fars_df() -> pl.DataFrame:
 
 def _make_usaspending_df() -> pl.DataFrame:
     rows = []
-    for fips in DFW_COUNTY_FIPS.values():
+    for fips in DFW.counties.values():
         rows.append(
             {
-                "county_fips": f"{DFW_STATE_FIPS}{fips}",
+                "county_fips": f"{DFW.state_fips}{fips}",
                 "county_name": "Test County",
                 "total_obligation": 1_000_000.0,
                 "per_capita": 10.0,
@@ -119,6 +119,7 @@ def _make_usaspending_df() -> pl.DataFrame:
 
 
 def _write_staging(settings: Settings) -> None:
+    staging = settings.metro_staging_dir("dfw")
     for name, df_fn in [
         ("acs/acs_county_2023.parquet", _make_acs_df),
         ("gazetteer/gazetteer_dfw.parquet", _make_gazetteer_df),
@@ -126,61 +127,62 @@ def _write_staging(settings: Settings) -> None:
         ("fars/fars_dfw_2015_2022.parquet", _make_fars_df),
         ("usaspending/usaspending_dfw_2020_2024.parquet", _make_usaspending_df),
     ]:
-        path = settings.staging_dir / name
+        path = staging / name
         path.parent.mkdir(parents=True, exist_ok=True)
         df_fn().write_parquet(path)
 
 
-def test_metro_mart_single_row(settings: Settings) -> None:
+def test_metro_mart_single_row(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_metro_mart(settings, force=True)
+    df = build_metro_mart(settings, metro, force=True)
     assert len(df) == 1
 
 
-def test_metro_mart_identifier(settings: Settings) -> None:
+def test_metro_mart_identifier(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_metro_mart(settings, force=True)
+    df = build_metro_mart(settings, metro, force=True)
     row = df.to_dicts()[0]
-    assert row["county_fips"] == METRO_FIPS
-    assert row["county_name"] == METRO_NAME
+    assert row["county_fips"] == DFW.metro_fips
+    assert row["county_name"] == DFW.metro_name
 
 
-def test_metro_mart_population_sum(settings: Settings) -> None:
+def test_metro_mart_population_sum(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_metro_mart(settings, force=True)
+    df = build_metro_mart(settings, metro, force=True)
     row = df.to_dicts()[0]
     assert row["population"] == 100_000 * 12
 
 
-def test_metro_mart_weighted_income(settings: Settings) -> None:
+def test_metro_mart_weighted_income(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_metro_mart(settings, force=True)
+    df = build_metro_mart(settings, metro, force=True)
     row = df.to_dicts()[0]
     assert abs(row["per_capita_income"] - 30_000) < 1.0
 
 
-def test_metro_mart_safety_sums(settings: Settings) -> None:
+def test_metro_mart_safety_sums(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_metro_mart(settings, force=True)
+    df = build_metro_mart(settings, metro, force=True)
     row = df.to_dicts()[0]
     assert row["total_fatalities"] == 2 * 2 * 12
     assert row["total_crashes"] == 2 * 12
 
 
-def test_metro_mart_federal_spending(settings: Settings) -> None:
+def test_metro_mart_federal_spending(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_metro_mart(settings, force=True)
+    df = build_metro_mart(settings, metro, force=True)
     row = df.to_dicts()[0]
     assert row["federal_obligation"] == 1_000_000.0 * 12
     expected_per_capita = (1_000_000.0 * 12) / (100_000 * 12)
     assert abs(row["federal_per_capita"] - expected_per_capita) < 0.01
 
 
-def test_idempotent_skip(settings: Settings) -> None:
-    settings.marts_dir.mkdir(parents=True, exist_ok=True)
-    mart_path = settings.marts_dir / "metro_summary.parquet"
-    existing = pl.DataFrame({"county_fips": [METRO_FIPS]})
+def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
+    mart_dir = settings.metro_marts_dir("dfw")
+    mart_dir.mkdir(parents=True, exist_ok=True)
+    mart_path = mart_dir / "metro_summary.parquet"
+    existing = pl.DataFrame({"county_fips": [DFW.metro_fips]})
     existing.write_parquet(mart_path)
 
-    df = build_metro_mart(settings)
+    df = build_metro_mart(settings, metro)
     assert len(df) == 1

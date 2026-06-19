@@ -1,0 +1,160 @@
+"""UrbanStack data pipeline CLI."""
+
+from __future__ import annotations
+
+import argparse
+import logging
+from typing import TYPE_CHECKING
+
+from urbanstack.config import Settings, load_settings
+from urbanstack.metro import METRO_REGISTRY, get_metro
+
+if TYPE_CHECKING:
+    from urbanstack.metro import MetroConfig
+
+logger = logging.getLogger("urbanstack.cli")
+
+EXTRACTORS: dict[str, str] = {
+    "acs": "acs",
+    "fars": "fars",
+    "ntd": "ntd",
+    "umr": "umr",
+    "fhwa": "fhwa",
+    "epa_sld": "epa_sld",
+    "gtfs": "gtfs",
+    "gazetteer": "gazetteer",
+    "usaspending": "usaspending",
+    "tmas_stations": "tmas_stations",
+}
+
+
+def _run_extractor(
+    name: str,
+    settings: Settings,
+    metro: MetroConfig,
+    year: int | None,
+    *,
+    force: bool,
+) -> None:
+    if name == "acs":
+        from urbanstack.extract.acs import extract_acs
+
+        extract_acs(settings, metro, granularity="county", year=year or 2023, force=force)
+        extract_acs(settings, metro, granularity="block_group", year=year or 2023, force=force)
+    elif name == "fars":
+        from urbanstack.extract.fars import extract_fars
+
+        extract_fars(settings, metro, force=force)
+    elif name == "ntd":
+        from urbanstack.extract.ntd import extract_ntd
+
+        extract_ntd(settings, metro, force=force)
+    elif name == "umr":
+        from urbanstack.extract.umr import extract_umr
+
+        extract_umr(settings, metro, force=force)
+    elif name == "fhwa":
+        from urbanstack.extract.fhwa import extract_fhwa
+
+        extract_fhwa(settings, metro, year=year or 2023, force=force)
+    elif name == "epa_sld":
+        from urbanstack.extract.epa_sld import extract_epa_sld
+
+        extract_epa_sld(settings, metro, force=force)
+    elif name == "gtfs":
+        from urbanstack.extract.gtfs import extract_gtfs
+
+        extract_gtfs(settings, metro, force=force)
+    elif name == "gazetteer":
+        from urbanstack.extract.gazetteer import extract_gazetteer
+
+        extract_gazetteer(settings, metro, force=force)
+    elif name == "usaspending":
+        from urbanstack.extract.usaspending import extract_usaspending
+
+        extract_usaspending(settings, metro, force=force)
+    elif name == "tmas_stations":
+        from urbanstack.extract.tmas_stations import extract_tmas_stations
+
+        extract_tmas_stations(settings, metro, force=force)
+    else:
+        raise ValueError(f"Unknown extractor: {name}")
+
+
+def cmd_extract(args: argparse.Namespace, settings: Settings) -> None:
+    metro = get_metro(args.metro)
+    sources = list(EXTRACTORS) if args.source == "all" else [args.source]
+    for source in sources:
+        logger.info("Extracting %s for %s", source, metro.metro_id)
+        _run_extractor(source, settings, metro, args.year, force=args.force)
+
+
+def cmd_transform(args: argparse.Namespace, settings: Settings) -> None:
+    metro = get_metro(args.metro)
+
+    from urbanstack.transform.block_group_mart import build_block_group_mart
+    from urbanstack.transform.county_mart import build_county_mart, build_year_overlays
+    from urbanstack.transform.metro_mart import build_metro_mart
+
+    logger.info("Building county mart for %s", metro.metro_id)
+    build_county_mart(settings, metro, force=args.force)
+
+    logger.info("Building block group mart for %s", metro.metro_id)
+    build_block_group_mart(settings, metro, force=args.force)
+
+    logger.info("Building metro mart for %s", metro.metro_id)
+    build_metro_mart(settings, metro, force=args.force)
+
+    logger.info("Building year overlays for %s", metro.metro_id)
+    build_year_overlays(settings, metro)
+
+
+def cmd_national(_args: argparse.Namespace, _settings: Settings) -> None:
+    logger.info("National union not yet implemented")
+
+
+def cmd_load(_args: argparse.Namespace, _settings: Settings) -> None:
+    logger.info("DuckDB load not yet implemented")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(prog="urbanstack", description="UrbanStack data pipeline")
+    sub = parser.add_subparsers(dest="command", required=True)
+
+    metro_choices = sorted(METRO_REGISTRY)
+    source_choices = ["all", *sorted(EXTRACTORS)]
+
+    # extract
+    p_extract = sub.add_parser("extract", help="Extract raw data from sources")
+    p_extract.add_argument("--metro", required=True, choices=metro_choices)
+    p_extract.add_argument("--source", default="all", choices=source_choices)
+    p_extract.add_argument("--year", type=int, default=None)
+    p_extract.add_argument("--force", action="store_true")
+
+    # transform
+    p_transform = sub.add_parser("transform", help="Build mart summaries")
+    p_transform.add_argument("--metro", required=True, choices=metro_choices)
+    p_transform.add_argument("--force", action="store_true")
+
+    # national
+    sub.add_parser("national", help="Build national union tables")
+
+    # load
+    sub.add_parser("load", help="Load marts into DuckDB")
+
+    args = parser.parse_args()
+    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    settings = load_settings()
+    settings.ensure_dirs()
+
+    commands = {
+        "extract": cmd_extract,
+        "transform": cmd_transform,
+        "national": cmd_national,
+        "load": cmd_load,
+    }
+    commands[args.command](args, settings)
+
+
+if __name__ == "__main__":
+    main()
