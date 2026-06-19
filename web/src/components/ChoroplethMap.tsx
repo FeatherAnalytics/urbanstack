@@ -19,15 +19,7 @@ const BASEMAP_DARK =
 const BASEMAP_LIGHT =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
-const INITIAL_VIEW = {
-  longitude: -96.85,
-  latitude: 32.78,
-  zoom: 8,
-  pitch: 0,
-  bearing: 0,
-};
-
-interface DFWMapProps {
+interface ChoroplethMapProps {
   geojson: GeoJSON.FeatureCollection | null;
   counties: CountyData[];
   metric: MetricConfig;
@@ -39,9 +31,11 @@ interface DFWMapProps {
   granularity: Granularity;
   /** Additional deck.gl layers rendered on top of the choropleth */
   overlayLayers?: Layer[];
+  /** Map viewport (center, zoom, pitch, bearing) — driven by metro config */
+  viewport: { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number };
 }
 
-export function DFWMap({
+export function ChoroplethMap({
   geojson,
   counties,
   metric,
@@ -51,7 +45,8 @@ export function DFWMap({
   isDark,
   granularity,
   overlayLayers = [],
-}: DFWMapProps) {
+  viewport,
+}: ChoroplethMapProps) {
   const isMetro = granularity === "metro";
   const isBlockGroup = granularity === "block_group";
 
@@ -210,7 +205,7 @@ export function DFWMap({
   return (
     <div className="relative h-full w-full">
       <DeckGL
-        initialViewState={INITIAL_VIEW}
+        initialViewState={viewport}
         controller={true}
         layers={layers}
         onClick={handleClick}

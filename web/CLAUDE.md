@@ -16,7 +16,7 @@ npm run lint    # ESLint
 
 | Component | Purpose |
 |-----------|---------|
-| `DFWMap` | Main deck.gl + MapLibre choropleth map |
+| `ChoroplethMap` | Main deck.gl + MapLibre choropleth map (multi-metro via viewport prop) |
 | `MetricSelector` | Dropdown to pick active metric (grouped by category) |
 | `ComparisonChart` | Horizontal bar chart ranking counties/block groups |
 | `CountyDetail` | Sidebar detail panel for selected county |
@@ -27,8 +27,10 @@ npm run lint    # ESLint
 
 ## Data Flow
 
-- Static JSON/GeoJSON in `public/data/` — no API calls for core data
+- Static JSON/GeoJSON in `public/data/{metroId}/` — no API calls for core data
+- `lib/metro.ts` — metro registry (`MetroConfig`, `METROS`, `DEFAULT_METRO`)
 - `lib/data.ts` — metric configs, types (`CountyData`, `MetricConfig`), color interpolation, formatting
-- GeoJSON files: `dfw_counties.geojson`, `dfw_block_groups.geojson` (~27MB, lazy-loaded), `transit_routes.geojson`, `transit_stops.geojson`
-- Summary JSONs: `county_summary.json`, `block_group_summary.json`, `metro_summary.json`
+- GeoJSON files per metro: `counties.geojson`, `block_groups.geojson` (~27MB, lazy-loaded), `transit_routes.geojson`, `transit_stops.geojson`
+- Summary JSONs per metro: `county_summary.json`, `block_group_summary.json`, `metro_summary.json`
 - Adding a metric: one entry in `lib/data.ts` METRICS array + corresponding field in summary JSON
+- Adding a metro: one entry in `lib/metro.ts` METROS + data files in `public/data/{metroId}/`

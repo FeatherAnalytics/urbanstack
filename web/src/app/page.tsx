@@ -13,10 +13,11 @@ import {
   type MetricConfig,
   type OverlayIndex,
 } from "@/lib/data";
+import { METROS, DEFAULT_METRO } from "@/lib/metro";
 import { MetricSelector } from "@/components/MetricSelector";
 import { CountyDetailPopup } from "@/components/CountyDetail";
 import { ComparisonChart } from "@/components/ComparisonChart";
-import { DFWMap, MapTooltip } from "@/components/DFWMap";
+import { ChoroplethMap, MapTooltip } from "@/components/ChoroplethMap";
 import { ThemeToggle, useTheme } from "@/components/ThemeToggle";
 import { MapControls } from "@/components/MapControls";
 import { useTrafficLayer } from "@/components/TrafficLayer";
@@ -36,6 +37,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [selectedMetro, setSelectedMetro] = useState(DEFAULT_METRO);
   const [showTraffic, setShowTraffic] = useState(false);
   const [showRail, setShowRail] = useState(false);
   const [showBus, setShowBus] = useState(false);
@@ -55,7 +57,12 @@ export default function Home() {
   }, [showRail, showBus]);
 
   const trafficLayer = useTrafficLayer(showTraffic);
-  const transitLayers = useTransitLayers(transitModes);
+  const transitLayers = useTransitLayers(transitModes, selectedMetro);
+
+  const viewport = useMemo(() => {
+    const m = METROS[selectedMetro] ?? METROS[DEFAULT_METRO];
+    return { longitude: m.center[1], latitude: m.center[0], zoom: m.zoom, pitch: 0, bearing: 0 };
+  }, [selectedMetro]);
 
   const overlayLayers = useMemo(() => {
     const out = [];
@@ -65,20 +72,20 @@ export default function Home() {
   }, [trafficLayer, transitLayers]);
 
   useEffect(() => {
-    loadOverlayIndex().then((idx) => {
+    loadOverlayIndex(selectedMetro).then((idx) => {
       setOverlayIndex(idx);
       if (idx && idx.years.length > 0) {
         setSelectedYear(idx.years[idx.years.length - 1]);
       }
     });
-  }, []);
+  }, [selectedMetro]);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     setSelectedFips(null);
     setSelectedYear(null);
-    Promise.all([loadData(granularity), loadGeoJSON(granularity)])
+    Promise.all([loadData(selectedMetro, granularity), loadGeoJSON(selectedMetro, granularity)])
       .then(([data, geo]) => {
         setBaseCounties(data);
         setCounties(data);
@@ -87,7 +94,7 @@ export default function Home() {
       })
       .catch((err: unknown) => {
         if (granularity !== "county") {
-          Promise.all([loadData("county"), loadGeoJSON("county")])
+          Promise.all([loadData(selectedMetro, "county"), loadGeoJSON(selectedMetro, "county")])
             .then(([data, geo]) => {
               setBaseCounties(data);
               setCounties(data);
@@ -110,17 +117,17 @@ export default function Home() {
           setLoading(false);
         }
       });
-  }, [granularity]);
+  }, [selectedMetro, granularity]);
 
   useEffect(() => {
     if (!selectedYear || granularity !== "county") return;
     yearRef.current = selectedYear;
-    loadYearOverlay(selectedYear).then((overlay) => {
+    loadYearOverlay(selectedMetro, selectedYear).then((overlay) => {
       if (overlay && yearRef.current === selectedYear) {
         setCounties(mergeOverlay(baseCounties, overlay));
       }
     });
-  }, [selectedYear, baseCounties, granularity]);
+  }, [selectedMetro, selectedYear, baseCounties, granularity]);
 
   const mapRef = useRef<HTMLElement>(null);
 
@@ -138,7 +145,7 @@ export default function Home() {
   if (loading) {
     return (
       <div className="flex h-screen items-center justify-center bg-slate-50 text-slate-500 dark:bg-slate-900 dark:text-slate-400">
-        Loading DFW data...
+        Loading data...
       </div>
     );
   }
@@ -159,9 +166,26 @@ export default function Home() {
           UrbanStack
         </h1>
         <span className="text-sm text-slate-500 dark:text-slate-400">
-          DFW Urban Data Explorer
+          {METROS[selectedMetro]?.metro_name ?? "Urban Data"} Explorer
         </span>
         <div className="ml-auto flex items-center gap-3">
+          <select
+            value={selectedMetro}
+            onChange={(e) => {
+              setSelectedMetro(e.target.value);
+              setSelectedFips(null);
+              setOverlayIndex(null);
+              setSelectedYear(null);
+            }}
+            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            aria-label="Select metro area"
+          >
+            {Object.entries(METROS).map(([id, config]) => (
+              <option key={id} value={id}>
+                {config.metro_name}
+              </option>
+            ))}
+          </select>
           {overlayIndex && granularity === "county" && (
             <select
               value={selectedYear ?? ""}
@@ -208,7 +232,8 @@ export default function Home() {
 
         {/* Map area with floating county popup */}
         <main ref={mapRef} className="relative min-h-[300px] flex-1">
-          <DFWMap
+          <ChoroplethMap
+            key={selectedMetro}
             geojson={geojson}
             counties={counties}
             metric={selectedMetric}
@@ -218,6 +243,7 @@ export default function Home() {
             isDark={isDark}
             granularity={granularity}
             overlayLayers={overlayLayers}
+            viewport={viewport}
           />
           <MapTooltip
             county={hoverCounty}
