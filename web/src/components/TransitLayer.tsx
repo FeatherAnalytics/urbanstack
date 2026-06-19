@@ -7,7 +7,7 @@ type TransitMode = "rail" | "bus";
 
 const RAIL_TYPES = new Set(["rail", "tram", "other"]);
 
-export function useTransitLayers(modes: Set<TransitMode>) {
+export function useTransitLayers(modes: Set<TransitMode>, metroId: string) {
   const [routeData, setRouteData] =
     useState<GeoJSON.FeatureCollection | null>(null);
   const [stopData, setStopData] =
@@ -15,21 +15,27 @@ export function useTransitLayers(modes: Set<TransitMode>) {
 
   const enabled = modes.size > 0;
 
+  // Reset cached data when metro changes
+  useEffect(() => {
+    setRouteData(null);
+    setStopData(null);
+  }, [metroId]);
+
   useEffect(() => {
     if (!enabled) return;
     if (!routeData) {
-      fetch("/data/transit_routes.geojson")
+      fetch(`/data/${metroId}/transit_routes.geojson`)
         .then((r) => r.json())
         .then(setRouteData)
         .catch(() => {});
     }
     if (!stopData) {
-      fetch("/data/transit_stops.geojson")
+      fetch(`/data/${metroId}/transit_stops.geojson`)
         .then((r) => r.json())
         .then(setStopData)
         .catch(() => {});
     }
-  }, [enabled, routeData, stopData]);
+  }, [enabled, routeData, stopData, metroId]);
 
   const filteredRoutes = useMemo(() => {
     if (!routeData || !enabled) return null;

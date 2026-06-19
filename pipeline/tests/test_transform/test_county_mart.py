@@ -2,7 +2,7 @@ import polars as pl
 import pytest
 
 from urbanstack.config import Settings
-from urbanstack.geography import DFW_COUNTY_FIPS, DFW_STATE_FIPS
+from urbanstack.metro import DFW, MetroConfig
 from urbanstack.transform.county_mart import (
     _aggregate_epa_sld,
     _aggregate_fars,
@@ -12,10 +12,10 @@ from urbanstack.transform.county_mart import (
 
 def _make_acs_df() -> pl.DataFrame:
     rows = []
-    for name, fips in DFW_COUNTY_FIPS.items():
+    for name, fips in DFW.counties.items():
         rows.append(
             {
-                "state_fips": DFW_STATE_FIPS,
+                "state_fips": DFW.state_fips,
                 "county_fips": fips,
                 "name": f"{name} County, Texas",
                 "tract_fips": None,
@@ -38,10 +38,10 @@ def _make_acs_df() -> pl.DataFrame:
 
 def _make_gazetteer_df() -> pl.DataFrame:
     rows = []
-    for name, fips in DFW_COUNTY_FIPS.items():
+    for name, fips in DFW.counties.items():
         rows.append(
             {
-                "county_fips": f"{DFW_STATE_FIPS}{fips}",
+                "county_fips": f"{DFW.state_fips}{fips}",
                 "county_name": f"{name} County",
                 "state_abbr": "TX",
                 "land_area_sqm": 2_589_988_000,
@@ -55,12 +55,12 @@ def _make_gazetteer_df() -> pl.DataFrame:
 
 def _make_epa_sld_df() -> pl.DataFrame:
     rows = []
-    for fips in DFW_COUNTY_FIPS.values():
+    for fips in DFW.counties.values():
         for bg in range(3):
             rows.append(
                 {
-                    "geoid": f"{DFW_STATE_FIPS}{fips}01010{bg}",
-                    "state_fips": DFW_STATE_FIPS,
+                    "geoid": f"{DFW.state_fips}{fips}01010{bg}",
+                    "state_fips": DFW.state_fips,
                     "county_fips": fips,
                     "tract_fips": "010100",
                     "cbsa": "19100",
@@ -85,13 +85,13 @@ def _make_epa_sld_df() -> pl.DataFrame:
 def _make_fars_df() -> pl.DataFrame:
     rows = []
     case_id = 1000
-    for fips in DFW_COUNTY_FIPS.values():
+    for fips in DFW.counties.values():
         for _ in range(2):
             case_id += 1
             rows.append(
                 {
                     "case_id": case_id,
-                    "state_fips": DFW_STATE_FIPS,
+                    "state_fips": DFW.state_fips,
                     "county_fips": fips,
                     "year": 2022,
                     "month": 6,
@@ -108,10 +108,10 @@ def _make_fars_df() -> pl.DataFrame:
 
 def _make_usaspending_df() -> pl.DataFrame:
     rows = []
-    for fips in DFW_COUNTY_FIPS.values():
+    for fips in DFW.counties.values():
         rows.append(
             {
-                "county_fips": f"{DFW_STATE_FIPS}{fips}",
+                "county_fips": f"{DFW.state_fips}{fips}",
                 "county_name": "Test County",
                 "total_obligation": 1_000_000.0,
                 "per_capita": 10.0,
@@ -124,6 +124,7 @@ def _make_usaspending_df() -> pl.DataFrame:
 
 
 def _write_staging(settings: Settings) -> None:
+    staging = settings.metro_staging_dir("dfw")
     for name, df_fn in [
         ("acs/acs_county_2023.parquet", _make_acs_df),
         ("gazetteer/gazetteer_dfw.parquet", _make_gazetteer_df),
@@ -131,20 +132,20 @@ def _write_staging(settings: Settings) -> None:
         ("fars/fars_dfw_2015_2022.parquet", _make_fars_df),
         ("usaspending/usaspending_dfw_2020_2024.parquet", _make_usaspending_df),
     ]:
-        path = settings.staging_dir / name
+        path = staging / name
         path.parent.mkdir(parents=True, exist_ok=True)
         df_fn().write_parquet(path)
 
 
-def test_full_join_county_count(settings: Settings) -> None:
+def test_full_join_county_count(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_county_mart(settings, force=True)
+    df = build_county_mart(settings, metro, force=True)
     assert len(df) == 12
 
 
-def test_commute_percentages(settings: Settings) -> None:
+def test_commute_percentages(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_county_mart(settings, force=True)
+    df = build_county_mart(settings, metro, force=True)
     row = df.to_dicts()[0]
     total = 700 + 100 + 50 + 25 + 125
     assert abs(row["pct_drove_alone"] - 700 / total) < 0.001
@@ -171,35 +172,36 @@ def test_fars_aggregation() -> None:
     assert row["pedestrian_involved_crashes"] == 2
 
 
-def test_graceful_missing_sources(settings: Settings) -> None:
-    acs_dir = settings.staging_dir / "acs"
+def test_graceful_missing_sources(settings: Settings, metro: MetroConfig) -> None:
+    acs_dir = settings.metro_staging_dir("dfw") / "acs"
     acs_dir.mkdir(parents=True, exist_ok=True)
     _make_acs_df().write_parquet(acs_dir / "acs_county_2023.parquet")
 
-    df = build_county_mart(settings, force=True)
+    df = build_county_mart(settings, metro, force=True)
     assert len(df) == 12
     assert "pop_density_sqmi" in df.columns
     assert df["pop_density_sqmi"][0] is None
 
 
-def test_raises_without_acs(settings: Settings) -> None:
+def test_raises_without_acs(settings: Settings, metro: MetroConfig) -> None:
     with pytest.raises(FileNotFoundError, match="ACS"):
-        build_county_mart(settings, force=True)
+        build_county_mart(settings, metro, force=True)
 
 
-def test_idempotent_skip(settings: Settings) -> None:
-    settings.marts_dir.mkdir(parents=True, exist_ok=True)
-    mart_path = settings.marts_dir / "county_summary.parquet"
+def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
+    mart_dir = settings.metro_marts_dir("dfw")
+    mart_dir.mkdir(parents=True, exist_ok=True)
+    mart_path = mart_dir / "county_summary.parquet"
     existing = pl.DataFrame({"county_fips": ["48113"]})
     existing.write_parquet(mart_path)
 
-    df = build_county_mart(settings)
+    df = build_county_mart(settings, metro)
     assert len(df) == 1
 
 
-def test_pop_density_computed(settings: Settings) -> None:
+def test_pop_density_computed(settings: Settings, metro: MetroConfig) -> None:
     _write_staging(settings)
-    df = build_county_mart(settings, force=True)
+    df = build_county_mart(settings, metro, force=True)
     row = df.to_dicts()[0]
     land_sqmi = 2_589_988_000 / 2_589_988.0
     expected_density = 100_000 / land_sqmi

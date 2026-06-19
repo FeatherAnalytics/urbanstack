@@ -7,7 +7,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.acs import AcsRecord, Granularity
-from urbanstack.geography import DFW_COUNTY_FIPS
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -71,27 +71,27 @@ def _parse_response(
     return records
 
 
-def _fetch_county(url: str, api_key: str) -> list[list[str]]:
-    county_codes = ",".join(DFW_COUNTY_FIPS.values())
+def _fetch_county(url: str, api_key: str, metro: MetroConfig) -> list[list[str]]:
+    county_codes = ",".join(metro.counties.values())
     params = {
         "get": f"NAME,{','.join(ACS_VARIABLES.keys())}",
         "for": f"county:{county_codes}",
-        "in": "state:48",
+        "in": f"state:{metro.state_fips}",
         "key": api_key,
     }
     return _fetch(url, params)
 
 
-def _fetch_block_groups(url: str, api_key: str) -> list[list[str]]:
+def _fetch_block_groups(url: str, api_key: str, metro: MetroConfig) -> list[list[str]]:
     all_rows: list[list[str]] = []
     headers: list[str] | None = None
-    for i, county_fips in enumerate(DFW_COUNTY_FIPS.values()):
+    for i, county_fips in enumerate(metro.counties.values()):
         if i > 0:
             time.sleep(0.5)
         params: list[tuple[str, str]] = [
             ("get", f"NAME,{','.join(ACS_VARIABLES.keys())}"),
             ("for", "block group:*"),
-            ("in", "state:48"),
+            ("in", f"state:{metro.state_fips}"),
             ("in", f"county:{county_fips}"),
             ("key", api_key),
         ]
@@ -105,6 +105,7 @@ def _fetch_block_groups(url: str, api_key: str) -> list[list[str]]:
 
 def extract_acs(
     settings: Settings,
+    metro: MetroConfig,
     granularity: Granularity = "county",
     year: int = 2023,
     *,
@@ -113,7 +114,7 @@ def extract_acs(
     if not settings.census_api_key:
         raise ValueError("CENSUS_API_KEY is required -- set it in .env or pass via Settings")
 
-    parquet_dir = settings.staging_dir / "acs"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "acs"
     parquet_path = parquet_dir / f"acs_{granularity}_{year}.parquet"
 
     if parquet_path.exists() and not force:
@@ -123,11 +124,11 @@ def extract_acs(
     url = ACS_BASE_URL.format(year=year)
 
     if granularity == "county":
-        raw = _fetch_county(url, settings.census_api_key)
+        raw = _fetch_county(url, settings.census_api_key, metro)
     else:
-        raw = _fetch_block_groups(url, settings.census_api_key)
+        raw = _fetch_block_groups(url, settings.census_api_key, metro)
 
-    raw_dir = settings.raw_dir / "acs"
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "acs"
     raw_dir.mkdir(parents=True, exist_ok=True)
     raw_path = raw_dir / f"acs_{granularity}_{year}.json"
     raw_path.write_text(json.dumps(raw, indent=2))
