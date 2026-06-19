@@ -563,29 +563,26 @@ export const CATEGORIES: MetricCategory[] = [
 
 export type Granularity = "metro" | "county" | "block_group";
 
-const DATA_FILES: Record<Granularity, string> = {
-  metro: "/data/metro_summary.json",
-  county: "/data/county_summary.json",
-  block_group: "/data/block_group_summary.json",
-};
+function dataPath(metroId: string, granularity: Granularity): string {
+  return `/data/${metroId}/${granularity}_summary.json`;
+}
 
-const GEOJSON_FILES: Record<Granularity, string> = {
-  metro: "/data/dfw_counties.geojson",
-  county: "/data/dfw_counties.geojson",
-  block_group: "/data/dfw_block_groups.geojson",
-};
+function geoJsonPath(metroId: string, granularity: Granularity): string {
+  const file = granularity === "block_group" ? "block_groups" : "counties";
+  return `/data/${metroId}/${file}.geojson`;
+}
 
 /** Load data for any granularity level. */
-export async function loadData(granularity: Granularity): Promise<CountyData[]> {
-  const file = DATA_FILES[granularity];
+export async function loadData(metroId: string, granularity: Granularity): Promise<CountyData[]> {
+  const file = dataPath(metroId, granularity);
   const resp = await fetch(file);
   if (!resp.ok) throw new Error(`Failed to load ${granularity} data: ${resp.status}`);
   return resp.json() as Promise<CountyData[]>;
 }
 
 /** Load GeoJSON for any granularity level. */
-export async function loadGeoJSON(granularity: Granularity): Promise<GeoJSON.FeatureCollection> {
-  const file = GEOJSON_FILES[granularity];
+export async function loadGeoJSON(metroId: string, granularity: Granularity): Promise<GeoJSON.FeatureCollection> {
+  const file = geoJsonPath(metroId, granularity);
   const resp = await fetch(file);
   if (!resp.ok) throw new Error(`Failed to load ${granularity} GeoJSON: ${resp.status}`);
   return resp.json() as Promise<GeoJSON.FeatureCollection>;
@@ -595,9 +592,9 @@ export interface OverlayIndex {
   years: number[];
 }
 
-export async function loadOverlayIndex(): Promise<OverlayIndex | null> {
+export async function loadOverlayIndex(metroId: string): Promise<OverlayIndex | null> {
   try {
-    const resp = await fetch("/data/overlays/index.json");
+    const resp = await fetch(`/data/${metroId}/overlays/index.json`);
     if (!resp.ok) return null;
     return resp.json() as Promise<OverlayIndex>;
   } catch {
@@ -606,10 +603,11 @@ export async function loadOverlayIndex(): Promise<OverlayIndex | null> {
 }
 
 export async function loadYearOverlay(
+  metroId: string,
   year: number,
 ): Promise<Record<string, Partial<CountyData>> | null> {
   try {
-    const resp = await fetch(`/data/overlays/county_${year}.json`);
+    const resp = await fetch(`/data/${metroId}/overlays/county_${year}.json`);
     if (!resp.ok) return null;
     const records = (await resp.json()) as Partial<CountyData>[];
     const map: Record<string, Partial<CountyData>> = {};
