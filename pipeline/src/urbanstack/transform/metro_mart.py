@@ -6,6 +6,8 @@ import polars as pl
 
 from urbanstack.config import Settings
 from urbanstack.transform.county_mart import build_county_mart
+from urbanstack.transform.derived import apply_derived_metrics
+from urbanstack.utils import find_parquet
 
 logger = logging.getLogger(__name__)
 
@@ -140,17 +142,83 @@ def build_metro_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame
         else:
             result[c] = None
 
-    congestion_cols = [
-        "travel_time_index",
-        "planning_time_index",
-        "annual_delay_hours",
-        "congestion_cost",
-    ]
-    for c in congestion_cols:
-        if c in county.columns:
-            result[c] = county.select(pl.col(c).mean()).item()
+    if result.get("total_fatalities") and total_pop and total_pop > 0:
+        result["fatalities_per_capita"] = result["total_fatalities"] / total_pop
+    else:
+        result["fatalities_per_capita"] = None
+    if result.get("total_crashes") and total_pop and total_pop > 0:
+        result["crashes_per_capita"] = result["total_crashes"] / total_pop
+    else:
+        result["crashes_per_capita"] = None
+
+    umr_path = settings.staging_dir / "umr" / "umr_dfw.parquet"
+    if umr_path.exists():
+        umr = pl.read_parquet(umr_path)
+        latest = umr.sort("year", descending=True).head(1).to_dicts()[0]
+        result["travel_time_index"] = latest.get("travel_time_index")
+        result["planning_time_index"] = latest.get("planning_time_index")
+        result["annual_delay_hours"] = latest.get("annual_delay_per_commuter")
+        result["congestion_cost"] = latest.get("congestion_cost_per_commuter")
+    else:
+        result["travel_time_index"] = None
+        result["planning_time_index"] = None
+        result["annual_delay_hours"] = None
+        result["congestion_cost"] = None
+
+    if "total_delay_hours" in county.columns:
+        result["total_delay_hours"] = county.select(pl.col("total_delay_hours").sum()).item()
+    else:
+        result["total_delay_hours"] = None
+    if "total_congestion_cost" in county.columns:
+        result["total_congestion_cost"] = county.select(pl.col("total_congestion_cost").sum()).item()
+    else:
+        result["total_congestion_cost"] = None
+
+    if result.get("total_delay_hours") and total_pop and total_pop > 0:
+        result["delay_per_capita"] = result["total_delay_hours"] / total_pop
+    else:
+        result["delay_per_capita"] = None
+    if result.get("total_congestion_cost") and total_pop and total_pop > 0:
+        result["congestion_cost_per_capita"] = result["total_congestion_cost"] / total_pop
+    else:
+        result["congestion_cost_per_capita"] = None
+
+    if "total_annual_ridership" in county.columns:
+        result["total_annual_ridership"] = county.select(pl.col("total_annual_ridership").sum()).item()
+    else:
+        result["total_annual_ridership"] = None
+
+    if result.get("total_annual_ridership") and total_pop and total_pop > 0:
+        result["ridership_per_capita"] = result["total_annual_ridership"] / total_pop
+    else:
+        result["ridership_per_capita"] = None
+
+    ntd_path = find_parquet(settings.staging_dir / "ntd")
+    if ntd_path:
+        ntd = pl.read_parquet(ntd_path)
+        full_years = (
+            ntd.group_by("year")
+            .agg(pl.col("month").n_unique().alias("n_months"))
+            .filter(pl.col("n_months") >= 12)
+            .sort("year", descending=True)
+        )
+        if not full_years.is_empty():
+            latest_year = full_years["year"][0]
+            year_data = ntd.filter(pl.col("year") == latest_year)
+            result["transit_revenue_miles"] = year_data.select(
+                pl.col("vehicle_revenue_miles").sum()
+            ).item()
         else:
-            result[c] = None
+            result["transit_revenue_miles"] = None
+    else:
+        result["transit_revenue_miles"] = None
+
+    if "avg_daily_traffic" in county.columns:
+        result["avg_daily_traffic"] = county.select(
+            pl.col("avg_daily_traffic").mean()
+        ).item()
+    else:
+        result["avg_daily_traffic"] = None
 
     area_cols = ["land_area_sqm", "water_area_sqm", "land_area_sqmi", "latitude", "longitude"]
     for c in area_cols:
@@ -163,6 +231,7 @@ def build_metro_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame
             result[c] = None
 
     metro_df = pl.DataFrame([result])
+    metro_df = apply_derived_metrics(metro_df)
 
     settings.marts_dir.mkdir(parents=True, exist_ok=True)
     metro_df.write_parquet(mart_path)
