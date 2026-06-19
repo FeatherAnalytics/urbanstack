@@ -6,7 +6,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.usaspending import UsaspendingCountyRecord
-from urbanstack.geography import DFW_COUNTY_FIPS, DFW_STATE_FIPS
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -51,21 +51,22 @@ def _to_records(
 
 def extract_usaspending(
     settings: Settings,
+    metro: MetroConfig,
     start_year: int = 2020,
     end_year: int = 2024,
     *,
     defc: str | None = None,
     force: bool = False,
 ) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "usaspending"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "usaspending"
     suffix = f"_defc_{defc}" if defc else ""
-    parquet_path = parquet_dir / f"usaspending_dfw_{start_year}_{end_year}{suffix}.parquet"
+    parquet_path = parquet_dir / f"usaspending_{metro.metro_id}_{start_year}_{end_year}{suffix}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
         return pl.read_parquet(parquet_path)
 
-    county_fips_list = [f"{DFW_STATE_FIPS}{fips}" for fips in DFW_COUNTY_FIPS.values()]
+    county_fips_list = list(metro.county_fips_5_set)
     start_date = f"{start_year}-10-01"
     end_date = f"{end_year}-09-30"
 
@@ -87,9 +88,9 @@ def extract_usaspending(
     resp.raise_for_status()
     data = resp.json()
 
-    raw_dir = settings.raw_dir / "usaspending"
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "usaspending"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = raw_dir / f"usaspending_dfw_{start_year}_{end_year}{suffix}.json"
+    raw_path = raw_dir / f"usaspending_{metro.metro_id}_{start_year}_{end_year}{suffix}.json"
     raw_path.write_text(json.dumps(data, indent=2))
 
     results = data.get("results", [])

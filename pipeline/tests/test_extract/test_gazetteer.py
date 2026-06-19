@@ -7,6 +7,7 @@ import polars as pl
 from urbanstack.config import Settings
 from urbanstack.contracts.gazetteer import GazetteerRecord
 from urbanstack.extract.gazetteer import extract_gazetteer
+from urbanstack.metro import MetroConfig
 
 HEADER = "USPS\tGEOID\tANSICODE\tNAME\tALAND\tAWATER\tALAND_SQMI\tAWATER_SQMI\tINTPTLAT\tINTPTLONG"
 
@@ -39,13 +40,13 @@ def _make_zip_bytes() -> bytes:
     return buf.getvalue()
 
 
-def test_filters_to_dfw(settings: Settings) -> None:
+def test_filters_to_dfw(settings: Settings, metro: MetroConfig) -> None:
     mock_resp = MagicMock()
     mock_resp.content = _make_zip_bytes()
     mock_resp.raise_for_status = MagicMock()
 
     with patch("urbanstack.extract.gazetteer.requests.get", return_value=mock_resp):
-        df = extract_gazetteer(settings, force=True)
+        df = extract_gazetteer(settings, metro, force=True)
 
     assert len(df) == 2
     fips = set(df["county_fips"].to_list())
@@ -54,13 +55,13 @@ def test_filters_to_dfw(settings: Settings) -> None:
     assert "06037" not in fips
 
 
-def test_contract_validation(settings: Settings) -> None:
+def test_contract_validation(settings: Settings, metro: MetroConfig) -> None:
     mock_resp = MagicMock()
     mock_resp.content = _make_zip_bytes()
     mock_resp.raise_for_status = MagicMock()
 
     with patch("urbanstack.extract.gazetteer.requests.get", return_value=mock_resp):
-        df = extract_gazetteer(settings, force=True)
+        df = extract_gazetteer(settings, metro, force=True)
 
     row = df.filter(pl.col("county_fips") == "48113").to_dicts()[0]
     record = GazetteerRecord.model_validate(row)
@@ -69,27 +70,27 @@ def test_contract_validation(settings: Settings) -> None:
     assert record.land_area_sqm == 2257107926
 
 
-def test_idempotent_skip(settings: Settings) -> None:
-    parquet_dir = settings.staging_dir / "gazetteer"
+def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "gazetteer"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / "gazetteer_dfw.parquet"
+    parquet_path = parquet_dir / f"gazetteer_{metro.metro_id}.parquet"
     existing = pl.DataFrame({"county_fips": ["48113"], "county_name": ["Dallas County"]})
     existing.write_parquet(parquet_path)
 
     with patch("urbanstack.extract.gazetteer.requests.get") as mock_get:
-        df = extract_gazetteer(settings)
+        df = extract_gazetteer(settings, metro)
         mock_get.assert_not_called()
 
     assert len(df) == 1
 
 
-def test_saves_raw_file(settings: Settings) -> None:
+def test_saves_raw_file(settings: Settings, metro: MetroConfig) -> None:
     mock_resp = MagicMock()
     mock_resp.content = _make_zip_bytes()
     mock_resp.raise_for_status = MagicMock()
 
     with patch("urbanstack.extract.gazetteer.requests.get", return_value=mock_resp):
-        extract_gazetteer(settings, force=True)
+        extract_gazetteer(settings, metro, force=True)
 
     raw_path = settings.raw_dir / "gazetteer" / "2024_Gaz_counties_national.txt"
     assert raw_path.exists()

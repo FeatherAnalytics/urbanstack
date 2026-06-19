@@ -8,7 +8,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.gazetteer import GazetteerRecord
-from urbanstack.geography import DFW_COUNTY_FIPS, DFW_STATE_FIPS
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -37,13 +37,11 @@ def _download(dest: Path, *, force: bool = False) -> None:
     logger.info("Download complete: %s (%d bytes)", dest, len(resp.content))
 
 
-def _parse(raw_path: Path) -> list[GazetteerRecord]:
+def _parse(raw_path: Path, metro: MetroConfig) -> list[GazetteerRecord]:
     df = pl.read_csv(raw_path, separator="\t", infer_schema_length=0)
     df = df.rename({c: c.strip() for c in df.columns})
 
-    county_fips_set = {f"{DFW_STATE_FIPS}{fips}" for fips in DFW_COUNTY_FIPS.values()}
-
-    df = df.filter(pl.col("GEOID").str.strip_chars().is_in(county_fips_set))
+    df = df.filter(pl.col("GEOID").str.strip_chars().is_in(metro.county_fips_5_set))
 
     records: list[GazetteerRecord] = []
     for row in df.to_dicts():
@@ -63,9 +61,9 @@ def _parse(raw_path: Path) -> list[GazetteerRecord]:
     return records
 
 
-def extract_gazetteer(settings: Settings, *, force: bool = False) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "gazetteer"
-    parquet_path = parquet_dir / "gazetteer_dfw.parquet"
+def extract_gazetteer(settings: Settings, metro: MetroConfig, *, force: bool = False) -> pl.DataFrame:
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "gazetteer"
+    parquet_path = parquet_dir / f"gazetteer_{metro.metro_id}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
@@ -74,7 +72,7 @@ def extract_gazetteer(settings: Settings, *, force: bool = False) -> pl.DataFram
     raw_path = settings.raw_dir / "gazetteer" / "2024_Gaz_counties_national.txt"
     _download(raw_path, force=force)
 
-    records = _parse(raw_path)
+    records = _parse(raw_path, metro)
     row_dicts = [r.model_dump() for r in records]
     df = pl.DataFrame(row_dicts)
 

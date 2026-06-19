@@ -5,7 +5,8 @@ from pathlib import Path
 import polars as pl
 
 from urbanstack.config import Settings
-from urbanstack.geography import DFW_STATE_FIPS
+from urbanstack.metro import MetroConfig
+from urbanstack.transform._shared import infer_congestion, infer_ridership, sanitize_records
 from urbanstack.transform.derived import apply_derived_metrics
 from urbanstack.utils import find_parquet
 
@@ -139,70 +140,6 @@ def _aggregate_fhwa(fhwa: pl.DataFrame, stations: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def _infer_ridership(base: pl.DataFrame, ntd: pl.DataFrame) -> pl.DataFrame:
-    full_years = (
-        ntd.group_by("year")
-        .agg(pl.col("month").n_unique().alias("n_months"))
-        .filter(pl.col("n_months") >= 12)
-        .sort("year", descending=True)
-    )
-    if full_years.is_empty():
-        logger.warning("NTD: no year with 12 months of data")
-        return base.with_columns(
-            pl.lit(None).cast(pl.Int64).alias("total_annual_ridership"),
-            pl.lit(None).cast(pl.Float64).alias("ridership_per_capita"),
-        )
-
-    latest_year = full_years["year"][0]
-    year_data = ntd.filter(pl.col("year") == latest_year)
-
-    metro_total_ridership = year_data.select(pl.col("unlinked_passenger_trips").sum()).item()
-
-    base = base.with_columns(
-        (pl.col("pct_transit") * pl.col("total_commuters")).alias("_county_transit_commuters"),
-    )
-    metro_transit_commuters = base.select(pl.col("_county_transit_commuters").sum()).item()
-
-    if not metro_transit_commuters or metro_transit_commuters == 0:
-        return base.drop("_county_transit_commuters").with_columns(
-            pl.lit(None).cast(pl.Int64).alias("total_annual_ridership"),
-            pl.lit(None).cast(pl.Float64).alias("ridership_per_capita"),
-        )
-
-    base = base.with_columns(
-        (
-            pl.lit(metro_total_ridership)
-            * (pl.col("_county_transit_commuters") / pl.lit(metro_transit_commuters))
-        )
-        .cast(pl.Int64)
-        .alias("total_annual_ridership"),
-    )
-    base = base.with_columns(
-        (pl.col("total_annual_ridership").cast(pl.Float64) / pl.col("total_population").cast(pl.Float64))
-        .alias("ridership_per_capita"),
-    )
-    return base.drop("_county_transit_commuters")
-
-
-def _infer_congestion(base: pl.DataFrame, umr: pl.DataFrame) -> pl.DataFrame:
-    latest = umr.sort("year", descending=True).head(1).to_dicts()[0]
-    delay_per = latest.get("annual_delay_per_commuter")
-    cost_per = latest.get("congestion_cost_per_commuter")
-
-    base = base.with_columns(
-        (pl.col("pct_drove_alone") * pl.col("total_commuters")).alias("_auto_commuters"),
-    )
-    base = base.with_columns(
-        (pl.lit(delay_per) * pl.col("_auto_commuters")).cast(pl.Float64).alias("total_delay_hours"),
-        (pl.lit(cost_per) * pl.col("_auto_commuters")).cast(pl.Float64).alias("total_congestion_cost"),
-    )
-    base = base.with_columns(
-        (pl.col("total_delay_hours") / pl.col("total_population").cast(pl.Float64)).alias("delay_per_capita"),
-        (pl.col("total_congestion_cost") / pl.col("total_population").cast(pl.Float64)).alias("congestion_cost_per_capita"),
-    )
-    return base.drop("_auto_commuters")
-
-
 def _select_usaspending(usa: pl.DataFrame) -> pl.DataFrame:
     return usa.select(
         pl.col("county_fips"),
@@ -229,29 +166,30 @@ def _join_gazetteer(base: pl.DataFrame, gaz: pl.DataFrame) -> pl.DataFrame:
     )
 
 
-def build_county_mart(settings: Settings, *, force: bool = False) -> pl.DataFrame:
-    mart_path = settings.marts_dir / "county_summary.parquet"
+def build_county_mart(settings: Settings, metro: MetroConfig, *, force: bool = False) -> pl.DataFrame:
+    staging = settings.metro_staging_dir(metro.metro_id)
+    mart_path = settings.metro_marts_dir(metro.metro_id) / "county_summary.parquet"
 
     if mart_path.exists() and not force:
         logger.info("Mart exists, skipping: %s", mart_path)
         return pl.read_parquet(mart_path)
 
-    acs_path = settings.staging_dir / "acs" / "acs_county_2023.parquet"
+    acs_path = staging / "acs" / "acs_county_2023.parquet"
     if not acs_path.exists():
-        acs_path = find_parquet(settings.staging_dir / "acs")
+        acs_path = find_parquet(staging / "acs")
     if acs_path is None:
         raise FileNotFoundError(
-            f"ACS staging parquet required but not found in {settings.staging_dir / 'acs'}"
+            f"ACS staging parquet required but not found in {staging / 'acs'}"
         )
 
     acs = pl.read_parquet(acs_path)
-    acs = acs.filter(pl.col("state_fips") == DFW_STATE_FIPS)
+    acs = acs.filter(pl.col("state_fips") == metro.state_fips)
     if "tract_fips" in acs.columns:
         acs = acs.filter(pl.col("tract_fips").is_null())
 
     base = _build_acs_base(acs)
 
-    gaz_path = find_parquet(settings.staging_dir / "gazetteer")
+    gaz_path = find_parquet(staging / "gazetteer")
     gaz = _read_staging(gaz_path, "gazetteer") if gaz_path else None
     if gaz is not None:
         base = _join_gazetteer(base, gaz)
@@ -266,7 +204,7 @@ def build_county_mart(settings: Settings, *, force: bool = False) -> pl.DataFram
             pl.lit(None).cast(pl.Float64).alias("pop_density"),
         )
 
-    epa_path = find_parquet(settings.staging_dir / "epa_sld")
+    epa_path = find_parquet(staging / "epa_sld")
     epa = _read_staging(epa_path, "epa_sld") if epa_path else None
     if epa is not None:
         epa_agg = _aggregate_epa_sld(epa)
@@ -274,7 +212,7 @@ def build_county_mart(settings: Settings, *, force: bool = False) -> pl.DataFram
     else:
         logger.warning("EPA SLD missing — walkability columns will be null")
 
-    fars_path = find_parquet(settings.staging_dir / "fars")
+    fars_path = find_parquet(staging / "fars")
     fars = _read_staging(fars_path, "fars") if fars_path else None
     if fars is not None:
         fars_agg = _aggregate_fars(fars)
@@ -286,10 +224,10 @@ def build_county_mart(settings: Settings, *, force: bool = False) -> pl.DataFram
     else:
         logger.warning("FARS missing — crash columns will be null")
 
-    umr_path = settings.staging_dir / "umr" / "umr_dfw.parquet"
+    umr_path = staging / "umr" / f"umr_{metro.metro_id}.parquet"
     umr = _read_staging(umr_path, "umr")
     if umr is not None:
-        base = _infer_congestion(base, umr)
+        base = infer_congestion(base, umr)
     else:
         logger.warning("UMR missing — congestion columns will be null")
         base = base.with_columns(
@@ -299,14 +237,14 @@ def build_county_mart(settings: Settings, *, force: bool = False) -> pl.DataFram
             pl.lit(None).cast(pl.Float64).alias("congestion_cost_per_capita"),
         )
 
-    ntd_path = find_parquet(settings.staging_dir / "ntd")
+    ntd_path = find_parquet(staging / "ntd")
     ntd = _read_staging(ntd_path, "ntd") if ntd_path else None
     if ntd is not None:
-        base = _infer_ridership(base, ntd)
+        base = infer_ridership(base, ntd)
     else:
         logger.warning("NTD missing — ridership columns will be null")
 
-    usa_dir = settings.staging_dir / "usaspending"
+    usa_dir = staging / "usaspending"
     usa_path = find_parquet(usa_dir)
     usa = _read_staging(usa_path, "usaspending") if usa_path else None
     if usa is not None:
@@ -315,9 +253,9 @@ def build_county_mart(settings: Settings, *, force: bool = False) -> pl.DataFram
     else:
         logger.warning("USAspending missing — federal spending columns will be null")
 
-    fhwa_path = find_parquet(settings.staging_dir / "fhwa")
+    fhwa_path = find_parquet(staging / "fhwa")
     fhwa = _read_staging(fhwa_path, "fhwa") if fhwa_path else None
-    stations_path = find_parquet(settings.staging_dir / "tmas_stations")
+    stations_path = find_parquet(staging / "tmas_stations")
     stations = _read_staging(stations_path, "tmas_stations") if stations_path else None
     if fhwa is not None and stations is not None:
         fhwa_agg = _aggregate_fhwa(fhwa, stations)
@@ -334,17 +272,15 @@ def build_county_mart(settings: Settings, *, force: bool = False) -> pl.DataFram
     base = base.rename(rename_map)
 
     base = apply_derived_metrics(base)
+    base = base.with_columns(pl.lit(metro.metro_id).alias("metro_id"))
 
-    settings.marts_dir.mkdir(parents=True, exist_ok=True)
+    mart_path.parent.mkdir(parents=True, exist_ok=True)
     base.write_parquet(mart_path)
     logger.info("Wrote county mart: %d rows to %s", len(base), mart_path)
 
-    json_path = (
-        Path(settings.data_dir).resolve().parent.parent
-        / "web" / "public" / "data" / "county_summary.json"
-    )
+    json_path = settings.web_data_dir(metro.metro_id) / "county_summary.json"
     json_path.parent.mkdir(parents=True, exist_ok=True)
-    records = _sanitize_records(base.to_dicts())
+    records = sanitize_records(base.to_dicts())
     json_path.write_text(json.dumps(records, indent=2, default=str))
     logger.info("Wrote county JSON: %d rows to %s", len(records), json_path)
 
@@ -401,27 +337,17 @@ def _ridership_for_year(
     ).select("county_fips", "total_annual_ridership")
 
 
-def _sanitize_records(records: list[dict]) -> list[dict]:
-    for r in records:
-        for k, v in r.items():
-            if isinstance(v, float) and (v != v):
-                r[k] = None
-    return records
-
-
-def build_year_overlays(settings: Settings) -> None:
-    web_dir = (
-        Path(settings.data_dir).resolve().parent.parent
-        / "web" / "public" / "data" / "overlays"
-    )
+def build_year_overlays(settings: Settings, metro: MetroConfig) -> None:
+    staging = settings.metro_staging_dir(metro.metro_id)
+    web_dir = settings.web_data_dir(metro.metro_id) / "overlays"
     web_dir.mkdir(parents=True, exist_ok=True)
 
-    acs_path = find_parquet(settings.staging_dir / "acs")
+    acs_path = find_parquet(staging / "acs")
     if acs_path is None:
         logger.warning("ACS missing — cannot build year overlays (need commute shares)")
         return
 
-    acs = pl.read_parquet(acs_path).filter(pl.col("state_fips") == DFW_STATE_FIPS)
+    acs = pl.read_parquet(acs_path).filter(pl.col("state_fips") == metro.state_fips)
     if "tract_fips" in acs.columns:
         acs = acs.filter(pl.col("tract_fips").is_null())
     base = _build_acs_base(acs)
@@ -431,12 +357,12 @@ def build_year_overlays(settings: Settings) -> None:
         (pl.col("pct_transit") * pl.col("total_commuters")).alias("county_transit_commuters"),
     )
 
-    fars_files = sorted((settings.staging_dir / "fars").glob("*.parquet")) if (settings.staging_dir / "fars").exists() else []
+    fars_files = sorted((staging / "fars").glob("*.parquet")) if (staging / "fars").exists() else []
     fars: pl.DataFrame | None = None
     if fars_files:
         fars = pl.concat([pl.read_parquet(f) for f in fars_files]).unique()
 
-    ntd_path = find_parquet(settings.staging_dir / "ntd")
+    ntd_path = find_parquet(staging / "ntd")
     ntd: pl.DataFrame | None = _read_staging(ntd_path, "ntd") if ntd_path else None
 
     if fars is None and ntd is None:
@@ -468,7 +394,7 @@ def build_year_overlays(settings: Settings) -> None:
                 overlay = overlay.join(ridership, on="county_fips", how="outer_coalesce") if overlay is not None else ridership
 
         if overlay is not None and not overlay.is_empty():
-            records = _sanitize_records(overlay.to_dicts())
+            records = sanitize_records(overlay.to_dicts())
             out_path = web_dir / f"county_{year}.json"
             out_path.write_text(json.dumps(records, indent=2, default=str))
             written_years.append(year)

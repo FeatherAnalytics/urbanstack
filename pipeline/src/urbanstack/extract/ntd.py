@@ -7,16 +7,11 @@ import polars as pl
 from urbanstack.config import Settings
 from urbanstack.contracts.ntd import NtdRidershipRecord
 from urbanstack.extract._socrata import fetch_socrata_pages
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
 NTD_MONTHLY_URL = "https://data.transportation.gov/resource/8bui-9xvu.json"
-
-DFW_TRANSIT_AGENCIES: dict[str, str] = {
-    "60056": "Dallas Area Rapid Transit",
-    "60007": "Fort Worth Transportation Authority",
-    "60101": "Denton County Transportation Authority",
-}
 
 
 def _fetch_agency(ntd_id: str) -> list[dict[str, str]]:
@@ -63,26 +58,27 @@ def _to_records(raw_rows: list[dict[str, str]]) -> list[NtdRidershipRecord]:
 
 def extract_ntd(
     settings: Settings,
+    metro: MetroConfig,
     *,
     force: bool = False,
 ) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "ntd"
-    parquet_path = parquet_dir / "ntd_dfw.parquet"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "ntd"
+    parquet_path = parquet_dir / f"ntd_{metro.metro_id}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
         return pl.read_parquet(parquet_path)
 
     all_raw: list[dict[str, str]] = []
-    for i, ntd_id in enumerate(DFW_TRANSIT_AGENCIES):
+    for i, ntd_id in enumerate(metro.transit_agencies):
         if i > 0:
             time.sleep(0.5)
         rows = _fetch_agency(ntd_id)
         all_raw.extend(rows)
 
-    raw_dir = settings.raw_dir / "ntd"
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "ntd"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = raw_dir / "ntd_dfw.json"
+    raw_path = raw_dir / f"ntd_{metro.metro_id}.json"
     raw_path.write_text(json.dumps(all_raw, indent=2))
 
     records = _to_records(all_raw)

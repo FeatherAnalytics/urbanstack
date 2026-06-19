@@ -5,6 +5,7 @@ import pytest
 
 from urbanstack.config import Settings
 from urbanstack.extract.fhwa import extract_fhwa
+from urbanstack.metro import MetroConfig
 
 
 @pytest.fixture(autouse=True)
@@ -43,7 +44,7 @@ def _mock_get_single_page(rows: list[dict[str, str]]) -> MagicMock:
     return mock_resp
 
 
-def test_extract_basic(settings: Settings) -> None:
+def test_extract_basic(settings: Settings, metro: MetroConfig) -> None:
     rows = [
         _make_row(station_id="000004", month="1", day="15"),
         _make_row(station_id="000006", month="1", day="15", daily_volume="4417"),
@@ -63,7 +64,7 @@ def test_extract_basic(settings: Settings) -> None:
     with patch("urbanstack.extract._socrata.requests.get", return_value=mock_resp) as mock_get:
         mock_get.side_effect = None
         mock_get.return_value = mock_resp
-        df = extract_fhwa(settings, year=2023)
+        df = extract_fhwa(settings, metro, year=2023)
 
     assert isinstance(df, pl.DataFrame)
     assert "station_id" in df.columns
@@ -72,7 +73,7 @@ def test_extract_basic(settings: Settings) -> None:
     assert all(v == "48" for v in df["state_fips"].to_list())
 
 
-def test_daily_volume_values(settings: Settings) -> None:
+def test_daily_volume_values(settings: Settings, metro: MetroConfig) -> None:
     rows = [
         _make_row(daily_volume="133732"),
         _make_row(station_id="000006", daily_volume="4417"),
@@ -80,14 +81,14 @@ def test_daily_volume_values(settings: Settings) -> None:
     mock_resp = _mock_get_single_page(rows)
 
     with patch("urbanstack.extract._socrata.requests.get", return_value=mock_resp):
-        df = extract_fhwa(settings, year=2023)
+        df = extract_fhwa(settings, metro, year=2023)
 
     volumes = sorted(df["daily_volume"].to_list())
     assert 4417 in volumes
     assert 133732 in volumes
 
 
-def test_null_volume_skipped(settings: Settings) -> None:
+def test_null_volume_skipped(settings: Settings, metro: MetroConfig) -> None:
     rows = [
         _make_row(daily_volume="100"),
         {
@@ -103,14 +104,14 @@ def test_null_volume_skipped(settings: Settings) -> None:
     mock_resp = _mock_get_single_page(rows)
 
     with patch("urbanstack.extract._socrata.requests.get", return_value=mock_resp):
-        df = extract_fhwa(settings, year=2023)
+        df = extract_fhwa(settings, metro, year=2023)
 
     assert len(df) > 0
     station_ids = df["station_id"].to_list()
     assert "000099" not in station_ids
 
 
-def test_pagination(settings: Settings) -> None:
+def test_pagination(settings: Settings, metro: MetroConfig) -> None:
     import re
 
     page1 = [_make_row(station_id=f"{i:06d}") for i in range(50000)]
@@ -138,30 +139,30 @@ def test_pagination(settings: Settings) -> None:
         return mock
 
     with patch("urbanstack.extract._socrata.requests.get", side_effect=side_effect):
-        df = extract_fhwa(settings, year=2023)
+        df = extract_fhwa(settings, metro, year=2023)
 
     assert len(df) == 50001
     assert call_count > 12
 
 
-def test_idempotent_skip(settings: Settings) -> None:
-    parquet_dir = settings.staging_dir / "fhwa"
+def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "fhwa"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / "fhwa_tx_2023.parquet"
+    parquet_path = parquet_dir / f"fhwa_{metro.state_abbr.lower()}_2023.parquet"
     existing = pl.DataFrame({"station_id": ["000004"], "state_fips": ["48"]})
     existing.write_parquet(parquet_path)
 
     with patch("urbanstack.extract._socrata.requests.get") as mock_get:
-        df = extract_fhwa(settings, year=2023)
+        df = extract_fhwa(settings, metro, year=2023)
         mock_get.assert_not_called()
 
     assert len(df) == 1
 
 
-def test_force_overwrite(settings: Settings) -> None:
-    parquet_dir = settings.staging_dir / "fhwa"
+def test_force_overwrite(settings: Settings, metro: MetroConfig) -> None:
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "fhwa"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / "fhwa_tx_2023.parquet"
+    parquet_path = parquet_dir / f"fhwa_{metro.state_abbr.lower()}_2023.parquet"
     existing = pl.DataFrame({"station_id": ["old"], "state_fips": ["48"]})
     existing.write_parquet(parquet_path)
 
@@ -169,7 +170,7 @@ def test_force_overwrite(settings: Settings) -> None:
     mock_resp = _mock_get_single_page(rows)
 
     with patch("urbanstack.extract._socrata.requests.get", return_value=mock_resp):
-        df = extract_fhwa(settings, year=2023, force=True)
+        df = extract_fhwa(settings, metro, year=2023, force=True)
 
     assert "000004" in df["station_id"].to_list()
     assert "old" not in df["station_id"].to_list()
@@ -182,12 +183,12 @@ def test_invalid_year_raises() -> None:
         _dataset_url(2010)
 
 
-def test_contract_validation(settings: Settings) -> None:
+def test_contract_validation(settings: Settings, metro: MetroConfig) -> None:
     rows = [_make_row()]
     mock_resp = _mock_get_single_page(rows)
 
     with patch("urbanstack.extract._socrata.requests.get", return_value=mock_resp):
-        df = extract_fhwa(settings, year=2023)
+        df = extract_fhwa(settings, metro, year=2023)
 
     from urbanstack.contracts.fhwa import FhwaVolumeRecord
 
@@ -198,12 +199,12 @@ def test_contract_validation(settings: Settings) -> None:
     assert record.daily_volume == 133732
 
 
-def test_raw_json_saved(settings: Settings) -> None:
+def test_raw_json_saved(settings: Settings, metro: MetroConfig) -> None:
     rows = [_make_row()]
     mock_resp = _mock_get_single_page(rows)
 
     with patch("urbanstack.extract._socrata.requests.get", return_value=mock_resp):
-        extract_fhwa(settings, year=2023)
+        extract_fhwa(settings, metro, year=2023)
 
-    raw_path = settings.raw_dir / "fhwa" / "fhwa_tx_2023.json"
+    raw_path = settings.metro_raw_dir(metro.metro_id) / "fhwa" / f"fhwa_{metro.state_abbr.lower()}_2023.json"
     assert raw_path.exists()

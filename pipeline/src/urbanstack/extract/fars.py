@@ -9,7 +9,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.fars import FarsCrashRecord
-from urbanstack.geography import DFW_COUNTY_FIPS, DFW_STATE_FIPS
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -113,20 +113,21 @@ def _to_records(
 
 def extract_fars(
     settings: Settings,
+    metro: MetroConfig,
     start_year: int = 2015,
     end_year: int = 2022,
     *,
     force: bool = False,
 ) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "fars"
-    parquet_path = parquet_dir / f"fars_dfw_{start_year}_{end_year}.parquet"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "fars"
+    parquet_path = parquet_dir / f"fars_{metro.metro_id}_{start_year}_{end_year}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
         return pl.read_parquet(parquet_path)
 
-    state_code = int(DFW_STATE_FIPS)
-    dfw_county_codes = {int(fips) for fips in DFW_COUNTY_FIPS.values()}
+    state_code = metro.state_fips_int
+    county_codes = {int(fips) for fips in metro.counties.values()}
     raw_dir = settings.raw_dir / "fars"
 
     all_raw: list[dict] = []
@@ -134,15 +135,15 @@ def extract_fars(
         zip_bytes = _download_year_zip(year, raw_dir, force=force)
         rows = _read_accident_csv(zip_bytes)
 
-        dfw_rows = [
+        metro_rows = [
             r for r in rows
             if _safe_int(r.get("STATE")) == state_code
-            and _safe_int(r.get("COUNTY")) in dfw_county_codes
+            and _safe_int(r.get("COUNTY")) in county_codes
         ]
-        logger.info("FARS %d: %d total crashes, %d in DFW", year, len(rows), len(dfw_rows))
-        all_raw.extend(dfw_rows)
+        logger.info("FARS %d: %d total crashes, %d in %s", year, len(rows), len(metro_rows), metro.metro_id)
+        all_raw.extend(metro_rows)
 
-    records = _to_records(all_raw, DFW_STATE_FIPS)
+    records = _to_records(all_raw, metro.state_fips)
     row_dicts = [r.model_dump() for r in records]
     df = pl.DataFrame(row_dicts)
 

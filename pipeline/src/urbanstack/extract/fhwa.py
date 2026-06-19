@@ -7,7 +7,7 @@ import polars as pl
 from urbanstack.config import Settings
 from urbanstack.contracts.fhwa import FhwaVolumeRecord
 from urbanstack.extract._socrata import fetch_socrata_pages
-from urbanstack.geography import DFW_STATE_FIPS
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -77,12 +77,13 @@ def _to_records(raw_rows: list[dict[str, str]], state_fips: str) -> list[FhwaVol
 
 def extract_fhwa(
     settings: Settings,
+    metro: MetroConfig,
     year: int = 2023,
     *,
     force: bool = False,
 ) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "fhwa"
-    parquet_path = parquet_dir / f"fhwa_tx_{year}.parquet"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "fhwa"
+    parquet_path = parquet_dir / f"fhwa_{metro.state_abbr.lower()}_{year}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
@@ -94,15 +95,15 @@ def extract_fhwa(
     for month in range(1, 13):
         if month > 1:
             time.sleep(0.5)
-        rows = _fetch_month(url, DFW_STATE_FIPS, year, month)
+        rows = _fetch_month(url, metro.state_fips, year, month)
         all_raw.extend(rows)
 
-    raw_dir = settings.raw_dir / "fhwa"
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "fhwa"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = raw_dir / f"fhwa_tx_{year}.json"
+    raw_path = raw_dir / f"fhwa_{metro.state_abbr.lower()}_{year}.json"
     raw_path.write_text(json.dumps(all_raw, indent=2))
 
-    records = _to_records(all_raw, DFW_STATE_FIPS)
+    records = _to_records(all_raw, metro.state_fips)
     rows = [r.model_dump() for r in records]
     df = pl.DataFrame(rows)
 

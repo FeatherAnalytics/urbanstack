@@ -6,7 +6,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.epa_sld import SLD_COLUMN_MAP, EpaSldRecord
-from urbanstack.geography import DFW_COUNTY_FIPS, DFW_STATE_FIPS
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -58,9 +58,11 @@ def _resolve_columns(csv_path: Path) -> dict[str, str]:
     return rename
 
 
-def extract_epa_sld(settings: Settings, *, force: bool = False) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "epa_sld"
-    parquet_path = parquet_dir / "epa_sld_dfw.parquet"
+def extract_epa_sld(
+    settings: Settings, metro: MetroConfig, *, force: bool = False
+) -> pl.DataFrame:
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "epa_sld"
+    parquet_path = parquet_dir / f"epa_sld_{metro.metro_id}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
@@ -72,7 +74,7 @@ def extract_epa_sld(settings: Settings, *, force: bool = False) -> pl.DataFrame:
     rename = _resolve_columns(csv_path)
     keep_cols = list(rename.keys())
 
-    county_codes = set(DFW_COUNTY_FIPS.values())
+    county_codes = metro.county_fips_set
     state_col = next(k for k, v in rename.items() if v == "state_fips")
     county_col = next(k for k, v in rename.items() if v == "county_fips")
 
@@ -80,7 +82,7 @@ def extract_epa_sld(settings: Settings, *, force: bool = False) -> pl.DataFrame:
         pl.scan_csv(csv_path, infer_schema_length=1000)
         .select(keep_cols)
         .filter(
-            (pl.col(state_col).cast(pl.Utf8).str.zfill(2) == DFW_STATE_FIPS)
+            (pl.col(state_col).cast(pl.Utf8).str.zfill(2) == metro.state_fips)
             & (pl.col(county_col).cast(pl.Utf8).str.zfill(3).is_in(county_codes))
         )
         .collect()

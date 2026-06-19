@@ -7,6 +7,7 @@ import pytest
 from urbanstack.config import Settings
 from urbanstack.contracts.umr import UmrRecord
 from urbanstack.extract.umr import extract_umr
+from urbanstack.metro import MetroConfig
 
 
 def _make_csv_content() -> str:
@@ -32,11 +33,11 @@ def _write_csv(settings: Settings) -> Path:
     return csv_path
 
 
-def test_extract_from_local_csv(settings: Settings) -> None:
+def test_extract_from_local_csv(settings: Settings, metro: MetroConfig) -> None:
     _write_csv(settings)
 
     with patch("urbanstack.extract.umr._try_download", return_value=None):
-        df = extract_umr(settings)
+        df = extract_umr(settings, metro)
 
     assert isinstance(df, pl.DataFrame)
     assert len(df) == 3
@@ -49,21 +50,21 @@ def test_extract_from_local_csv(settings: Settings) -> None:
     )
 
 
-def test_filters_out_non_dfw(settings: Settings) -> None:
+def test_filters_out_non_dfw(settings: Settings, metro: MetroConfig) -> None:
     _write_csv(settings)
 
     with patch("urbanstack.extract.umr._try_download", return_value=None):
-        df = extract_umr(settings)
+        df = extract_umr(settings, metro)
 
     areas = df["urban_area"].to_list()
     assert "Houston" not in [a.strip() for a in areas]
 
 
-def test_contract_validation(settings: Settings) -> None:
+def test_contract_validation(settings: Settings, metro: MetroConfig) -> None:
     _write_csv(settings)
 
     with patch("urbanstack.extract.umr._try_download", return_value=None):
-        df = extract_umr(settings)
+        df = extract_umr(settings, metro)
 
     row_dict = df.to_dicts()[0]
     record = UmrRecord.model_validate(row_dict)
@@ -72,10 +73,10 @@ def test_contract_validation(settings: Settings) -> None:
     assert record.travel_time_index == 1.22
 
 
-def test_idempotent_skip(settings: Settings) -> None:
-    parquet_dir = settings.staging_dir / "umr"
+def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "umr"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / "umr_dfw.parquet"
+    parquet_path = parquet_dir / f"umr_{metro.metro_id}.parquet"
     existing = pl.DataFrame({
         "urban_area": ["Dallas-Fort Worth-Arlington"],
         "year": [2020],
@@ -83,42 +84,42 @@ def test_idempotent_skip(settings: Settings) -> None:
     existing.write_parquet(parquet_path)
 
     with patch("urbanstack.extract.umr._try_download") as mock_dl:
-        df = extract_umr(settings)
+        df = extract_umr(settings, metro)
         mock_dl.assert_not_called()
 
     assert len(df) == 1
 
 
-def test_force_overwrite(settings: Settings) -> None:
+def test_force_overwrite(settings: Settings, metro: MetroConfig) -> None:
     _write_csv(settings)
-    parquet_dir = settings.staging_dir / "umr"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "umr"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / "umr_dfw.parquet"
+    parquet_path = parquet_dir / f"umr_{metro.metro_id}.parquet"
     existing = pl.DataFrame({"urban_area": ["old"], "year": [1999]})
     existing.write_parquet(parquet_path)
 
     with patch("urbanstack.extract.umr._try_download", return_value=None):
-        df = extract_umr(settings, force=True)
+        df = extract_umr(settings, metro, force=True)
 
     assert "old" not in df["urban_area"].to_list()
     assert len(df) == 3
 
 
-def test_no_file_raises(settings: Settings) -> None:
+def test_no_file_raises(settings: Settings, metro: MetroConfig) -> None:
     with (
         patch("urbanstack.extract.umr._try_download", return_value=None),
         pytest.raises(FileNotFoundError, match="No UMR data found"),
     ):
-        extract_umr(settings)
+        extract_umr(settings, metro)
 
 
-def test_parquet_saved(settings: Settings) -> None:
+def test_parquet_saved(settings: Settings, metro: MetroConfig) -> None:
     _write_csv(settings)
 
     with patch("urbanstack.extract.umr._try_download", return_value=None):
-        extract_umr(settings)
+        extract_umr(settings, metro)
 
-    parquet_path = settings.staging_dir / "umr" / "umr_dfw.parquet"
+    parquet_path = settings.metro_staging_dir(metro.metro_id) / "umr" / f"umr_{metro.metro_id}.parquet"
     assert parquet_path.exists()
 
 
@@ -137,11 +138,11 @@ def test_download_saves_raw(settings: Settings) -> None:
     assert result.name == "complete-data-umr.xlsx"
 
 
-def test_metric_values(settings: Settings) -> None:
+def test_metric_values(settings: Settings, metro: MetroConfig) -> None:
     _write_csv(settings)
 
     with patch("urbanstack.extract.umr._try_download", return_value=None):
-        df = extract_umr(settings)
+        df = extract_umr(settings, metro)
 
     row_2020 = df.filter(pl.col("year") == 2020).to_dicts()[0]
     assert row_2020["annual_delay_per_commuter"] == 47.0

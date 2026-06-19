@@ -7,6 +7,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.tmas_stations import TmasStationRecord
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -64,10 +65,10 @@ def _assign_county(
     return None
 
 
-def _fetch_tx_stations() -> list[dict]:
-    """Fetch all Texas TMAS stations from ArcGIS Feature Service."""
+def _fetch_stations(metro: MetroConfig) -> list[dict]:
+    """Fetch TMAS stations for a metro's state from ArcGIS Feature Service."""
     params = {
-        "where": "state='TX'",
+        "where": f"state='{metro.state_abbr}'",
         "outFields": "Station_Id,latitude,longitude,functional_class",
         "resultRecordCount": "2000",
         "f": "json",
@@ -81,21 +82,21 @@ def _fetch_tx_stations() -> list[dict]:
 
 
 def extract_tmas_stations(
-    settings: Settings, *, force: bool = False
+    settings: Settings, metro: MetroConfig, *, force: bool = False
 ) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "tmas_stations"
-    parquet_path = parquet_dir / "tmas_stations_dfw.parquet"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "tmas_stations"
+    parquet_path = parquet_dir / f"tmas_stations_{metro.metro_id}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
         return pl.read_parquet(parquet_path)
 
-    raw_stations = _fetch_tx_stations()
-    logger.info("Fetched %d Texas stations from ArcGIS", len(raw_stations))
+    raw_stations = _fetch_stations(metro)
+    logger.info("Fetched %d %s stations from ArcGIS", len(raw_stations), metro.state_abbr)
 
-    raw_dir = settings.raw_dir / "tmas_stations"
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "tmas_stations"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    (raw_dir / "tmas_stations_tx.json").write_text(
+    (raw_dir / f"tmas_stations_{metro.state_abbr.lower()}.json").write_text(
         json.dumps(raw_stations, indent=2)
     )
 
@@ -104,7 +105,8 @@ def extract_tmas_stations(
         / "web"
         / "public"
         / "data"
-        / "dfw_counties.geojson"
+        / metro.metro_id
+        / "counties.geojson"
     )
     counties = _load_county_polygons(geojson_path)
 
@@ -130,7 +132,7 @@ def extract_tmas_stations(
             )
         )
 
-    logger.info("Matched %d stations to DFW counties", len(records))
+    logger.info("Matched %d stations to %s counties", len(records), metro.metro_name)
 
     df = pl.DataFrame([r.model_dump() for r in records])
     parquet_dir.mkdir(parents=True, exist_ok=True)
