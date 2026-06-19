@@ -9,14 +9,9 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.gtfs import GtfsRoute, GtfsShape, GtfsStop
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
-
-GTFS_FEEDS: dict[str, str] = {
-    "DART": "https://www.dart.org/transitdata/latest/google_transit.zip",
-    "Trinity Metro": "http://sched.ridetm.org/gtfs/fwtatransitdata.zip",
-    "DCTA": "https://gtfs.remix.com/dcta_denton_tx_us.zip",
-}
 
 
 def _download_feed(agency: str, url: str, raw_dir: Path, *, force: bool) -> Path:
@@ -135,15 +130,16 @@ def _records_to_df(records: list) -> pl.DataFrame:
 
 def extract_gtfs(
     settings: Settings,
+    metro: MetroConfig,
     agencies: list[str] | None = None,
     *,
     force: bool = False,
 ) -> dict[str, pl.DataFrame]:
-    """Extract GTFS data for DFW transit agencies.
+    """Extract GTFS data for a metro's transit agencies.
 
     Returns dict with keys: "routes", "stops", "shapes" -- each a polars DataFrame.
     """
-    parquet_dir = settings.staging_dir / "gtfs"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "gtfs"
     routes_path = parquet_dir / "gtfs_routes.parquet"
     stops_path = parquet_dir / "gtfs_stops.parquet"
     shapes_path = parquet_dir / "gtfs_shapes.parquet"
@@ -156,20 +152,20 @@ def extract_gtfs(
             "shapes": pl.read_parquet(shapes_path),
         }
 
-    raw_dir = settings.raw_dir / "gtfs"
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "gtfs"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    feed_list = agencies or list(GTFS_FEEDS.keys())
+    feed_list = agencies or list(metro.gtfs_feeds.keys())
 
     all_routes: list[GtfsRoute] = []
     all_stops: list[GtfsStop] = []
     all_shapes: list[GtfsShape] = []
 
     for agency in feed_list:
-        url = GTFS_FEEDS.get(agency)
+        url = metro.gtfs_feeds.get(agency)
         if url is None:
             raise ValueError(
-                f"Unknown agency '{agency}'. Available: {list(GTFS_FEEDS.keys())}"
+                f"Unknown agency '{agency}'. Available: {list(metro.gtfs_feeds.keys())}"
             )
 
         zip_path = _download_feed(agency, url, raw_dir, force=force)

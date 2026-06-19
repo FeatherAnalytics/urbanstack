@@ -7,6 +7,7 @@ import polars as pl
 from urbanstack.config import Settings
 from urbanstack.contracts.epa_sld import EpaSldRecord
 from urbanstack.extract.epa_sld import extract_epa_sld
+from urbanstack.metro import MetroConfig
 
 CSV_HEADER = [
     "GEOID10",
@@ -144,12 +145,12 @@ def _write_mock_csv(path: Path) -> None:
             writer.writerow(row)
 
 
-def test_filters_to_dfw_only(settings: Settings) -> None:
+def test_filters_to_dfw_only(settings: Settings, metro: MetroConfig) -> None:
     csv_path = settings.raw_dir / "epa_sld" / "sld_v3.csv"
     _write_mock_csv(csv_path)
 
     with patch("urbanstack.extract.epa_sld._download_csv"):
-        df = extract_epa_sld(settings, force=True)
+        df = extract_epa_sld(settings, metro, force=True)
 
     assert len(df) == 3
     assert set(df["county_fips"].to_list()) == {"113", "085", "439"}
@@ -157,12 +158,12 @@ def test_filters_to_dfw_only(settings: Settings) -> None:
     assert "037" not in df["county_fips"].to_list()
 
 
-def test_contract_validation(settings: Settings) -> None:
+def test_contract_validation(settings: Settings, metro: MetroConfig) -> None:
     csv_path = settings.raw_dir / "epa_sld" / "sld_v3.csv"
     _write_mock_csv(csv_path)
 
     with patch("urbanstack.extract.epa_sld._download_csv"):
-        df = extract_epa_sld(settings, force=True)
+        df = extract_epa_sld(settings, metro, force=True)
 
     row = df.filter(pl.col("county_fips") == "113").to_dicts()[0]
     record = EpaSldRecord.model_validate(row)
@@ -171,15 +172,15 @@ def test_contract_validation(settings: Settings) -> None:
     assert record.d1a == 5.2
 
 
-def test_idempotent_skip(settings: Settings) -> None:
-    parquet_dir = settings.staging_dir / "epa_sld"
+def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "epa_sld"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / "epa_sld_dfw.parquet"
+    parquet_path = parquet_dir / f"epa_sld_{metro.metro_id}.parquet"
     existing = pl.DataFrame({"geoid": ["481130191001"], "state_fips": ["48"]})
     existing.write_parquet(parquet_path)
 
     with patch("urbanstack.extract.epa_sld._download_csv") as mock_dl:
-        df = extract_epa_sld(settings)
+        df = extract_epa_sld(settings, metro)
         mock_dl.assert_not_called()
 
     assert len(df) == 1
@@ -213,12 +214,12 @@ def _csv_bytes() -> bytes:
     return buf.getvalue().encode()
 
 
-def test_column_rename_mapping(settings: Settings) -> None:
+def test_column_rename_mapping(settings: Settings, metro: MetroConfig) -> None:
     csv_path = settings.raw_dir / "epa_sld" / "sld_v3.csv"
     _write_mock_csv(csv_path)
 
     with patch("urbanstack.extract.epa_sld._download_csv"):
-        df = extract_epa_sld(settings, force=True)
+        df = extract_epa_sld(settings, metro, force=True)
 
     expected_cols = {
         "geoid",
