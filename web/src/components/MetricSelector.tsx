@@ -32,7 +32,7 @@ export function MetricSelector({
   onSelect,
   counties,
 }: MetricSelectorProps) {
-  const grouped = groupMetricsByCategory();
+  const grouped = useMemo(() => groupMetricsByCategory(), []);
   const navRef = useRef<HTMLElement>(null);
   const [tooltip, setTooltip] = useState<TooltipState | null>(null);
 
@@ -82,13 +82,18 @@ export function MetricSelector({
                   onClick={() => onSelect(metric)}
                   onMouseEnter={(e) => handleMouseEnter(metric, e)}
                   onMouseLeave={handleMouseLeave}
-                  className={`w-full rounded px-2 py-1 text-left text-sm transition-colors ${
+                  className={`flex w-full items-baseline justify-between rounded px-2 py-1 text-left text-sm transition-colors ${
                     selected.key === metric.key
                       ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
                       : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
                   }`}
                 >
-                  {metric.label}
+                  <span>{metric.label}</span>
+                  {metric.dateRange && (
+                    <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-600">
+                      {metric.dateRange}
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -108,6 +113,7 @@ export function MetricSelector({
           </p>
           <p className="mt-1 text-slate-400 dark:text-slate-500">
             Source: {tooltip.metric.source}
+            {tooltip.metric.dateRange && ` · ${tooltip.metric.dateRange}`}
           </p>
         </div>
       )}

@@ -10,6 +10,7 @@ dependencies = [
     "python-dotenv>=1.2.2",
     "truststore>=0.10.4",
     "duckdb>=1.5.4",
+    "fastexcel>=0.20.2",
 ]
 
 [project.optional-dependencies]

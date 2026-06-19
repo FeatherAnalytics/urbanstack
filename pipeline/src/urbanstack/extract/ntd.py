@@ -14,8 +14,8 @@ NTD_MONTHLY_URL = "https://data.transportation.gov/resource/8bui-9xvu.json"
 
 DFW_TRANSIT_AGENCIES: dict[str, str] = {
     "60056": "Dallas Area Rapid Transit",
-    "60086": "Trinity Metro",
-    "60166": "Denton County Transportation Authority",
+    "60007": "Fort Worth Transportation Authority",
+    "60101": "Denton County Transportation Authority",
 }
 
 

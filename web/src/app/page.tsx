@@ -5,9 +5,13 @@ import {
   METRICS,
   loadData,
   loadGeoJSON,
+  loadOverlayIndex,
+  loadYearOverlay,
+  mergeOverlay,
   type CountyData,
   type Granularity,
   type MetricConfig,
+  type OverlayIndex,
 } from "@/lib/data";
 import { MetricSelector } from "@/components/MetricSelector";
 import { CountyDetailPopup } from "@/components/CountyDetail";
@@ -36,7 +40,11 @@ export default function Home() {
   const [showRail, setShowRail] = useState(false);
   const [showBus, setShowBus] = useState(false);
   const [granularity, setGranularity] = useState<Granularity>("county");
+  const [overlayIndex, setOverlayIndex] = useState<OverlayIndex | null>(null);
+  const [selectedYear, setSelectedYear] = useState<number | null>(null);
+  const [baseCounties, setBaseCounties] = useState<CountyData[]>([]);
 
+  const yearRef = useRef<number | null>(null);
   const { isDark, toggle } = useTheme();
 
   const transitModes = useMemo(() => {
@@ -57,11 +65,22 @@ export default function Home() {
   }, [trafficLayer, transitLayers]);
 
   useEffect(() => {
+    loadOverlayIndex().then((idx) => {
+      setOverlayIndex(idx);
+      if (idx && idx.years.length > 0) {
+        setSelectedYear(idx.years[idx.years.length - 1]);
+      }
+    });
+  }, []);
+
+  useEffect(() => {
     setLoading(true);
     setError(null);
     setSelectedFips(null);
+    setSelectedYear(null);
     Promise.all([loadData(granularity), loadGeoJSON(granularity)])
       .then(([data, geo]) => {
+        setBaseCounties(data);
         setCounties(data);
         setGeojson(geo);
         setLoading(false);
@@ -70,6 +89,7 @@ export default function Home() {
         if (granularity !== "county") {
           Promise.all([loadData("county"), loadGeoJSON("county")])
             .then(([data, geo]) => {
+              setBaseCounties(data);
               setCounties(data);
               setGeojson(geo);
               setGranularity("county");
@@ -91,6 +111,16 @@ export default function Home() {
         }
       });
   }, [granularity]);
+
+  useEffect(() => {
+    if (!selectedYear || granularity !== "county") return;
+    yearRef.current = selectedYear;
+    loadYearOverlay(selectedYear).then((overlay) => {
+      if (overlay && yearRef.current === selectedYear) {
+        setCounties(mergeOverlay(baseCounties, overlay));
+      }
+    });
+  }, [selectedYear, baseCounties, granularity]);
 
   const mapRef = useRef<HTMLElement>(null);
 
@@ -132,6 +162,24 @@ export default function Home() {
           DFW Urban Data Explorer
         </span>
         <div className="ml-auto flex items-center gap-3">
+          {overlayIndex && granularity === "county" && (
+            <select
+              value={selectedYear ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                setSelectedYear(v ? Number(v) : null);
+                if (!v) setCounties(baseCounties);
+              }}
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            >
+              <option value="">All Years (Cumulative)</option>
+              {overlayIndex.years.map((y) => (
+                <option key={y} value={y}>
+                  {y}
+                </option>
+              ))}
+            </select>
+          )}
           <select
             value={granularity}
             onChange={(e) => setGranularity(e.target.value as Granularity)}

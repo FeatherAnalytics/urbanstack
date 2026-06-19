@@ -1,6 +1,8 @@
-import json
+import csv
+import io
 import logging
-import time
+from pathlib import Path
+import zipfile
 
 import polars as pl
 import requests
@@ -11,33 +13,39 @@ from urbanstack.geography import DFW_COUNTY_FIPS, DFW_STATE_FIPS
 
 logger = logging.getLogger(__name__)
 
-FARS_BASE = "https://crashviewer.nhtsa.dot.gov/CrashAPI"
+FARS_ZIP_URL = "https://static.nhtsa.gov/nhtsa/downloads/FARS/{year}/National/FARS{year}NationalCSV.zip"
 
 
-def _fetch_county_year(state: int, county: int, year: int) -> list[dict]:
-    """Fetch crashes for one county+year via GetCrashesByLocation."""
-    url = f"{FARS_BASE}/crashes/GetCrashesByLocation"
-    params = {
-        "fromCaseYear": year,
-        "toCaseYear": year,
-        "state": state,
-        "county": county,
-        "format": "json",
-    }
-    resp = requests.get(url, params=params, timeout=60)
+def _download_year_zip(year: int, raw_dir: Path, *, force: bool = False) -> bytes:
+    zip_path = raw_dir / f"FARS{year}NationalCSV.zip"
+    if zip_path.exists() and not force:
+        logger.info("Using cached ZIP: %s", zip_path)
+        return zip_path.read_bytes()
+
+    url = FARS_ZIP_URL.format(year=year)
+    logger.info("Downloading FARS %d from %s", year, url)
+    resp = requests.get(url, timeout=120)
     resp.raise_for_status()
-    data = resp.json()
 
-    if isinstance(data, dict):
-        for key in ("Results", "results"):
-            if key in data:
-                inner = data[key]
-                if isinstance(inner, list) and len(inner) == 1 and isinstance(inner[0], dict):
-                    return inner[0].get(key, inner)
-                return inner
-        return []
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    zip_path.write_bytes(resp.content)
+    return resp.content
 
-    return data if isinstance(data, list) else []
+
+def _read_accident_csv(zip_bytes: bytes) -> list[dict[str, str]]:
+    with zipfile.ZipFile(io.BytesIO(zip_bytes)) as zf:
+        accident_name = next(
+            (n for n in zf.namelist() if n.upper().endswith("ACCIDENT.CSV")),
+            None,
+        )
+        if accident_name is None:
+            msg = f"ACCIDENT.CSV not found in ZIP; contents: {zf.namelist()}"
+            raise FileNotFoundError(msg)
+
+        with zf.open(accident_name) as f:
+            text = io.TextIOWrapper(f, encoding="utf-8-sig", errors="replace")
+            reader = csv.DictReader(text)
+            return list(reader)
 
 
 def _safe_int(val: object) -> int | None:
@@ -50,12 +58,7 @@ def _safe_int(val: object) -> int | None:
 
 
 def _safe_coordinate(val: object) -> float | None:
-    """Parse a FARS lat/lon value, returning None for sentinel values.
-
-    FARS uses 0.0, 77.7777, 88.8888, and 99.9999 as sentinel values
-    indicating unknown or not-reported coordinates. These are invalid
-    for U.S. geographic coordinates.
-    """
+    """FARS uses 0.0, 77.7777, 88.8888, 99.9999 as sentinel values for unknown coordinates."""
     if val is None:
         return None
     try:
@@ -123,32 +126,21 @@ def extract_fars(
         return pl.read_parquet(parquet_path)
 
     state_code = int(DFW_STATE_FIPS)
-    county_codes = {name: int(fips) for name, fips in DFW_COUNTY_FIPS.items()}
+    dfw_county_codes = {int(fips) for fips in DFW_COUNTY_FIPS.values()}
+    raw_dir = settings.raw_dir / "fars"
 
     all_raw: list[dict] = []
-    requests = [
-        (year, name, code)
-        for year in range(start_year, end_year + 1)
-        for name, code in county_codes.items()
-    ]
-    for i, (year, county_name, county_code) in enumerate(requests):
-        if i > 0:
-            time.sleep(1.0)
+    for year in range(start_year, end_year + 1):
+        zip_bytes = _download_year_zip(year, raw_dir, force=force)
+        rows = _read_accident_csv(zip_bytes)
 
-        rows = _fetch_county_year(state_code, county_code, year)
-        logger.info(
-            "FARS %d %s (county %03d): %d crashes",
-            year,
-            county_name,
-            county_code,
-            len(rows),
-        )
-        all_raw.extend(rows)
-
-    raw_dir = settings.raw_dir / "fars"
-    raw_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = raw_dir / f"fars_dfw_{start_year}_{end_year}.json"
-    raw_path.write_text(json.dumps(all_raw, indent=2))
+        dfw_rows = [
+            r for r in rows
+            if _safe_int(r.get("STATE")) == state_code
+            and _safe_int(r.get("COUNTY")) in dfw_county_codes
+        ]
+        logger.info("FARS %d: %d total crashes, %d in DFW", year, len(rows), len(dfw_rows))
+        all_raw.extend(dfw_rows)
 
     records = _to_records(all_raw, DFW_STATE_FIPS)
     row_dicts = [r.model_dump() for r in records]

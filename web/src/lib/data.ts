@@ -14,6 +14,9 @@ export interface CountyData {
   avg_walkability: number | null;
   avg_transit_frequency: number | null;
   pct_zero_car_hh: number | null;
+  total_annual_ridership: number | null;
+  ridership_per_capita: number | null;
+  transit_revenue_miles: number | null;
   total_fatalities: number | null;
   total_crashes: number | null;
   pedestrian_involved_crashes: number | null;
@@ -25,6 +28,21 @@ export interface CountyData {
   planning_time_index: number | null;
   annual_delay_hours: number | null;
   congestion_cost: number | null;
+  avg_daily_traffic: number | null;
+  total_delay_hours: number | null;
+  total_congestion_cost: number | null;
+  delay_per_capita: number | null;
+  congestion_cost_per_capita: number | null;
+  fatalities_per_capita: number | null;
+  crashes_per_capita: number | null;
+  crash_rate_per_1k_commuters: number | null;
+  ped_fatality_rate_per_100k: number | null;
+  congestion_cost_pct_income: number | null;
+  delay_pct_work_hours: number | null;
+  federal_per_crash: number | null;
+  vehicle_dependency: number | null;
+  drunk_driver_crashes_per_capita: number | null;
+  pedestrian_crashes_per_capita: number | null;
 }
 
 export type MetricKey = keyof Omit<CountyData, "county_fips" | "county_name">;
@@ -47,10 +65,9 @@ export interface MetricConfig {
   colorScale: [number, number, number][];
   /** true when higher values = worse outcome (fatalities, crashes) */
   invertSentiment?: boolean;
-  /** Brief explanation of the metric */
   description: string;
-  /** Data source name */
   source: string;
+  dateRange?: string;
 }
 
 // Sequential green (income/spending)
@@ -89,7 +106,6 @@ const ORANGE_SCALE: [number, number, number][] = [
 ];
 
 export const METRICS: MetricConfig[] = [
-  // Demographics
   {
     key: "population",
     label: "Population",
@@ -98,6 +114,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: PURPLE_SCALE,
     description: "Total number of residents",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "per_capita_income",
@@ -107,6 +124,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: GREEN_SCALE,
     description: "Average income per person (all residents, including non-earners)",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "median_household_income",
@@ -116,6 +134,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: GREEN_SCALE,
     description: "Income at the 50th percentile of all households",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "median_rent",
@@ -125,6 +144,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: GREEN_SCALE,
     description: "Monthly rent at the 50th percentile",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "median_home_value",
@@ -134,6 +154,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: GREEN_SCALE,
     description: "Owner-occupied home value at the 50th percentile",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "pop_density_sqmi",
@@ -143,9 +164,9 @@ export const METRICS: MetricConfig[] = [
     colorScale: PURPLE_SCALE,
     description: "Residents per square mile of land area",
     source: "Census ACS + Gazetteer",
+    dateRange: "2023",
   },
 
-  // Transportation
   {
     key: "pct_drove_alone",
     label: "Drove Alone",
@@ -154,6 +175,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: BLUE_SCALE,
     description: "Share of workers commuting by car alone",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "pct_transit",
@@ -163,6 +185,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: BLUE_SCALE,
     description: "Share of workers using public transit",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "pct_walked",
@@ -172,6 +195,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: BLUE_SCALE,
     description: "Share of workers walking to work",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "pct_biked",
@@ -181,6 +205,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: BLUE_SCALE,
     description: "Share of workers biking to work",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "pct_wfh",
@@ -190,6 +215,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: BLUE_SCALE,
     description: "Share of workers working from home",
     source: "Census ACS 5-Year",
+    dateRange: "2023",
   },
   {
     key: "avg_walkability",
@@ -197,8 +223,9 @@ export const METRICS: MetricConfig[] = [
     category: "Transportation",
     format: "decimal",
     colorScale: BLUE_SCALE,
-    description: "EPA National Walkability Index (1-20 scale based on intersection density, transit proximity, land use mix)",
+    description: "EPA National Walkability Index (1–20 scale based on intersection density, transit proximity, land use mix)",
     source: "EPA Smart Location Database",
+    dateRange: "2021",
   },
   {
     key: "avg_transit_frequency",
@@ -208,6 +235,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: BLUE_SCALE,
     description: "Aggregate transit trips per day within 0.25 miles per sq mi of land area. Higher = more transit service available.",
     source: "EPA Smart Location Database",
+    dateRange: "2021",
   },
   {
     key: "pct_zero_car_hh",
@@ -217,9 +245,49 @@ export const METRICS: MetricConfig[] = [
     colorScale: BLUE_SCALE,
     description: "Percentage of households with no vehicle available",
     source: "EPA Smart Location Database",
+    dateRange: "2021",
+  },
+  {
+    key: "total_annual_ridership",
+    label: "Est. Annual Transit Ridership",
+    category: "Transportation",
+    format: "number",
+    colorScale: BLUE_SCALE,
+    description: "Estimated annual transit trips, distributed proportionally by share of transit commuters in this area",
+    source: "NTD + Census ACS",
+    dateRange: "2025",
+  },
+  {
+    key: "ridership_per_capita",
+    label: "Est. Transit Rides Per Capita",
+    category: "Transportation",
+    format: "decimal",
+    colorScale: BLUE_SCALE,
+    description: "Estimated annual transit trips per resident, based on proportional ridership distribution",
+    source: "NTD + Census ACS",
+    dateRange: "2025",
+  },
+  {
+    key: "transit_revenue_miles",
+    label: "Transit Revenue Miles",
+    category: "Transportation",
+    format: "number",
+    colorScale: BLUE_SCALE,
+    description: "Total miles traveled by transit vehicles while in passenger service across DFW agencies (DART, Trinity Metro, DCTA)",
+    source: "NTD Monthly Ridership",
+    dateRange: "2025",
+  },
+  {
+    key: "avg_daily_traffic",
+    label: "Avg. Daily Traffic Volume",
+    category: "Transportation",
+    format: "number",
+    colorScale: PURPLE_SCALE,
+    description: "Average daily vehicle count across permanent FHWA traffic monitoring stations in this area",
+    source: "FHWA TMAS",
+    dateRange: "2023",
   },
 
-  // Safety
   {
     key: "total_fatalities",
     label: "Total Fatalities",
@@ -229,16 +297,18 @@ export const METRICS: MetricConfig[] = [
     invertSentiment: true,
     description: "Total deaths from motor vehicle crashes",
     source: "NHTSA FARS",
+    dateRange: "2015–2022",
   },
   {
     key: "total_crashes",
-    label: "Total Crashes",
+    label: "Total Fatal Crashes",
     category: "Safety",
     format: "number",
     colorScale: RED_SCALE,
     invertSentiment: true,
-    description: "Total fatal motor vehicle crashes",
+    description: "Total fatal motor vehicle crashes (at least one death)",
     source: "NHTSA FARS",
+    dateRange: "2015–2022",
   },
   {
     key: "pedestrian_involved_crashes",
@@ -249,6 +319,7 @@ export const METRICS: MetricConfig[] = [
     invertSentiment: true,
     description: "Pedestrians involved in fatal crashes",
     source: "NHTSA FARS",
+    dateRange: "2015–2022",
   },
   {
     key: "drunk_driver_crashes",
@@ -259,9 +330,31 @@ export const METRICS: MetricConfig[] = [
     invertSentiment: true,
     description: "Drunk drivers involved in fatal crashes",
     source: "NHTSA FARS",
+    dateRange: "2015–2022",
+  },
+  {
+    key: "fatalities_per_capita",
+    label: "Fatalities Per Capita",
+    category: "Safety",
+    format: "decimal",
+    colorScale: RED_SCALE,
+    invertSentiment: true,
+    description: "Motor vehicle crash fatalities per resident",
+    source: "NHTSA FARS + Census ACS",
+    dateRange: "2015–2022",
+  },
+  {
+    key: "crashes_per_capita",
+    label: "Fatal Crashes Per Capita",
+    category: "Safety",
+    format: "decimal",
+    colorScale: RED_SCALE,
+    invertSentiment: true,
+    description: "Fatal motor vehicle crashes per resident",
+    source: "NHTSA FARS + Census ACS",
+    dateRange: "2015–2022",
   },
 
-  // Spending
   {
     key: "federal_obligation",
     label: "Federal Obligation ($)",
@@ -270,6 +363,7 @@ export const METRICS: MetricConfig[] = [
     colorScale: GREEN_SCALE,
     description: "Total federal infrastructure grants obligated",
     source: "USAspending.gov",
+    dateRange: "2020–2024",
   },
   {
     key: "federal_per_capita",
@@ -279,9 +373,9 @@ export const METRICS: MetricConfig[] = [
     colorScale: GREEN_SCALE,
     description: "Federal infrastructure spending per resident",
     source: "USAspending.gov",
+    dateRange: "2020–2024",
   },
 
-  // Congestion (UMR data — metro-level)
   {
     key: "travel_time_index",
     label: "Travel Time Index",
@@ -289,8 +383,9 @@ export const METRICS: MetricConfig[] = [
     format: "decimal",
     colorScale: ORANGE_SCALE,
     invertSentiment: true,
-    description: "Ratio of peak-period travel time to free-flow travel time (1.0 = no congestion)",
+    description: "Ratio of peak-period travel time to free-flow travel time (1.0 = no congestion). Metro-level measure.",
     source: "Texas A&M Urban Mobility Report",
+    dateRange: "2024",
   },
   {
     key: "planning_time_index",
@@ -299,8 +394,9 @@ export const METRICS: MetricConfig[] = [
     format: "decimal",
     colorScale: ORANGE_SCALE,
     invertSentiment: true,
-    description: "How much extra time to budget for reliable arrival (2.0 = budget 2x free-flow)",
+    description: "How much extra time to budget for reliable arrival (2.0 = budget 2x free-flow). Metro-level measure.",
     source: "Texas A&M Urban Mobility Report",
+    dateRange: "2024",
   },
   {
     key: "annual_delay_hours",
@@ -309,8 +405,9 @@ export const METRICS: MetricConfig[] = [
     format: "number",
     colorScale: ORANGE_SCALE,
     invertSentiment: true,
-    description: "Hours per auto commuter lost to congestion annually",
+    description: "Hours per auto commuter (workers who drive to work alone) lost to congestion annually. Metro-level measure.",
     source: "Texas A&M Urban Mobility Report",
+    dateRange: "2024",
   },
   {
     key: "congestion_cost",
@@ -319,8 +416,140 @@ export const METRICS: MetricConfig[] = [
     format: "currency",
     colorScale: ORANGE_SCALE,
     invertSentiment: true,
-    description: "Annual cost of congestion per auto commuter",
+    description: "Annual cost of congestion per auto commuter (workers who drive to work alone). Metro-level measure.",
     source: "Texas A&M Urban Mobility Report",
+    dateRange: "2024",
+  },
+  {
+    key: "total_delay_hours",
+    label: "Est. Total Delay (hours)",
+    category: "Congestion",
+    format: "number",
+    colorScale: ORANGE_SCALE,
+    invertSentiment: true,
+    description: "Estimated total annual hours of delay from congestion, based on number of auto commuters (workers who drive to work alone) and metro-level delay rate",
+    source: "UMR + Census ACS",
+    dateRange: "2024",
+  },
+  {
+    key: "total_congestion_cost",
+    label: "Est. Congestion Cost ($)",
+    category: "Congestion",
+    format: "currency",
+    colorScale: ORANGE_SCALE,
+    invertSentiment: true,
+    description: "Estimated total annual cost of congestion, based on number of auto commuters (workers who drive to work alone) and metro-level cost rate",
+    source: "UMR + Census ACS",
+    dateRange: "2024",
+  },
+  {
+    key: "delay_per_capita",
+    label: "Est. Delay Per Capita (hrs)",
+    category: "Congestion",
+    format: "decimal",
+    colorScale: ORANGE_SCALE,
+    invertSentiment: true,
+    description: "Estimated annual hours of congestion delay per resident",
+    source: "UMR + Census ACS",
+    dateRange: "2024",
+  },
+  {
+    key: "congestion_cost_per_capita",
+    label: "Est. Congestion Cost Per Capita",
+    category: "Congestion",
+    format: "currency",
+    colorScale: ORANGE_SCALE,
+    invertSentiment: true,
+    description: "Estimated annual cost of congestion per resident",
+    source: "UMR + Census ACS",
+    dateRange: "2024",
+  },
+  {
+    key: "congestion_cost_pct_income",
+    label: "Congestion Cost (% of Income)",
+    category: "Congestion",
+    format: "percent",
+    colorScale: ORANGE_SCALE,
+    invertSentiment: true,
+    description: "Estimated congestion cost per capita as a percentage of per capita income",
+    source: "UMR + Census ACS",
+    dateRange: "2024",
+  },
+  {
+    key: "delay_pct_work_hours",
+    label: "Delay (% of Work Year)",
+    category: "Congestion",
+    format: "percent",
+    colorScale: ORANGE_SCALE,
+    invertSentiment: true,
+    description: "Estimated congestion delay per commuter as a percentage of a standard 2,080-hour work year",
+    source: "UMR + Census ACS",
+    dateRange: "2024",
+  },
+  {
+    key: "crash_rate_per_1k_commuters",
+    label: "Crash Rate (per 1K Commuters)",
+    category: "Safety",
+    format: "decimal",
+    colorScale: RED_SCALE,
+    invertSentiment: true,
+    description: "Motor vehicle crash fatalities per 1,000 commuters, normalizing safety by commuting population",
+    source: "NHTSA FARS + Census ACS",
+    dateRange: "2015–2022",
+  },
+  {
+    key: "ped_fatality_rate_per_100k",
+    label: "Pedestrian Fatality Rate (per 100K)",
+    category: "Safety",
+    format: "decimal",
+    colorScale: RED_SCALE,
+    invertSentiment: true,
+    description: "Pedestrians involved in fatal crashes per 100,000 residents — standard public health rate",
+    source: "NHTSA FARS + Census ACS",
+    dateRange: "2015–2022",
+  },
+  {
+    key: "drunk_driver_crashes_per_capita",
+    label: "Drunk Driver Rate (per 100K)",
+    category: "Safety",
+    format: "decimal",
+    colorScale: RED_SCALE,
+    invertSentiment: true,
+    description: "Drunk drivers involved in fatal crashes per 100,000 residents",
+    source: "NHTSA FARS + Census ACS",
+    dateRange: "2015–2022",
+  },
+  {
+    key: "pedestrian_crashes_per_capita",
+    label: "Pedestrian Crash Rate (per 100K)",
+    category: "Safety",
+    format: "decimal",
+    colorScale: RED_SCALE,
+    invertSentiment: true,
+    description: "Pedestrians involved in fatal crashes per 100,000 residents",
+    source: "NHTSA FARS + Census ACS",
+    dateRange: "2015–2022",
+  },
+  {
+    key: "federal_per_crash",
+    label: "Federal $ per Fatal Crash",
+    category: "Spending",
+    format: "currency",
+    colorScale: GREEN_SCALE,
+    description: "Federal infrastructure spending per fatal crash — investment relative to safety outcomes",
+    source: "USAspending + NHTSA FARS",
+    dateRange: "2020–2024",
+  },
+  {
+    key: "vehicle_dependency",
+    label: "Vehicle Dependency",
+    category: "Transportation",
+    format: "decimal",
+    colorScale: PURPLE_SCALE,
+    invertSentiment: true,
+    description: "Composite auto-dependency score: (1 − zero-car households) × drove-alone share. Higher = more car-dependent.",
+    source: "Census ACS + EPA SLD",
+    dateRange: "2023",
   },
 ];
 
@@ -360,6 +589,47 @@ export async function loadGeoJSON(granularity: Granularity): Promise<GeoJSON.Fea
   const resp = await fetch(file);
   if (!resp.ok) throw new Error(`Failed to load ${granularity} GeoJSON: ${resp.status}`);
   return resp.json() as Promise<GeoJSON.FeatureCollection>;
+}
+
+export interface OverlayIndex {
+  years: number[];
+}
+
+export async function loadOverlayIndex(): Promise<OverlayIndex | null> {
+  try {
+    const resp = await fetch("/data/overlays/index.json");
+    if (!resp.ok) return null;
+    return resp.json() as Promise<OverlayIndex>;
+  } catch {
+    return null;
+  }
+}
+
+export async function loadYearOverlay(
+  year: number,
+): Promise<Record<string, Partial<CountyData>> | null> {
+  try {
+    const resp = await fetch(`/data/overlays/county_${year}.json`);
+    if (!resp.ok) return null;
+    const records = (await resp.json()) as Partial<CountyData>[];
+    const map: Record<string, Partial<CountyData>> = {};
+    for (const r of records) {
+      if (r.county_fips) map[r.county_fips] = r;
+    }
+    return map;
+  } catch {
+    return null;
+  }
+}
+
+export function mergeOverlay(
+  base: CountyData[],
+  overlay: Record<string, Partial<CountyData>>,
+): CountyData[] {
+  return base.map((c) => {
+    const over = overlay[c.county_fips];
+    return over ? { ...c, ...over } : c;
+  });
 }
 
 /** Format a metric value for display. */

@@ -1,0 +1,98 @@
+[
+  {
+    "county_fips": "48113",
+    "total_fatalities": 315,
+    "total_crashes": 288,
+    "pedestrian_involved_crashes": 93,
+    "drunk_driver_crashes": 93,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48397",
+    "total_fatalities": 12,
+    "total_crashes": 10,
+    "pedestrian_involved_crashes": 4,
+    "drunk_driver_crashes": 3,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48221",
+    "total_fatalities": 15,
+    "total_crashes": 14,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 4,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48231",
+    "total_fatalities": 28,
+    "total_crashes": 24,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 5,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48085",
+    "total_fatalities": 50,
+    "total_crashes": 42,
+    "pedestrian_involved_crashes": 6,
+    "drunk_driver_crashes": 18,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48251",
+    "total_fatalities": 23,
+    "total_crashes": 23,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 2,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48139",
+    "total_fatalities": 28,
+    "total_crashes": 25,
+    "pedestrian_involved_crashes": 5,
+    "drunk_driver_crashes": 6,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48497",
+    "total_fatalities": 19,
+    "total_crashes": 17,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 10,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48121",
+    "total_fatalities": 49,
+    "total_crashes": 42,
+    "pedestrian_involved_crashes": 12,
+    "drunk_driver_crashes": 9,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48257",
+    "total_fatalities": 27,
+    "total_crashes": 20,
+    "pedestrian_involved_crashes": 6,
+    "drunk_driver_crashes": 8,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48439",
+    "total_fatalities": 167,
+    "total_crashes": 159,
+    "pedestrian_involved_crashes": 45,
+    "drunk_driver_crashes": 37,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48367",
+    "total_fatalities": 21,
+    "total_crashes": 19,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 2,
+    "total_annual_ridership": null
+  }
+]
