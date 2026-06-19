@@ -23,6 +23,18 @@ class Settings:
     def marts_dir(self) -> Path:
         return self.data_dir / "marts"
 
+    def metro_raw_dir(self, metro_id: str) -> Path:
+        return self.raw_dir / metro_id
+
+    def metro_staging_dir(self, metro_id: str) -> Path:
+        return self.staging_dir / metro_id
+
+    def metro_marts_dir(self, metro_id: str) -> Path:
+        return self.marts_dir / metro_id
+
+    def web_data_dir(self, metro_id: str) -> Path:
+        return Path(self.data_dir).resolve().parent.parent / "web" / "public" / "data" / metro_id
+
     def ensure_dirs(self) -> None:
         for d in (self.raw_dir, self.staging_dir, self.marts_dir):
             d.mkdir(parents=True, exist_ok=True)
