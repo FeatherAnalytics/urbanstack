@@ -6,18 +6,13 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.umr import UmrRecord
+from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
 
 UMR_XLSX_URL = (
     "https://tti.tamu.edu/documents/umr/data/complete-data-2025-umr-by-tti.xlsx"
 )
-
-DFW_NAMES = [
-    "Dallas-Fort Worth-Arlington",
-    "Dallas-Fort Worth-Arlington TX",
-    "Dallas-Fort Worth-Arlington, TX",
-]
 
 COLUMN_MAP: dict[str, str] = {
     "Travel Time Index": "travel_time_index",
@@ -111,13 +106,12 @@ def _normalize_columns(df: pl.DataFrame) -> dict[str, str]:
     return rename
 
 
-def _filter_dfw(df: pl.DataFrame) -> pl.DataFrame:
-    """Filter to DFW metro rows."""
+def _filter_metro(df: pl.DataFrame, metro: MetroConfig) -> pl.DataFrame:
     if "urban_area" not in df.columns:
         return df
     urban_lower = pl.col("urban_area").str.to_lowercase().str.strip_chars()
-    dfw_lower = [n.lower() for n in DFW_NAMES]
-    return df.filter(urban_lower.is_in(dfw_lower))
+    names_lower = [n.lower() for n in metro.umr_names]
+    return df.filter(urban_lower.is_in(names_lower))
 
 
 def _to_records(df: pl.DataFrame) -> list[UmrRecord]:
@@ -150,11 +144,12 @@ def _to_records(df: pl.DataFrame) -> list[UmrRecord]:
 
 def extract_umr(
     settings: Settings,
+    metro: MetroConfig,
     *,
     force: bool = False,
 ) -> pl.DataFrame:
-    parquet_dir = settings.staging_dir / "umr"
-    parquet_path = parquet_dir / "umr_dfw.parquet"
+    parquet_dir = settings.metro_staging_dir(metro.metro_id) / "umr"
+    parquet_path = parquet_dir / f"umr_{metro.metro_id}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
@@ -181,12 +176,12 @@ def extract_umr(
         )
 
     df = raw_df.rename(rename)
-    df = _filter_dfw(df)
+    df = _filter_metro(df, metro)
 
     if len(df) == 0:
         raise ValueError(
-            "No DFW rows found after filtering. "
-            f"Searched for urban_area matching: {DFW_NAMES}"
+            f"No rows found after filtering for {metro.metro_id}. "
+            f"Searched for urban_area matching: {metro.umr_names}"
         )
 
     records = _to_records(df)
