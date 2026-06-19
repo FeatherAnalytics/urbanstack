@@ -22,11 +22,19 @@ DFW_NAMES = [
 COLUMN_MAP: dict[str, str] = {
     "Travel Time Index": "travel_time_index",
     "Planning Time Index": "planning_time_index",
+    "Freeway Planning Time Index": "planning_time_index",
     "Annual Delay per Auto Commuter (hours)": "annual_delay_per_commuter",
     "Congestion Cost per Auto Commuter (dollars)": "congestion_cost_per_commuter",
     "Total Delay (1,000 person-hours)": "total_delay_thousand_hours",
+    "Annual Hours of Delay": "total_delay_thousand_hours",
     "Total Excess Fuel Consumed (1,000 gallons)": "total_excess_fuel_thousand_gallons",
+    "Annual Excess Fuel Consumed": "total_excess_fuel_thousand_gallons",
 }
+
+OFFSET_COLUMNS: list[tuple[str, int, str]] = [
+    ("Annual Hours of Delay", 2, "annual_delay_per_commuter"),
+    ("Annual Congestion Cost", 2, "congestion_cost_per_commuter"),
+]
 
 
 def _try_download(settings: Settings) -> Path | None:
@@ -69,12 +77,24 @@ def _load_raw(path: Path) -> pl.DataFrame:
 def _normalize_columns(df: pl.DataFrame) -> dict[str, str]:
     """Build a rename map from actual columns to our standard names."""
     rename: dict[str, str] = {}
-    lower_cols = {c.strip().lower(): c for c in df.columns}
+    columns = df.columns
+    lower_cols = {c.strip().lower(): c for c in columns}
 
     for pattern, target in COLUMN_MAP.items():
         key = pattern.strip().lower()
         if key in lower_cols:
             rename[lower_cols[key]] = target
+
+    col_index = {c.strip().lower(): i for i, c in enumerate(columns)}
+    for parent_prefix, offset, target in OFFSET_COLUMNS:
+        if target in rename.values():
+            continue
+        for lower_name, idx in col_index.items():
+            if lower_name.startswith(parent_prefix.lower()):
+                sub_idx = idx + offset
+                if sub_idx < len(columns):
+                    rename[columns[sub_idx]] = target
+                break
 
     for candidate in ("Urban Area", "urban_area", "Urban Area Name", "Area"):
         key = candidate.strip().lower()
@@ -118,7 +138,8 @@ def _to_records(df: pl.DataFrame) -> list[UmrRecord]:
             val = row.get(field)
             if val is not None:
                 try:
-                    kwargs[field] = float(val)
+                    fval = float(val)
+                    kwargs[field] = fval if fval != 0.0 else None
                 except (ValueError, TypeError):
                     kwargs[field] = None
             else:
