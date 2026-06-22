@@ -712,3 +712,66 @@ export function groupMetricsByCategory(): Record<
     {} as Record<MetricCategory, MetricConfig[]>,
   );
 }
+
+// ============================================================================
+// Viewport-Based Color Scaling
+// ============================================================================
+
+export type ColorScaleMode = "global" | "viewport";
+
+export interface ViewportBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export function computeMinMax(
+  counties: CountyData[],
+  metricKey: MetricKey,
+  visibleIds: Set<string> | null,
+): { min: number; max: number } {
+  const filtered = visibleIds
+    ? counties.filter((c) => visibleIds.has(c.county_fips))
+    : counties;
+  const values = filtered
+    .map((c) => c[metricKey] as number | null)
+    .filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
+  if (values.length === 0) return { min: 0, max: 0 };
+  return { min: Math.min(...values), max: Math.max(...values) };
+}
+
+function centroid(coords: number[][]): [number, number] {
+  let lon = 0;
+  let lat = 0;
+  const n = coords.length;
+  for (const [x, y] of coords) {
+    lon += x;
+    lat += y;
+  }
+  return [lon / n, lat / n];
+}
+
+export function getVisibleGeoIds(
+  geojson: GeoJSON.FeatureCollection,
+  bounds: ViewportBounds,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const feature of geojson.features) {
+    const geoId = feature.properties?.GEOID as string | undefined;
+    if (!geoId) continue;
+    const geom = feature.geometry;
+    let ring: number[][] | undefined;
+    if (geom.type === "Polygon") {
+      ring = geom.coordinates[0] as number[][];
+    } else if (geom.type === "MultiPolygon") {
+      ring = geom.coordinates[0][0] as number[][];
+    }
+    if (!ring || ring.length === 0) continue;
+    const [lon, lat] = centroid(ring);
+    if (lon >= bounds.west && lon <= bounds.east && lat >= bounds.south && lat <= bounds.north) {
+      ids.add(geoId);
+    }
+  }
+  return ids;
+}
