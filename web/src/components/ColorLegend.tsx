@@ -9,6 +9,7 @@ interface ColorLegendProps {
   secondaryMinMax: { min: number; max: number } | null;
   colorScaleMode: ColorScaleMode;
   onToggleMode: () => void;
+  onExitCompare?: () => void;
   granularity: Granularity;
 }
 
@@ -57,7 +58,7 @@ function BivariateLegend({
           className="text-[9px] text-slate-500 dark:text-slate-500"
           style={{ writingMode: "vertical-lr", transform: "rotate(180deg)", height: 72 }}
         >
-          {secondaryMetric.label} &rarr;
+          {primaryMetric.label} &rarr;
         </div>
         <div>
           <div
@@ -81,7 +82,7 @@ function BivariateLegend({
             )}
           </div>
           <div className="mt-0.5 text-center text-[9px] text-slate-500 dark:text-slate-500">
-            {primaryMetric.label} &rarr;
+            {secondaryMetric.label} &rarr;
           </div>
         </div>
       </div>
@@ -96,6 +97,7 @@ export function ColorLegend({
   secondaryMinMax,
   colorScaleMode,
   onToggleMode,
+  onExitCompare,
   granularity,
 }: ColorLegendProps) {
   const isBivariate = secondaryMetric !== null && secondaryMinMax !== null;
@@ -108,14 +110,24 @@ export function ColorLegend({
       ) : (
         <GradientLegend metric={primaryMetric} minMax={primaryMinMax} />
       )}
-      {showToggle && (
-        <button
-          onClick={onToggleMode}
-          className="mt-1.5 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
-        >
-          Scale: {colorScaleMode === "global" ? "Global" : "Viewport"} ▾
-        </button>
-      )}
+      <div className="mt-1.5 flex items-center gap-2">
+        {showToggle && (
+          <button
+            onClick={onToggleMode}
+            className="text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
+          >
+            Scale: {colorScaleMode === "global" ? "Global" : "Viewport"} ▾
+          </button>
+        )}
+        {isBivariate && onExitCompare && (
+          <button
+            onClick={onExitCompare}
+            className="text-[10px] text-slate-400 hover:text-red-500 dark:text-slate-500"
+          >
+            ✕ Exit Compare
+          </button>
+        )}
+      </div>
     </div>
   );
 }

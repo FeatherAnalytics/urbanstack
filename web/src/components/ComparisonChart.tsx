@@ -76,10 +76,10 @@ export function ComparisonChart({
           const pct = maxVal > 0 ? (val / maxVal) * 100 : 0;
           const isSelected = county.county_fips === selectedFips;
 
+          const secVal = isBivariate ? (county[secondaryMetric!.key] as number | null) : null;
           let barR = defaultR, barG = defaultG, barB = defaultB;
           if (isBivariate) {
             const pBin = classifyBin(val, primaryBreaks!);
-            const secVal = county[secondaryMetric!.key] as number | null;
             const sBin = secVal !== null && !Number.isNaN(secVal) ? classifyBin(secVal, secondaryBreaks!) : 0;
             [barR, barG, barB] = getBivariateColor(pBin, sBin, 255);
           }
@@ -119,10 +119,7 @@ export function ComparisonChart({
               </div>
               <span className="w-18 shrink-0 text-right font-mono text-xs text-slate-700 dark:text-slate-400">
                 {formatValue(val, metric.format)}
-                {isBivariate && (() => {
-                  const secVal = county[secondaryMetric!.key] as number | null;
-                  return secVal !== null ? ` / ${formatValue(secVal, secondaryMetric!.format)}` : "";
-                })()}
+                {isBivariate && secVal !== null && ` / ${formatValue(secVal, secondaryMetric!.format)}`}
               </span>
             </button>
           );

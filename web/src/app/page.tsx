@@ -91,26 +91,21 @@ export default function Home() {
     [],
   );
 
-  const effectiveMinMax = useMemo(() => {
-    if (colorScaleMode === "viewport" && viewportBounds && geojson) {
-      const visibleIds = getVisibleGeoIds(geojson, viewportBounds);
-      if (visibleIds.size > 0) {
-        return computeMinMax(counties, selectedMetric.key, visibleIds);
-      }
-    }
-    return computeMinMax(counties, selectedMetric.key, null);
-  }, [colorScaleMode, viewportBounds, geojson, counties, selectedMetric.key]);
+  const visibleIds = useMemo(() => {
+    if (colorScaleMode !== "viewport" || !viewportBounds || !geojson) return null;
+    const ids = getVisibleGeoIds(geojson, viewportBounds);
+    return ids.size > 0 ? ids : null;
+  }, [colorScaleMode, viewportBounds, geojson]);
+
+  const effectiveMinMax = useMemo(
+    () => computeMinMax(counties, selectedMetric.key, visibleIds),
+    [counties, selectedMetric.key, visibleIds],
+  );
 
   const secondaryMinMax = useMemo(() => {
     if (!secondaryMetric) return null;
-    if (colorScaleMode === "viewport" && viewportBounds && geojson) {
-      const visibleIds = getVisibleGeoIds(geojson, viewportBounds);
-      if (visibleIds.size > 0) {
-        return computeMinMax(counties, secondaryMetric.key, visibleIds);
-      }
-    }
-    return computeMinMax(counties, secondaryMetric.key, null);
-  }, [secondaryMetric, colorScaleMode, viewportBounds, geojson, counties]);
+    return computeMinMax(counties, secondaryMetric.key, visibleIds);
+  }, [secondaryMetric, counties, visibleIds]);
 
   const primaryBreaks = useMemo(() => {
     if (!secondaryMetric) return null;
@@ -288,7 +283,7 @@ export default function Home() {
           <div className="max-h-48 overflow-y-auto lg:max-h-none">
             <MetricSelector
               selected={selectedMetric}
-              onSelect={setSelectedMetric}
+              onSelect={(m) => { setSelectedMetric(m); setSecondaryMetric(null); }}
               counties={counties}
               secondaryMetric={secondaryMetric}
               onSelectSecondary={setSecondaryMetric}
@@ -312,15 +307,15 @@ export default function Home() {
             viewport={viewport}
             minVal={effectiveMinMax.min}
             maxVal={effectiveMinMax.max}
-            onViewStateChange={handleViewStateChange}
+            onViewStateChange={colorScaleMode === "viewport" ? handleViewStateChange : undefined}
             secondaryMetric={secondaryMetric}
-            secondaryMinMax={secondaryMinMax}
             primaryBreaks={primaryBreaks}
             secondaryBreaks={secondaryBreaks}
           />
           <MapTooltip
             county={hoverCounty}
             metric={selectedMetric}
+            secondaryMetric={secondaryMetric}
             x={hoverPos.x}
             y={hoverPos.y}
             containerRef={mapRef}
@@ -333,7 +328,7 @@ export default function Home() {
             showBus={showBus}
             onToggleBus={() => setShowBus((v) => !v)}
           />
-          <div className="absolute left-[calc(theme(spacing.64)+0.75rem)] top-3 z-30 lg:left-[calc(16rem+0.75rem)]">
+          <div className="absolute left-1 top-3 z-30 lg:left-1">
             <ColorLegend
               primaryMetric={selectedMetric}
               secondaryMetric={secondaryMetric}
@@ -341,6 +336,7 @@ export default function Home() {
               secondaryMinMax={secondaryMinMax}
               colorScaleMode={colorScaleMode}
               onToggleMode={() => setColorScaleMode((m) => (m === "global" ? "viewport" : "global"))}
+              onExitCompare={() => setSecondaryMetric(null)}
               granularity={granularity}
             />
           </div>

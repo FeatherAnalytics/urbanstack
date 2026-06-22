@@ -42,7 +42,6 @@ interface ChoroplethMapProps {
   /** Callback when viewport changes (lat, lng, zoom) */
   onViewStateChange?: (viewState: Record<string, unknown>) => void;
   secondaryMetric: MetricConfig | null;
-  secondaryMinMax: { min: number; max: number } | null;
   primaryBreaks: number[] | null;
   secondaryBreaks: number[] | null;
 }
@@ -62,7 +61,6 @@ export function ChoroplethMap({
   maxVal,
   onViewStateChange,
   secondaryMetric,
-  secondaryMinMax,
   primaryBreaks,
   secondaryBreaks,
 }: ChoroplethMapProps) {
@@ -246,15 +244,17 @@ export function ChoroplethMap({
 interface MapTooltipProps {
   county: CountyData | null;
   metric: MetricConfig;
+  secondaryMetric?: MetricConfig | null;
   x: number;
   y: number;
   containerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function MapTooltip({ county, metric, x, y, containerRef }: MapTooltipProps) {
+export function MapTooltip({ county, metric, secondaryMetric, x, y, containerRef }: MapTooltipProps) {
   if (!county) return null;
 
   const val = county[metric.key] as number | null;
+  const secVal = secondaryMetric ? (county[secondaryMetric.key] as number | null) : null;
   const rect = containerRef?.current?.getBoundingClientRect();
   const absX = (rect?.left ?? 0) + x;
   const absY = (rect?.top ?? 0) + y;
@@ -265,7 +265,7 @@ export function MapTooltip({ county, metric, x, y, containerRef }: MapTooltipPro
 
   return (
     <div
-      className="pointer-events-none fixed z-[9999] w-max max-w-[240px] rounded border border-slate-200 bg-white/95 px-3 py-2 text-sm shadow-lg dark:border-slate-600 dark:bg-slate-800/95"
+      className="pointer-events-none fixed z-[9999] w-max max-w-[280px] rounded border border-slate-200 bg-white/95 px-3 py-2 text-sm shadow-lg dark:border-slate-600 dark:bg-slate-800/95"
       style={{
         left: flipLeft ? absX - 12 : absX + 12,
         top: flipUp ? absY - 12 : absY + 12,
@@ -281,6 +281,14 @@ export function MapTooltip({ county, metric, x, y, containerRef }: MapTooltipPro
           {formatValue(val, metric.format)}
         </span>
       </div>
+      {secondaryMetric && (
+        <div className="text-slate-500 dark:text-slate-400">
+          {secondaryMetric.label}:{" "}
+          <span className="font-mono text-slate-900 dark:text-white">
+            {formatValue(secVal, secondaryMetric.format)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
