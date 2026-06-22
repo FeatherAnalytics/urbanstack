@@ -33,6 +33,12 @@ interface ChoroplethMapProps {
   overlayLayers?: Layer[];
   /** Map viewport (center, zoom, pitch, bearing) — driven by metro config */
   viewport: { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number };
+  /** Minimum value for color scale normalization */
+  minVal: number;
+  /** Maximum value for color scale normalization */
+  maxVal: number;
+  /** Callback when viewport changes (lat, lng, zoom) */
+  onViewStateChange?: (viewState: Record<string, unknown>) => void;
 }
 
 export function ChoroplethMap({
@@ -46,6 +52,9 @@ export function ChoroplethMap({
   granularity,
   overlayLayers = [],
   viewport,
+  minVal,
+  maxVal,
+  onViewStateChange,
 }: ChoroplethMapProps) {
   const isMetro = granularity === "metro";
   const isBlockGroup = granularity === "block_group";
@@ -58,15 +67,6 @@ export function ChoroplethMap({
     }
     return map;
   }, [counties]);
-
-  // Compute min/max for normalization, excluding null/NaN
-  const [minVal, maxVal] = useMemo(() => {
-    const values = counties
-      .map((c) => c[metric.key] as number | null)
-      .filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
-    if (values.length === 0) return [0, 0];
-    return [Math.min(...values), Math.max(...values)];
-  }, [counties, metric.key]);
 
   // Fill alpha varies by granularity: block groups need transparency so labels show through
   const fillAlpha = isBlockGroup ? 120 : 200;
@@ -210,6 +210,7 @@ export function ChoroplethMap({
         layers={layers}
         onClick={handleClick}
         onHover={handleHover}
+        onViewStateChange={onViewStateChange ? ({ viewState }) => onViewStateChange(viewState) : undefined}
         getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
       >
         <MapGL reuseMaps mapStyle={basemapStyle} />
