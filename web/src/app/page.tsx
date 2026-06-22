@@ -10,6 +10,7 @@ import {
   mergeOverlay,
   computeMinMax,
   getVisibleGeoIds,
+  computeQuantileBins,
   type ColorScaleMode,
   type ViewportBounds,
   type CountyData,
@@ -110,6 +111,22 @@ export default function Home() {
     }
     return computeMinMax(counties, secondaryMetric.key, null);
   }, [secondaryMetric, colorScaleMode, viewportBounds, geojson, counties]);
+
+  const primaryBreaks = useMemo(() => {
+    if (!secondaryMetric) return null;
+    const values = counties
+      .map((c) => c[selectedMetric.key] as number | null)
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
+    return computeQuantileBins(values, 3);
+  }, [counties, selectedMetric.key, secondaryMetric]);
+
+  const secondaryBreaks = useMemo(() => {
+    if (!secondaryMetric) return null;
+    const values = counties
+      .map((c) => c[secondaryMetric.key] as number | null)
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
+    return computeQuantileBins(values, 3);
+  }, [counties, secondaryMetric]);
 
   const overlayLayers = useMemo(() => {
     const out = [];
@@ -296,6 +313,10 @@ export default function Home() {
             minVal={effectiveMinMax.min}
             maxVal={effectiveMinMax.max}
             onViewStateChange={handleViewStateChange}
+            secondaryMetric={secondaryMetric}
+            secondaryMinMax={secondaryMinMax}
+            primaryBreaks={primaryBreaks}
+            secondaryBreaks={secondaryBreaks}
           />
           <MapTooltip
             county={hoverCounty}
@@ -340,6 +361,9 @@ export default function Home() {
           selectedFips={selectedFips}
           onSelect={setSelectedFips}
           granularity={granularity}
+          secondaryMetric={secondaryMetric}
+          primaryBreaks={primaryBreaks}
+          secondaryBreaks={secondaryBreaks}
         />
       </div>
     </div>
