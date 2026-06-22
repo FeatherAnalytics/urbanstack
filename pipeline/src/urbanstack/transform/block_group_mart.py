@@ -172,6 +172,19 @@ def build_block_group_mart(
     safety_cols = ["total_fatalities", "total_crashes", "pedestrian_involved_crashes", "drunk_driver_crashes"]
     base = base.with_columns([pl.col(c).fill_null(0) for c in safety_cols if c in base.columns])
 
+    # Per-capita crash rates (mirrors county_mart calculations)
+    if "total_crashes" in base.columns:
+        base = base.with_columns(
+            pl.when(pl.col("total_population") > 0)
+            .then(pl.col("total_fatalities").cast(pl.Float64) / pl.col("total_population").cast(pl.Float64))
+            .otherwise(None)
+            .alias("fatalities_per_capita"),
+            pl.when(pl.col("total_population") > 0)
+            .then(pl.col("total_crashes").cast(pl.Float64) / pl.col("total_population").cast(pl.Float64))
+            .otherwise(None)
+            .alias("crashes_per_capita"),
+        )
+
     null_cols = {
         "total_fatalities": pl.Int64,
         "total_crashes": pl.Int64,

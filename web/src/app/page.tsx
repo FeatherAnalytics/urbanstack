@@ -8,6 +8,11 @@ import {
   loadOverlayIndex,
   loadYearOverlay,
   mergeOverlay,
+  computeMinMax,
+  getVisibleGeoIds,
+  computeQuantileBins,
+  type ColorScaleMode,
+  type ViewportBounds,
   type CountyData,
   type Granularity,
   type MetricConfig,
@@ -22,6 +27,7 @@ import { ThemeToggle, useTheme } from "@/components/ThemeToggle";
 import { MapControls } from "@/components/MapControls";
 import { useTrafficLayer } from "@/components/TrafficLayer";
 import { useTransitLayers } from "@/components/TransitLayer";
+import { ColorLegend } from "@/components/ColorLegend";
 
 export default function Home() {
   const [counties, setCounties] = useState<CountyData[]>([]);
@@ -31,6 +37,7 @@ export default function Home() {
   const [selectedMetric, setSelectedMetric] = useState<MetricConfig>(
     METRICS[0],
   );
+  const [secondaryMetric, setSecondaryMetric] = useState<MetricConfig | null>(null);
   const [selectedFips, setSelectedFips] = useState<string | null>(null);
   const [hoverCounty, setHoverCounty] = useState<CountyData | null>(null);
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
@@ -45,6 +52,8 @@ export default function Home() {
   const [overlayIndex, setOverlayIndex] = useState<OverlayIndex | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [baseCounties, setBaseCounties] = useState<CountyData[]>([]);
+  const [colorScaleMode, setColorScaleMode] = useState<ColorScaleMode>("global");
+  const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
 
   const yearRef = useRef<number | null>(null);
   const { isDark, toggle } = useTheme();
@@ -63,6 +72,56 @@ export default function Home() {
     const m = METROS[selectedMetro] ?? METROS[DEFAULT_METRO];
     return { longitude: m.center[1], latitude: m.center[0], zoom: m.zoom, pitch: 0, bearing: 0 };
   }, [selectedMetro]);
+
+  const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleViewStateChange = useCallback(
+    (viewState: Record<string, unknown>) => {
+      if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+      viewportTimerRef.current = setTimeout(() => {
+        const vs = viewState as { longitude: number; latitude: number; zoom: number };
+        const span = 360 / Math.pow(2, vs.zoom);
+        setViewportBounds({
+          west: vs.longitude - span / 2,
+          east: vs.longitude + span / 2,
+          south: vs.latitude - span / 4,
+          north: vs.latitude + span / 4,
+        });
+      }, 300);
+    },
+    [],
+  );
+
+  const visibleIds = useMemo(() => {
+    if (colorScaleMode !== "viewport" || !viewportBounds || !geojson) return null;
+    const ids = getVisibleGeoIds(geojson, viewportBounds);
+    return ids.size > 0 ? ids : null;
+  }, [colorScaleMode, viewportBounds, geojson]);
+
+  const effectiveMinMax = useMemo(
+    () => computeMinMax(counties, selectedMetric.key, visibleIds),
+    [counties, selectedMetric.key, visibleIds],
+  );
+
+  const secondaryMinMax = useMemo(() => {
+    if (!secondaryMetric) return null;
+    return computeMinMax(counties, secondaryMetric.key, visibleIds);
+  }, [secondaryMetric, counties, visibleIds]);
+
+  const primaryBreaks = useMemo(() => {
+    if (!secondaryMetric) return null;
+    const values = counties
+      .map((c) => c[selectedMetric.key] as number | null)
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
+    return computeQuantileBins(values, 3);
+  }, [counties, selectedMetric.key, secondaryMetric]);
+
+  const secondaryBreaks = useMemo(() => {
+    if (!secondaryMetric) return null;
+    const values = counties
+      .map((c) => c[secondaryMetric.key] as number | null)
+      .filter((v): v is number => v !== null && !Number.isNaN(v));
+    return computeQuantileBins(values, 3);
+  }, [counties, secondaryMetric]);
 
   const overlayLayers = useMemo(() => {
     const out = [];
@@ -224,8 +283,10 @@ export default function Home() {
           <div className="max-h-48 overflow-y-auto lg:max-h-none">
             <MetricSelector
               selected={selectedMetric}
-              onSelect={setSelectedMetric}
+              onSelect={(m) => { setSelectedMetric(m); setSecondaryMetric(null); }}
               counties={counties}
+              secondaryMetric={secondaryMetric}
+              onSelectSecondary={setSecondaryMetric}
             />
           </div>
         </aside>
@@ -244,10 +305,17 @@ export default function Home() {
             granularity={granularity}
             overlayLayers={overlayLayers}
             viewport={viewport}
+            minVal={effectiveMinMax.min}
+            maxVal={effectiveMinMax.max}
+            onViewStateChange={colorScaleMode === "viewport" ? handleViewStateChange : undefined}
+            secondaryMetric={secondaryMetric}
+            primaryBreaks={primaryBreaks}
+            secondaryBreaks={secondaryBreaks}
           />
           <MapTooltip
             county={hoverCounty}
             metric={selectedMetric}
+            secondaryMetric={secondaryMetric}
             x={hoverPos.x}
             y={hoverPos.y}
             containerRef={mapRef}
@@ -260,6 +328,18 @@ export default function Home() {
             showBus={showBus}
             onToggleBus={() => setShowBus((v) => !v)}
           />
+          <div className="absolute left-1 top-3 z-30 lg:left-1">
+            <ColorLegend
+              primaryMetric={selectedMetric}
+              secondaryMetric={secondaryMetric}
+              primaryMinMax={effectiveMinMax}
+              secondaryMinMax={secondaryMinMax}
+              colorScaleMode={colorScaleMode}
+              onToggleMode={() => setColorScaleMode((m) => (m === "global" ? "viewport" : "global"))}
+              onExitCompare={() => setSecondaryMetric(null)}
+              granularity={granularity}
+            />
+          </div>
           <CountyDetailPopup
             county={selectedCounty}
             allCounties={counties}
@@ -277,6 +357,9 @@ export default function Home() {
           selectedFips={selectedFips}
           onSelect={setSelectedFips}
           granularity={granularity}
+          secondaryMetric={secondaryMetric}
+          primaryBreaks={primaryBreaks}
+          secondaryBreaks={secondaryBreaks}
         />
       </div>
     </div>

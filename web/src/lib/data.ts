@@ -712,3 +712,172 @@ export function groupMetricsByCategory(): Record<
     {} as Record<MetricCategory, MetricConfig[]>,
   );
 }
+
+// ============================================================================
+// Viewport-Based Color Scaling
+// ============================================================================
+
+export type ColorScaleMode = "global" | "viewport";
+
+export interface ViewportBounds {
+  west: number;
+  south: number;
+  east: number;
+  north: number;
+}
+
+export function computeMinMax(
+  counties: CountyData[],
+  metricKey: MetricKey,
+  visibleIds: Set<string> | null,
+): { min: number; max: number } {
+  const filtered = visibleIds
+    ? counties.filter((c) => visibleIds.has(c.county_fips))
+    : counties;
+  const values = filtered
+    .map((c) => c[metricKey] as number | null)
+    .filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
+  if (values.length === 0) return { min: 0, max: 0 };
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return { min, max };
+}
+
+function centroid(coords: number[][]): [number, number] {
+  let lon = 0;
+  let lat = 0;
+  const n = coords.length;
+  for (const [x, y] of coords) {
+    lon += x;
+    lat += y;
+  }
+  return [lon / n, lat / n];
+}
+
+export function getVisibleGeoIds(
+  geojson: GeoJSON.FeatureCollection,
+  bounds: ViewportBounds,
+): Set<string> {
+  const ids = new Set<string>();
+  for (const feature of geojson.features) {
+    const geoId = feature.properties?.GEOID as string | undefined;
+    if (!geoId) continue;
+    const geom = feature.geometry;
+    let ring: number[][] | undefined;
+    if (geom.type === "Polygon") {
+      ring = geom.coordinates[0] as number[][];
+    } else if (geom.type === "MultiPolygon") {
+      ring = geom.coordinates[0][0] as number[][];
+    }
+    if (!ring || ring.length === 0) continue;
+    const [lon, lat] = centroid(ring);
+    if (lon >= bounds.west && lon <= bounds.east && lat >= bounds.south && lat <= bounds.north) {
+      ids.add(geoId);
+    }
+  }
+  return ids;
+}
+
+// ============================================================================
+// Bivariate Choropleth Utilities
+// ============================================================================
+
+/** Stevens purple-teal bivariate palette (colorblind-safe). Rows = primary bins, cols = secondary bins. */
+export const BIVARIATE_PALETTE: [number, number, number][][] = [
+  [[232, 232, 232], [172, 228, 228], [90, 200, 200]],
+  [[223, 176, 214], [165, 173, 211], [86, 152, 185]],
+  [[190, 100, 172], [140, 98, 170], [59, 73, 148]],
+];
+
+export function computeQuantileBins(values: number[], bins: number): number[] {
+  if (values.length === 0) return Array(bins - 1).fill(0);
+  const sorted = [...values].sort((a, b) => a - b);
+  const breaks: number[] = [];
+  for (let i = 1; i < bins; i++) {
+    const idx = Math.floor((i / bins) * sorted.length);
+    breaks.push(sorted[Math.min(idx, sorted.length - 1)]);
+  }
+  return breaks;
+}
+
+export function classifyBin(value: number, breaks: number[]): number {
+  for (let i = 0; i < breaks.length; i++) {
+    if (value <= breaks[i]) return i;
+  }
+  return breaks.length;
+}
+
+export function getBivariateColor(
+  primaryBin: number,
+  secondaryBin: number,
+  alpha: number,
+): [number, number, number, number] {
+  const row = Math.max(0, Math.min(2, primaryBin));
+  const col = Math.max(0, Math.min(2, secondaryBin));
+  const rgb = BIVARIATE_PALETTE[row][col];
+  return [rgb[0], rgb[1], rgb[2], alpha];
+}
+
+export interface MetricCombo {
+  key: string;
+  label: string;
+  primary: MetricKey;
+  secondary: MetricKey;
+  description: string;
+}
+
+export const METRIC_COMBOS: MetricCombo[] = [
+  {
+    key: "walkability-safety",
+    label: "Walkability × Safety",
+    primary: "avg_walkability",
+    secondary: "ped_fatality_rate_per_100k",
+    description: "Wali & Frank (2024): walkable areas reduce total fatalities but increase pedestrian/cyclist fatality rates by 4.9% per walkability unit.",
+  },
+  {
+    key: "transit-income",
+    label: "Transit × Income",
+    primary: "avg_transit_frequency",
+    secondary: "per_capita_income",
+    description: "Do low-income areas have transit access? Based on Griffin & Sener (2016) DFW equity analysis.",
+  },
+  {
+    key: "density-ridership",
+    label: "Density × Ridership",
+    primary: "pop_density_sqmi",
+    secondary: "ridership_per_capita",
+    description: "Are dense areas actually using transit? Reveals mismatch between density and ridership.",
+  },
+  {
+    key: "car-dep-congestion",
+    label: "Car Dep. × Congestion",
+    primary: "vehicle_dependency",
+    secondary: "congestion_cost_per_capita",
+    description: "High vehicle dependency + high congestion cost = paying the most for lack of alternatives.",
+  },
+  {
+    key: "zero-car-walkability",
+    label: "Zero-Car × Walkability",
+    primary: "pct_zero_car_hh",
+    secondary: "avg_walkability",
+    description: "Zero-car households in non-walkable areas face the worst mobility constraints.",
+  },
+  {
+    key: "income-commute",
+    label: "Income × Transit Use",
+    primary: "per_capita_income",
+    secondary: "pct_transit",
+    description: "Do higher-income areas avoid transit? Reveals class stratification in transportation choices.",
+  },
+  {
+    key: "income-vehicle-dep",
+    label: "Income × Car Dep.",
+    primary: "per_capita_income",
+    secondary: "vehicle_dependency",
+    description: "Low income + high car dependency = forced car ownership. Financial vulnerability indicator.",
+  },
+];
