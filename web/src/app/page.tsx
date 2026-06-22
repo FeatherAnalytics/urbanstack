@@ -36,6 +36,7 @@ export default function Home() {
   const [selectedMetric, setSelectedMetric] = useState<MetricConfig>(
     METRICS[0],
   );
+  const [secondaryMetric, setSecondaryMetric] = useState<MetricConfig | null>(null);
   const [selectedFips, setSelectedFips] = useState<string | null>(null);
   const [hoverCounty, setHoverCounty] = useState<CountyData | null>(null);
   const [hoverPos, setHoverPos] = useState({ x: 0, y: 0 });
@@ -98,6 +99,17 @@ export default function Home() {
     }
     return computeMinMax(counties, selectedMetric.key, null);
   }, [colorScaleMode, viewportBounds, geojson, counties, selectedMetric.key]);
+
+  const secondaryMinMax = useMemo(() => {
+    if (!secondaryMetric) return null;
+    if (colorScaleMode === "viewport" && viewportBounds && geojson) {
+      const visibleIds = getVisibleGeoIds(geojson, viewportBounds);
+      if (visibleIds.size > 0) {
+        return computeMinMax(counties, secondaryMetric.key, visibleIds);
+      }
+    }
+    return computeMinMax(counties, secondaryMetric.key, null);
+  }, [secondaryMetric, colorScaleMode, viewportBounds, geojson, counties]);
 
   const overlayLayers = useMemo(() => {
     const out = [];
@@ -261,6 +273,8 @@ export default function Home() {
               selected={selectedMetric}
               onSelect={setSelectedMetric}
               counties={counties}
+              secondaryMetric={secondaryMetric}
+              onSelectSecondary={setSecondaryMetric}
             />
           </div>
         </aside>
@@ -301,9 +315,9 @@ export default function Home() {
           <div className="absolute left-[calc(theme(spacing.64)+0.75rem)] top-3 z-30 lg:left-[calc(16rem+0.75rem)]">
             <ColorLegend
               primaryMetric={selectedMetric}
-              secondaryMetric={null}
+              secondaryMetric={secondaryMetric}
               primaryMinMax={effectiveMinMax}
-              secondaryMinMax={null}
+              secondaryMinMax={secondaryMinMax}
               colorScaleMode={colorScaleMode}
               onToggleMode={() => setColorScaleMode((m) => (m === "global" ? "viewport" : "global"))}
               granularity={granularity}
