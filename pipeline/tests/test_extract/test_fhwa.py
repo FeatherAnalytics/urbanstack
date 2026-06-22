@@ -148,7 +148,7 @@ def test_pagination(settings: Settings, metro: MetroConfig) -> None:
 def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
     parquet_dir = settings.metro_staging_dir(metro.metro_id) / "fhwa"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / f"fhwa_{metro.state_abbr.lower()}_2023.parquet"
+    parquet_path = parquet_dir / f"fhwa_{metro.metro_id}_2023.parquet"
     existing = pl.DataFrame({"station_id": ["000004"], "state_fips": ["48"]})
     existing.write_parquet(parquet_path)
 
@@ -162,7 +162,7 @@ def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
 def test_force_overwrite(settings: Settings, metro: MetroConfig) -> None:
     parquet_dir = settings.metro_staging_dir(metro.metro_id) / "fhwa"
     parquet_dir.mkdir(parents=True, exist_ok=True)
-    parquet_path = parquet_dir / f"fhwa_{metro.state_abbr.lower()}_2023.parquet"
+    parquet_path = parquet_dir / f"fhwa_{metro.metro_id}_2023.parquet"
     existing = pl.DataFrame({"station_id": ["old"], "state_fips": ["48"]})
     existing.write_parquet(parquet_path)
 
@@ -206,5 +206,5 @@ def test_raw_json_saved(settings: Settings, metro: MetroConfig) -> None:
     with patch("urbanstack.extract._socrata.requests.get", return_value=mock_resp):
         extract_fhwa(settings, metro, year=2023)
 
-    raw_path = settings.metro_raw_dir(metro.metro_id) / "fhwa" / f"fhwa_{metro.state_abbr.lower()}_2023.json"
+    raw_path = settings.metro_raw_dir(metro.metro_id) / "fhwa" / f"fhwa_{metro.metro_id}_2023.json"
     assert raw_path.exists()

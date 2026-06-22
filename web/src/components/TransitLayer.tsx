@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GeoJsonLayer } from "@deck.gl/layers";
+import { METROS } from "@/lib/metro";
 
 type TransitMode = "rail" | "bus";
 
 const RAIL_TYPES = new Set(["rail", "tram", "other"]);
 
-export function useTransitLayers(modes: Set<TransitMode>, metroId: string) {
+export function useTransitLayers(modes: Set<TransitMode>) {
   const [routeData, setRouteData] =
     useState<GeoJSON.FeatureCollection | null>(null);
   const [stopData, setStopData] =
@@ -15,27 +16,28 @@ export function useTransitLayers(modes: Set<TransitMode>, metroId: string) {
 
   const enabled = modes.size > 0;
 
-  // Reset cached data when metro changes
   useEffect(() => {
-    setRouteData(null);
-    setStopData(null);
-  }, [metroId]);
+    if (!enabled || (routeData && stopData)) return;
+    const metroIds = Object.keys(METROS);
 
-  useEffect(() => {
-    if (!enabled) return;
-    if (!routeData) {
-      fetch(`/data/${metroId}/transit_routes.geojson`)
-        .then((r) => r.json())
-        .then(setRouteData)
-        .catch(() => {});
+    async function fetchAllGeoJSON(filename: string): Promise<GeoJSON.FeatureCollection> {
+      const results = await Promise.allSettled(
+        metroIds.map((id) =>
+          fetch(`/data/${id}/${filename}`).then((r) => {
+            if (!r.ok) throw new Error(r.statusText);
+            return r.json();
+          })
+        )
+      );
+      const features = results
+        .filter((r): r is PromiseFulfilledResult<GeoJSON.FeatureCollection> => r.status === "fulfilled")
+        .flatMap((r) => r.value.features);
+      return { type: "FeatureCollection", features };
     }
-    if (!stopData) {
-      fetch(`/data/${metroId}/transit_stops.geojson`)
-        .then((r) => r.json())
-        .then(setStopData)
-        .catch(() => {});
-    }
-  }, [enabled, routeData, stopData, metroId]);
+
+    fetchAllGeoJSON("transit_routes.geojson").then(setRouteData);
+    fetchAllGeoJSON("transit_stops.geojson").then(setStopData);
+  }, [enabled, routeData, stopData]);
 
   const filteredRoutes = useMemo(() => {
     if (!routeData || !enabled) return null;

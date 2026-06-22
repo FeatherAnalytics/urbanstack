@@ -1,8 +1,8 @@
 import csv
 import io
 import logging
-from pathlib import Path
 import zipfile
+from pathlib import Path
 
 import polars as pl
 import requests
@@ -70,7 +70,6 @@ def _safe_coordinate(val: object) -> float | None:
 
 def _to_records(
     raw_rows: list[dict],
-    state_fips: str,
 ) -> list[FarsCrashRecord]:
     records: list[FarsCrashRecord] = []
     for row in raw_rows:
@@ -90,6 +89,11 @@ def _to_records(
 
         lat = _safe_coordinate(row.get("LATITUDE"))
         lon = _safe_coordinate(row.get("LONGITUD")) or _safe_coordinate(row.get("LONGITUDE"))
+
+        state_raw = row.get("STATE")
+        if state_raw is None:
+            continue
+        state_fips = str(int(state_raw)).zfill(2)
 
         records.append(
             FarsCrashRecord.model_validate(
@@ -126,8 +130,12 @@ def extract_fars(
         logger.info("Parquet exists, skipping: %s", parquet_path)
         return pl.read_parquet(parquet_path)
 
-    state_code = metro.state_fips_int
-    county_codes = {int(fips) for fips in metro.counties.values()}
+    metro_filter: set[tuple[int, int]] = set()
+    for state_fips, counties in metro.states.items():
+        state_int = int(state_fips)
+        for county_fips in counties.values():
+            metro_filter.add((state_int, int(county_fips)))
+
     raw_dir = settings.raw_dir / "fars"
 
     all_raw: list[dict] = []
@@ -137,13 +145,15 @@ def extract_fars(
 
         metro_rows = [
             r for r in rows
-            if _safe_int(r.get("STATE")) == state_code
-            and _safe_int(r.get("COUNTY")) in county_codes
+            if (_safe_int(r.get("STATE")), _safe_int(r.get("COUNTY"))) in metro_filter
         ]
-        logger.info("FARS %d: %d total crashes, %d in %s", year, len(rows), len(metro_rows), metro.metro_id)
+        logger.info(
+            "FARS %d: %d total crashes, %d in %s",
+            year, len(rows), len(metro_rows), metro.metro_id
+        )
         all_raw.extend(metro_rows)
 
-    records = _to_records(all_raw, metro.state_fips)
+    records = _to_records(all_raw)
     row_dicts = [r.model_dump() for r in records]
     df = pl.DataFrame(row_dicts)
 

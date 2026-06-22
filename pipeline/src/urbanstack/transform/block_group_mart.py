@@ -123,7 +123,7 @@ def build_block_group_mart(
         return pl.read_parquet(mart_path)
 
     acs = extract_acs(settings, metro, granularity="block_group")
-    acs = acs.filter(pl.col("state_fips") == metro.state_fips)
+    acs = acs.filter(pl.col("state_fips").is_in(metro.state_fips_set))
     acs = acs.filter(pl.col("tract_fips").is_not_null())
 
     base = _build_acs_base(acs)
