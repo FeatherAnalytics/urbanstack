@@ -71,36 +71,50 @@ def _parse_response(
     return records
 
 
-def _fetch_county(url: str, api_key: str, metro: MetroConfig) -> list[list[str]]:
-    county_codes = ",".join(metro.counties.values())
-    params = {
-        "get": f"NAME,{','.join(ACS_VARIABLES.keys())}",
-        "for": f"county:{county_codes}",
-        "in": f"state:{metro.state_fips}",
-        "key": api_key,
-    }
-    return _fetch(url, params)
-
-
-def _fetch_block_groups(url: str, api_key: str, metro: MetroConfig) -> list[list[str]]:
+def _fetch_multi(
+    url: str,
+    param_batches: list[dict[str, str] | list[tuple[str, str]]],
+) -> list[list[str]]:
+    """Fetch multiple Census API pages, rate-limited, with header dedup."""
+    if not param_batches:
+        return []
     all_rows: list[list[str]] = []
     headers: list[str] | None = None
-    for i, county_fips in enumerate(metro.counties.values()):
+    for i, params in enumerate(param_batches):
         if i > 0:
             time.sleep(0.5)
-        params: list[tuple[str, str]] = [
-            ("get", f"NAME,{','.join(ACS_VARIABLES.keys())}"),
-            ("for", "block group:*"),
-            ("in", f"state:{metro.state_fips}"),
-            ("in", f"county:{county_fips}"),
-            ("key", api_key),
-        ]
         data = _fetch(url, params)
         if headers is None:
             headers = data[0]
             all_rows.append(headers)
         all_rows.extend(data[1:])
     return all_rows
+
+
+def _fetch_county(url: str, api_key: str, metro: MetroConfig) -> list[list[str]]:
+    batches: list[dict[str, str]] = []
+    for state_fips, counties in metro.states.items():
+        batches.append({
+            "get": f"NAME,{','.join(ACS_VARIABLES.keys())}",
+            "for": f"county:{','.join(counties.values())}",
+            "in": f"state:{state_fips}",
+            "key": api_key,
+        })
+    return _fetch_multi(url, batches)
+
+
+def _fetch_block_groups(url: str, api_key: str, metro: MetroConfig) -> list[list[str]]:
+    batches: list[list[tuple[str, str]]] = []
+    for state_fips, counties in metro.states.items():
+        for county_fips in counties.values():
+            batches.append([
+                ("get", f"NAME,{','.join(ACS_VARIABLES.keys())}"),
+                ("for", "block group:*"),
+                ("in", f"state:{state_fips}"),
+                ("in", f"county:{county_fips}"),
+                ("key", api_key),
+            ])
+    return _fetch_multi(url, batches)
 
 
 def extract_acs(

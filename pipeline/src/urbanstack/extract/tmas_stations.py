@@ -7,7 +7,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.tmas_stations import TmasStationRecord
-from urbanstack.metro import MetroConfig
+from urbanstack.metro import FIPS_TO_ABBR, MetroConfig
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,7 @@ def _point_in_polygon(
 
 
 def _load_county_polygons(geojson_path: Path) -> list[dict]:
-    """Load DFW county boundaries. Returns list of {fips, rings}."""
+    """Load county boundaries from GeoJSON. Returns list of {fips, rings}."""
     with open(geojson_path) as f:
         geo = json.load(f)
 
@@ -57,7 +57,7 @@ def _load_county_polygons(geojson_path: Path) -> list[dict]:
 def _assign_county(
     lon: float, lat: float, counties: list[dict]
 ) -> str | None:
-    """Return county FIPS if point falls within any DFW county."""
+    """Return county FIPS if point falls within any metro county."""
     for county in counties:
         for ring in county["rings"]:
             if _point_in_polygon(lon, lat, ring):
@@ -65,10 +65,10 @@ def _assign_county(
     return None
 
 
-def _fetch_stations(metro: MetroConfig) -> list[dict]:
-    """Fetch TMAS stations for a metro's state from ArcGIS Feature Service."""
+def _fetch_stations(state_abbr: str) -> list[dict]:
+    """Fetch TMAS stations for a state from ArcGIS Feature Service."""
     params = {
-        "where": f"state='{metro.state_abbr}'",
+        "where": f"state='{state_abbr}'",
         "outFields": "Station_Id,latitude,longitude,functional_class",
         "resultRecordCount": "2000",
         "f": "json",
@@ -91,12 +91,19 @@ def extract_tmas_stations(
         logger.info("Parquet exists, skipping: %s", parquet_path)
         return pl.read_parquet(parquet_path)
 
-    raw_stations = _fetch_stations(metro)
-    logger.info("Fetched %d %s stations from ArcGIS", len(raw_stations), metro.state_abbr)
+    raw_stations: list[dict] = []
+    for state_fips in sorted(metro.state_fips_set):
+        abbr = FIPS_TO_ABBR.get(state_fips)
+        if not abbr:
+            logger.warning("No abbreviation for state FIPS %s — skipping TMAS", state_fips)
+            continue
+        raw_stations.extend(_fetch_stations(abbr))
+
+    logger.info("Fetched %d stations for %s from ArcGIS", len(raw_stations), metro.metro_id)
 
     raw_dir = settings.metro_raw_dir(metro.metro_id) / "tmas_stations"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    (raw_dir / f"tmas_stations_{metro.state_abbr.lower()}.json").write_text(
+    (raw_dir / f"tmas_stations_{metro.metro_id}.json").write_text(
         json.dumps(raw_stations, indent=2)
     )
 

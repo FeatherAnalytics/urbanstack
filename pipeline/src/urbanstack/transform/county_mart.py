@@ -183,7 +183,7 @@ def build_county_mart(settings: Settings, metro: MetroConfig, *, force: bool = F
         )
 
     acs = pl.read_parquet(acs_path)
-    acs = acs.filter(pl.col("state_fips") == metro.state_fips)
+    acs = acs.filter(pl.col("state_fips").is_in(metro.state_fips_set))
     if "tract_fips" in acs.columns:
         acs = acs.filter(pl.col("tract_fips").is_null())
 
@@ -347,7 +347,7 @@ def build_year_overlays(settings: Settings, metro: MetroConfig) -> None:
         logger.warning("ACS missing — cannot build year overlays (need commute shares)")
         return
 
-    acs = pl.read_parquet(acs_path).filter(pl.col("state_fips") == metro.state_fips)
+    acs = pl.read_parquet(acs_path).filter(pl.col("state_fips").is_in(metro.state_fips_set))
     if "tract_fips" in acs.columns:
         acs = acs.filter(pl.col("tract_fips").is_null())
     base = _build_acs_base(acs)

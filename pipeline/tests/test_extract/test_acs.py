@@ -84,7 +84,7 @@ def test_extract_block_group(settings: Settings, metro: MetroConfig) -> None:
     with patch("urbanstack.extract.acs.requests.get", return_value=mock_resp) as mock_get:
         df = extract_acs(settings, metro, granularity="block_group", year=2023)
 
-    assert mock_get.call_count == len(metro.counties)
+    assert mock_get.call_count == sum(len(c) for c in metro.states.values())
 
     # Verify first call uses separate "in" tuples (not combined string)
     first_call_params = mock_get.call_args_list[0]
@@ -94,7 +94,8 @@ def test_extract_block_group(settings: Settings, metro: MetroConfig) -> None:
     assert isinstance(params, list), "Block group params should be a list of tuples"
     in_tuples = [t for t in params if t[0] == "in"]
     assert len(in_tuples) == 2, "Should have two separate 'in' params"
-    assert ("in", f"state:{metro.state_fips}") in in_tuples
+    # DFW is single-state, so just use "48"
+    assert ("in", "state:48") in in_tuples
 
     assert isinstance(df, pl.DataFrame)
     assert len(df) >= 1

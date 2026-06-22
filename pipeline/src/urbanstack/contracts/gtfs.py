@@ -18,8 +18,8 @@ class GtfsStop(BaseModel):
     agency: str = Field(min_length=1)
     stop_id: str = Field(min_length=1)
     stop_name: str = ""
-    latitude: float = Field(ge=25.0, le=40.0)
-    longitude: float = Field(ge=-105.0, le=-90.0)
+    latitude: float = Field(ge=24.0, le=50.0)
+    longitude: float = Field(ge=-125.0, le=-65.0)
 
 
 class GtfsShape(BaseModel):
@@ -27,6 +27,6 @@ class GtfsShape(BaseModel):
 
     agency: str = Field(min_length=1)
     shape_id: str = Field(min_length=1)
-    latitude: float = Field(ge=25.0, le=40.0)
-    longitude: float = Field(ge=-105.0, le=-90.0)
+    latitude: float = Field(ge=24.0, le=50.0)
+    longitude: float = Field(ge=-125.0, le=-65.0)
     sequence: int = Field(ge=0)
