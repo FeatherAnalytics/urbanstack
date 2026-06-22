@@ -8,6 +8,10 @@ import {
   loadOverlayIndex,
   loadYearOverlay,
   mergeOverlay,
+  computeMinMax,
+  getVisibleGeoIds,
+  type ColorScaleMode,
+  type ViewportBounds,
   type CountyData,
   type Granularity,
   type MetricConfig,
@@ -22,6 +26,7 @@ import { ThemeToggle, useTheme } from "@/components/ThemeToggle";
 import { MapControls } from "@/components/MapControls";
 import { useTrafficLayer } from "@/components/TrafficLayer";
 import { useTransitLayers } from "@/components/TransitLayer";
+import { ColorLegend } from "@/components/ColorLegend";
 
 export default function Home() {
   const [counties, setCounties] = useState<CountyData[]>([]);
@@ -45,6 +50,8 @@ export default function Home() {
   const [overlayIndex, setOverlayIndex] = useState<OverlayIndex | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [baseCounties, setBaseCounties] = useState<CountyData[]>([]);
+  const [colorScaleMode, setColorScaleMode] = useState<ColorScaleMode>("global");
+  const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
 
   const yearRef = useRef<number | null>(null);
   const { isDark, toggle } = useTheme();
@@ -63,6 +70,34 @@ export default function Home() {
     const m = METROS[selectedMetro] ?? METROS[DEFAULT_METRO];
     return { longitude: m.center[1], latitude: m.center[0], zoom: m.zoom, pitch: 0, bearing: 0 };
   }, [selectedMetro]);
+
+  const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const handleViewStateChange = useCallback(
+    (viewState: Record<string, unknown>) => {
+      if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
+      viewportTimerRef.current = setTimeout(() => {
+        const vs = viewState as { longitude: number; latitude: number; zoom: number };
+        const span = 360 / Math.pow(2, vs.zoom);
+        setViewportBounds({
+          west: vs.longitude - span / 2,
+          east: vs.longitude + span / 2,
+          south: vs.latitude - span / 4,
+          north: vs.latitude + span / 4,
+        });
+      }, 300);
+    },
+    [],
+  );
+
+  const effectiveMinMax = useMemo(() => {
+    if (colorScaleMode === "viewport" && viewportBounds && geojson) {
+      const visibleIds = getVisibleGeoIds(geojson, viewportBounds);
+      if (visibleIds.size > 0) {
+        return computeMinMax(counties, selectedMetric.key, visibleIds);
+      }
+    }
+    return computeMinMax(counties, selectedMetric.key, null);
+  }, [colorScaleMode, viewportBounds, geojson, counties, selectedMetric.key]);
 
   const overlayLayers = useMemo(() => {
     const out = [];
@@ -244,6 +279,9 @@ export default function Home() {
             granularity={granularity}
             overlayLayers={overlayLayers}
             viewport={viewport}
+            minVal={effectiveMinMax.min}
+            maxVal={effectiveMinMax.max}
+            onViewStateChange={handleViewStateChange}
           />
           <MapTooltip
             county={hoverCounty}
@@ -260,6 +298,17 @@ export default function Home() {
             showBus={showBus}
             onToggleBus={() => setShowBus((v) => !v)}
           />
+          <div className="absolute left-[calc(theme(spacing.64)+0.75rem)] top-3 z-30 lg:left-[calc(16rem+0.75rem)]">
+            <ColorLegend
+              primaryMetric={selectedMetric}
+              secondaryMetric={null}
+              primaryMinMax={effectiveMinMax}
+              secondaryMinMax={null}
+              colorScaleMode={colorScaleMode}
+              onToggleMode={() => setColorScaleMode((m) => (m === "global" ? "viewport" : "global"))}
+              granularity={granularity}
+            />
+          </div>
           <CountyDetailPopup
             county={selectedCounty}
             allCounties={counties}
