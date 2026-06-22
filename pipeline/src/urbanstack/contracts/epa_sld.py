@@ -8,6 +8,7 @@ class EpaSldRecord(BaseModel):
     state_fips: str = Field(min_length=2, max_length=2)
     county_fips: str = Field(min_length=3, max_length=3)
     tract_fips: str
+    blkgrp_fips: str
     cbsa: str
 
     # Density (D1)
@@ -44,6 +45,7 @@ SLD_COLUMN_MAP: dict[str, str] = {
     "STATEFP": "state_fips",
     "COUNTYFP": "county_fips",
     "TRACTCE": "tract_fips",
+    "BLKGRPCE": "blkgrp_fips",
     "CBSA": "cbsa",
     "D1A": "d1a",
     "D1B": "d1b",

@@ -8,6 +8,8 @@ import type { Layer } from "@deck.gl/core";
 import {
   interpolateColor,
   formatValue,
+  classifyBin,
+  getBivariateColor,
   type CountyData,
   type Granularity,
   type MetricConfig,
@@ -33,6 +35,15 @@ interface ChoroplethMapProps {
   overlayLayers?: Layer[];
   /** Map viewport (center, zoom, pitch, bearing) — driven by metro config */
   viewport: { longitude: number; latitude: number; zoom: number; pitch: number; bearing: number };
+  /** Minimum value for color scale normalization */
+  minVal: number;
+  /** Maximum value for color scale normalization */
+  maxVal: number;
+  /** Callback when viewport changes (lat, lng, zoom) */
+  onViewStateChange?: (viewState: Record<string, unknown>) => void;
+  secondaryMetric: MetricConfig | null;
+  primaryBreaks: number[] | null;
+  secondaryBreaks: number[] | null;
 }
 
 export function ChoroplethMap({
@@ -46,6 +57,12 @@ export function ChoroplethMap({
   granularity,
   overlayLayers = [],
   viewport,
+  minVal,
+  maxVal,
+  onViewStateChange,
+  secondaryMetric,
+  primaryBreaks,
+  secondaryBreaks,
 }: ChoroplethMapProps) {
   const isMetro = granularity === "metro";
   const isBlockGroup = granularity === "block_group";
@@ -58,15 +75,6 @@ export function ChoroplethMap({
     }
     return map;
   }, [counties]);
-
-  // Compute min/max for normalization, excluding null/NaN
-  const [minVal, maxVal] = useMemo(() => {
-    const values = counties
-      .map((c) => c[metric.key] as number | null)
-      .filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
-    if (values.length === 0) return [0, 0];
-    return [Math.min(...values), Math.max(...values)];
-  }, [counties, metric.key]);
 
   // Fill alpha varies by granularity: block groups need transparency so labels show through
   const fillAlpha = isBlockGroup ? 120 : 200;
@@ -90,15 +98,26 @@ export function ChoroplethMap({
       const county = dataByFips.get(fips);
       if (!county) return [40, 40, 40, 160];
 
-      const val = county[metric.key] as number | null;
-      if (val === null || val === undefined || Number.isNaN(val)) return [40, 40, 40, 120];
+      const primaryVal = county[metric.key] as number | null;
+      if (primaryVal === null || primaryVal === undefined || Number.isNaN(primaryVal)) return [40, 40, 40, 120];
+
+      // Bivariate mode
+      if (secondaryMetric && primaryBreaks && secondaryBreaks) {
+        const secVal = county[secondaryMetric.key] as number | null;
+        if (secVal === null || secVal === undefined || Number.isNaN(secVal)) return [200, 200, 200, fillAlpha];
+        const pBin = classifyBin(primaryVal, primaryBreaks);
+        const sBin = classifyBin(secVal, secondaryBreaks);
+        return getBivariateColor(pBin, sBin, fillAlpha);
+      }
+
+      // Single-metric mode
       const range = maxVal - minVal;
-      const t = range > 0 ? (val - minVal) / range : 0.5;
+      const t = range > 0 ? (primaryVal - minVal) / range : 0.5;
       const color = interpolateColor(t, metric.colorScale);
       color[3] = fillAlpha;
       return color;
     },
-    [dataByFips, metric, minVal, maxVal, isMetro, counties, fillAlpha],
+    [dataByFips, metric, minVal, maxVal, isMetro, counties, fillAlpha, secondaryMetric, primaryBreaks, secondaryBreaks],
   );
 
   const getLineColor = useCallback(
@@ -142,7 +161,7 @@ export function ChoroplethMap({
         getLineWidth,
         lineWidthUnits: "pixels",
         updateTriggers: {
-          getFillColor: [metric.key, minVal, maxVal, granularity],
+          getFillColor: [metric.key, minVal, maxVal, granularity, secondaryMetric?.key, primaryBreaks, secondaryBreaks],
           getLineColor: [selectedFips, isDark, granularity],
           getLineWidth: [selectedFips, granularity],
         },
@@ -161,6 +180,9 @@ export function ChoroplethMap({
     isDark,
     granularity,
     overlayLayers,
+    secondaryMetric,
+    primaryBreaks,
+    secondaryBreaks,
   ]);
 
   const handleClick = useCallback(
@@ -210,6 +232,7 @@ export function ChoroplethMap({
         layers={layers}
         onClick={handleClick}
         onHover={handleHover}
+        onViewStateChange={onViewStateChange ? ({ viewState }) => onViewStateChange(viewState) : undefined}
         getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
       >
         <MapGL reuseMaps mapStyle={basemapStyle} />
@@ -221,15 +244,17 @@ export function ChoroplethMap({
 interface MapTooltipProps {
   county: CountyData | null;
   metric: MetricConfig;
+  secondaryMetric?: MetricConfig | null;
   x: number;
   y: number;
   containerRef?: React.RefObject<HTMLElement | null>;
 }
 
-export function MapTooltip({ county, metric, x, y, containerRef }: MapTooltipProps) {
+export function MapTooltip({ county, metric, secondaryMetric, x, y, containerRef }: MapTooltipProps) {
   if (!county) return null;
 
   const val = county[metric.key] as number | null;
+  const secVal = secondaryMetric ? (county[secondaryMetric.key] as number | null) : null;
   const rect = containerRef?.current?.getBoundingClientRect();
   const absX = (rect?.left ?? 0) + x;
   const absY = (rect?.top ?? 0) + y;
@@ -240,7 +265,7 @@ export function MapTooltip({ county, metric, x, y, containerRef }: MapTooltipPro
 
   return (
     <div
-      className="pointer-events-none fixed z-[9999] w-max max-w-[240px] rounded border border-slate-200 bg-white/95 px-3 py-2 text-sm shadow-lg dark:border-slate-600 dark:bg-slate-800/95"
+      className="pointer-events-none fixed z-[9999] w-max max-w-[280px] rounded border border-slate-200 bg-white/95 px-3 py-2 text-sm shadow-lg dark:border-slate-600 dark:bg-slate-800/95"
       style={{
         left: flipLeft ? absX - 12 : absX + 12,
         top: flipUp ? absY - 12 : absY + 12,
@@ -256,6 +281,14 @@ export function MapTooltip({ county, metric, x, y, containerRef }: MapTooltipPro
           {formatValue(val, metric.format)}
         </span>
       </div>
+      {secondaryMetric && (
+        <div className="text-slate-500 dark:text-slate-400">
+          {secondaryMetric.label}:{" "}
+          <span className="font-mono text-slate-900 dark:text-white">
+            {formatValue(secVal, secondaryMetric.format)}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
