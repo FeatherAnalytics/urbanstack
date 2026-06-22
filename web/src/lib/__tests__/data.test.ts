@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { interpolateColor, formatValue, computeMinMax, getVisibleGeoIds } from "@/lib/data";
+import { interpolateColor, formatValue, computeMinMax, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS } from "@/lib/data";
 import type { CountyData } from "@/lib/data";
 
 describe("interpolateColor", () => {
@@ -83,5 +83,60 @@ describe("getVisibleGeoIds", () => {
     const bounds = { west: -100, south: 30, east: -80, north: 45 };
     const result = getVisibleGeoIds(geojson, bounds);
     expect(result).toEqual(new Set(["001", "002"]));
+  });
+});
+
+describe("computeQuantileBins", () => {
+  it("splits 9 values into 3 bins with 2 breakpoints", () => {
+    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+    const breaks = computeQuantileBins(values, 3);
+    expect(breaks).toHaveLength(2);
+    expect(breaks[0]).toBe(4);
+    expect(breaks[1]).toBe(7);
+  });
+
+  it("handles single value (all same bin)", () => {
+    const values = [5, 5, 5];
+    const breaks = computeQuantileBins(values, 3);
+    expect(breaks).toHaveLength(2);
+    expect(breaks[0]).toBe(5);
+    expect(breaks[1]).toBe(5);
+  });
+
+  it("handles empty array", () => {
+    const breaks = computeQuantileBins([], 3);
+    expect(breaks).toEqual([0, 0]);
+  });
+});
+
+describe("getBivariateColor", () => {
+  it("returns gray for bin (0,0) — low-low", () => {
+    const [r, g, b, a] = getBivariateColor(0, 0, 200);
+    expect([r, g, b]).toEqual(BIVARIATE_PALETTE[0][0]);
+    expect(a).toBe(200);
+  });
+
+  it("returns deep blue-purple for bin (2,2) — high-high", () => {
+    const [r, g, b, a] = getBivariateColor(2, 2, 120);
+    expect([r, g, b]).toEqual(BIVARIATE_PALETTE[2][2]);
+    expect(a).toBe(120);
+  });
+
+  it("clamps out-of-range bins", () => {
+    const color = getBivariateColor(5, -1, 200);
+    expect(color).toBeDefined();
+  });
+});
+
+describe("METRIC_COMBOS", () => {
+  it("has 7 pre-built combos", () => {
+    expect(METRIC_COMBOS).toHaveLength(7);
+  });
+
+  it("each combo has distinct primary and secondary keys", () => {
+    for (const combo of METRIC_COMBOS) {
+      expect(combo.key).toBeTruthy();
+      expect(combo.primary).not.toBe(combo.secondary);
+    }
   });
 });
