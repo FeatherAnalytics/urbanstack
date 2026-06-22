@@ -1,0 +1,114 @@
+[
+  {
+    "county_fips": "17089",
+    "total_fatalities": 29,
+    "total_crashes": 27,
+    "pedestrian_involved_crashes": 6,
+    "drunk_driver_crashes": 8,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "18111",
+    "total_fatalities": 4,
+    "total_crashes": 3,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17037",
+    "total_fatalities": 12,
+    "total_crashes": 11,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 5,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "55059",
+    "total_fatalities": 6,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17093",
+    "total_fatalities": 9,
+    "total_crashes": 9,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 3,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17043",
+    "total_fatalities": 36,
+    "total_crashes": 36,
+    "pedestrian_involved_crashes": 7,
+    "drunk_driver_crashes": 10,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "18089",
+    "total_fatalities": 59,
+    "total_crashes": 56,
+    "pedestrian_involved_crashes": 17,
+    "drunk_driver_crashes": 10,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17111",
+    "total_fatalities": 18,
+    "total_crashes": 15,
+    "pedestrian_involved_crashes": 5,
+    "drunk_driver_crashes": 5,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17063",
+    "total_fatalities": 7,
+    "total_crashes": 7,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 2,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17197",
+    "total_fatalities": 51,
+    "total_crashes": 47,
+    "pedestrian_involved_crashes": 8,
+    "drunk_driver_crashes": 21,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17097",
+    "total_fatalities": 36,
+    "total_crashes": 32,
+    "pedestrian_involved_crashes": 4,
+    "drunk_driver_crashes": 14,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "18127",
+    "total_fatalities": 22,
+    "total_crashes": 20,
+    "pedestrian_involved_crashes": 5,
+    "drunk_driver_crashes": 6,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "18073",
+    "total_fatalities": 7,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "17031",
+    "total_fatalities": 239,
+    "total_crashes": 221,
+    "pedestrian_involved_crashes": 103,
+    "drunk_driver_crashes": 61,
+    "total_annual_ridership": null
+  }
+]

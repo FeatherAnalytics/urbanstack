@@ -83,7 +83,7 @@ def extract_fhwa(
     force: bool = False,
 ) -> pl.DataFrame:
     parquet_dir = settings.metro_staging_dir(metro.metro_id) / "fhwa"
-    parquet_path = parquet_dir / f"fhwa_{metro.state_abbr.lower()}_{year}.parquet"
+    parquet_path = parquet_dir / f"fhwa_{metro.metro_id}_{year}.parquet"
 
     if parquet_path.exists() and not force:
         logger.info("Parquet exists, skipping: %s", parquet_path)
@@ -92,20 +92,25 @@ def extract_fhwa(
     url = _dataset_url(year)
 
     all_raw: list[dict[str, str]] = []
-    for month in range(1, 13):
-        if month > 1:
-            time.sleep(0.5)
-        rows = _fetch_month(url, metro.state_fips, year, month)
-        all_raw.extend(rows)
+    all_records: list[FhwaVolumeRecord] = []
+    first_request = True
+    for state_fips in sorted(metro.state_fips_set):
+        state_raw: list[dict[str, str]] = []
+        for month in range(1, 13):
+            if not first_request:
+                time.sleep(0.5)
+            first_request = False
+            rows = _fetch_month(url, state_fips, year, month)
+            state_raw.extend(rows)
+        all_raw.extend(state_raw)
+        all_records.extend(_to_records(state_raw, state_fips))
 
     raw_dir = settings.metro_raw_dir(metro.metro_id) / "fhwa"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    raw_path = raw_dir / f"fhwa_{metro.state_abbr.lower()}_{year}.json"
+    raw_path = raw_dir / f"fhwa_{metro.metro_id}_{year}.json"
     raw_path.write_text(json.dumps(all_raw, indent=2))
 
-    records = _to_records(all_raw, metro.state_fips)
-    rows = [r.model_dump() for r in records]
-    df = pl.DataFrame(rows)
+    df = pl.DataFrame([r.model_dump() for r in all_records])
 
     parquet_dir.mkdir(parents=True, exist_ok=True)
     df.write_parquet(parquet_path)

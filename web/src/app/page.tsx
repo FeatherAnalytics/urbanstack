@@ -3,14 +3,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   METRICS,
-  loadData,
-  loadGeoJSON,
-  loadOverlayIndex,
   loadYearOverlay,
   mergeOverlay,
   computeMinMax,
   getVisibleGeoIds,
   computeQuantileBins,
+  loadAllData,
+  loadAllGeoJSON,
+  loadAllOverlayIndexes,
   type ColorScaleMode,
   type ViewportBounds,
   type CountyData,
@@ -18,7 +18,7 @@ import {
   type MetricConfig,
   type OverlayIndex,
 } from "@/lib/data";
-import { METROS, DEFAULT_METRO } from "@/lib/metro";
+import { METROS } from "@/lib/metro";
 import { MetricSelector } from "@/components/MetricSelector";
 import { CountyDetailPopup } from "@/components/CountyDetail";
 import { ComparisonChart } from "@/components/ComparisonChart";
@@ -44,7 +44,6 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const [selectedMetro, setSelectedMetro] = useState(DEFAULT_METRO);
   const [showTraffic, setShowTraffic] = useState(false);
   const [showRail, setShowRail] = useState(false);
   const [showBus, setShowBus] = useState(false);
@@ -66,12 +65,15 @@ export default function Home() {
   }, [showRail, showBus]);
 
   const trafficLayer = useTrafficLayer(showTraffic);
-  const transitLayers = useTransitLayers(transitModes, selectedMetro);
+  const transitLayers = useTransitLayers(transitModes);
 
-  const viewport = useMemo(() => {
-    const m = METROS[selectedMetro] ?? METROS[DEFAULT_METRO];
-    return { longitude: m.center[1], latitude: m.center[0], zoom: m.zoom, pitch: 0, bearing: 0 };
-  }, [selectedMetro]);
+  const viewport = useMemo(() => ({
+    longitude: -92.0,
+    latitude: 37.5,
+    zoom: 5,
+    pitch: 0,
+    bearing: 0,
+  }), []);
 
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleViewStateChange = useCallback(
@@ -131,20 +133,25 @@ export default function Home() {
   }, [trafficLayer, transitLayers]);
 
   useEffect(() => {
-    loadOverlayIndex(selectedMetro).then((idx) => {
-      setOverlayIndex(idx);
-      if (idx && idx.years.length > 0) {
-        setSelectedYear(idx.years[idx.years.length - 1]);
+    loadAllOverlayIndexes().then((indexes) => {
+      const allYears = new Set<number>();
+      for (const idx of Object.values(indexes)) {
+        for (const y of idx.years) allYears.add(y);
+      }
+      const years = [...allYears].sort();
+      if (years.length > 0) {
+        setOverlayIndex({ years });
+        setSelectedYear(years[years.length - 1]);
       }
     });
-  }, [selectedMetro]);
+  }, []);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
     setSelectedFips(null);
     setSelectedYear(null);
-    Promise.all([loadData(selectedMetro, granularity), loadGeoJSON(selectedMetro, granularity)])
+    Promise.all([loadAllData(granularity), loadAllGeoJSON(granularity)])
       .then(([data, geo]) => {
         setBaseCounties(data);
         setCounties(data);
@@ -153,7 +160,7 @@ export default function Home() {
       })
       .catch((err: unknown) => {
         if (granularity !== "county") {
-          Promise.all([loadData(selectedMetro, "county"), loadGeoJSON(selectedMetro, "county")])
+          Promise.all([loadAllData("county"), loadAllGeoJSON("county")])
             .then(([data, geo]) => {
               setBaseCounties(data);
               setCounties(data);
@@ -176,17 +183,25 @@ export default function Home() {
           setLoading(false);
         }
       });
-  }, [selectedMetro, granularity]);
+  }, [granularity]);
 
   useEffect(() => {
     if (!selectedYear || granularity !== "county") return;
     yearRef.current = selectedYear;
-    loadYearOverlay(selectedMetro, selectedYear).then((overlay) => {
-      if (overlay && yearRef.current === selectedYear) {
-        setCounties(mergeOverlay(baseCounties, overlay));
+    const metroIds = Object.keys(METROS);
+    Promise.allSettled(
+      metroIds.map((id) => loadYearOverlay(id, selectedYear))
+    ).then((results) => {
+      if (yearRef.current !== selectedYear) return;
+      const allOverlay = results
+        .filter((r): r is PromiseFulfilledResult<Record<string, Partial<CountyData>>> =>
+          r.status === "fulfilled" && r.value != null)
+        .reduce<Record<string, Partial<CountyData>>>((acc, r) => ({ ...acc, ...r.value }), {});
+      if (Object.keys(allOverlay).length > 0) {
+        setCounties(mergeOverlay(baseCounties, allOverlay));
       }
     });
-  }, [selectedMetro, selectedYear, baseCounties, granularity]);
+  }, [selectedYear, baseCounties, granularity]);
 
   const mapRef = useRef<HTMLElement>(null);
 
@@ -225,26 +240,9 @@ export default function Home() {
           UrbanStack
         </h1>
         <span className="text-sm text-slate-500 dark:text-slate-400">
-          {METROS[selectedMetro]?.metro_name ?? "Urban Data"} Explorer
+          Urban Data Explorer
         </span>
         <div className="ml-auto flex items-center gap-3">
-          <select
-            value={selectedMetro}
-            onChange={(e) => {
-              setSelectedMetro(e.target.value);
-              setSelectedFips(null);
-              setOverlayIndex(null);
-              setSelectedYear(null);
-            }}
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-            aria-label="Select metro area"
-          >
-            {Object.entries(METROS).map(([id, config]) => (
-              <option key={id} value={id}>
-                {config.metro_name}
-              </option>
-            ))}
-          </select>
           {overlayIndex && granularity === "county" && (
             <select
               value={selectedYear ?? ""}
@@ -294,7 +292,6 @@ export default function Home() {
         {/* Map area with floating county popup */}
         <main ref={mapRef} className="relative min-h-[300px] flex-1">
           <ChoroplethMap
-            key={selectedMetro}
             geojson={geojson}
             counties={counties}
             metric={selectedMetric}

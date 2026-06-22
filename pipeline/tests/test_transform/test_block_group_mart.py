@@ -14,11 +14,11 @@ from urbanstack.transform.block_group_mart import (
 
 def _make_bg_acs_df() -> pl.DataFrame:
     rows = []
-    for name, fips in DFW.counties.items():
+    for name, fips in DFW.states["48"].items():
         for bg in range(1, 4):
             rows.append(
                 {
-                    "state_fips": DFW.state_fips,
+                    "state_fips": "48",
                     "county_fips": fips,
                     "name": f"Block Group {bg}, Tract 0101, {name} County, Texas",
                     "tract_fips": "010100",
@@ -41,12 +41,12 @@ def _make_bg_acs_df() -> pl.DataFrame:
 
 def _make_epa_sld_df() -> pl.DataFrame:
     rows = []
-    for fips in DFW.counties.values():
+    for fips in DFW.states["48"].values():
         for bg in range(1, 4):
             rows.append(
                 {
-                    "geoid": f"{DFW.state_fips}{fips}010100{bg}",
-                    "state_fips": DFW.state_fips,
+                    "geoid": f"48{fips}010100{bg}",
+                    "state_fips": "48",
                     "county_fips": fips,
                     "tract_fips": "010100",
                     "cbsa": "19100",
@@ -103,7 +103,7 @@ def test_epa_sld_join() -> None:
     joined = _join_epa_sld(base, epa)
     assert "avg_walkability" in joined.columns
     assert "avg_transit_frequency" in joined.columns
-    row = joined.filter(pl.col("geoid_12") == f"{DFW.state_fips}1130101001").to_dicts()
+    row = joined.filter(pl.col("geoid_12") == "481130101001").to_dicts()
     assert len(row) == 1
     assert abs(row[0]["avg_walkability"] - 13.0) < 0.01
 
