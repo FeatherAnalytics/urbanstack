@@ -738,7 +738,13 @@ export function computeMinMax(
     .map((c) => c[metricKey] as number | null)
     .filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
   if (values.length === 0) return { min: 0, max: 0 };
-  return { min: Math.min(...values), max: Math.max(...values) };
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of values) {
+    if (v < min) min = v;
+    if (v > max) max = v;
+  }
+  return { min, max };
 }
 
 function centroid(coords: number[][]): [number, number] {
