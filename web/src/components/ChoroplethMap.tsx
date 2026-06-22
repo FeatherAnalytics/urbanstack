@@ -8,6 +8,8 @@ import type { Layer } from "@deck.gl/core";
 import {
   interpolateColor,
   formatValue,
+  classifyBin,
+  getBivariateColor,
   type CountyData,
   type Granularity,
   type MetricConfig,
@@ -39,6 +41,10 @@ interface ChoroplethMapProps {
   maxVal: number;
   /** Callback when viewport changes (lat, lng, zoom) */
   onViewStateChange?: (viewState: Record<string, unknown>) => void;
+  secondaryMetric: MetricConfig | null;
+  secondaryMinMax: { min: number; max: number } | null;
+  primaryBreaks: number[] | null;
+  secondaryBreaks: number[] | null;
 }
 
 export function ChoroplethMap({
@@ -55,6 +61,10 @@ export function ChoroplethMap({
   minVal,
   maxVal,
   onViewStateChange,
+  secondaryMetric,
+  secondaryMinMax,
+  primaryBreaks,
+  secondaryBreaks,
 }: ChoroplethMapProps) {
   const isMetro = granularity === "metro";
   const isBlockGroup = granularity === "block_group";
@@ -90,15 +100,26 @@ export function ChoroplethMap({
       const county = dataByFips.get(fips);
       if (!county) return [40, 40, 40, 160];
 
-      const val = county[metric.key] as number | null;
-      if (val === null || val === undefined || Number.isNaN(val)) return [40, 40, 40, 120];
+      const primaryVal = county[metric.key] as number | null;
+      if (primaryVal === null || primaryVal === undefined || Number.isNaN(primaryVal)) return [40, 40, 40, 120];
+
+      // Bivariate mode
+      if (secondaryMetric && primaryBreaks && secondaryBreaks) {
+        const secVal = county[secondaryMetric.key] as number | null;
+        if (secVal === null || secVal === undefined || Number.isNaN(secVal)) return [200, 200, 200, fillAlpha];
+        const pBin = classifyBin(primaryVal, primaryBreaks);
+        const sBin = classifyBin(secVal, secondaryBreaks);
+        return getBivariateColor(pBin, sBin, fillAlpha);
+      }
+
+      // Single-metric mode
       const range = maxVal - minVal;
-      const t = range > 0 ? (val - minVal) / range : 0.5;
+      const t = range > 0 ? (primaryVal - minVal) / range : 0.5;
       const color = interpolateColor(t, metric.colorScale);
       color[3] = fillAlpha;
       return color;
     },
-    [dataByFips, metric, minVal, maxVal, isMetro, counties, fillAlpha],
+    [dataByFips, metric, minVal, maxVal, isMetro, counties, fillAlpha, secondaryMetric, primaryBreaks, secondaryBreaks],
   );
 
   const getLineColor = useCallback(
@@ -142,7 +163,7 @@ export function ChoroplethMap({
         getLineWidth,
         lineWidthUnits: "pixels",
         updateTriggers: {
-          getFillColor: [metric.key, minVal, maxVal, granularity],
+          getFillColor: [metric.key, minVal, maxVal, granularity, secondaryMetric?.key, primaryBreaks, secondaryBreaks],
           getLineColor: [selectedFips, isDark, granularity],
           getLineWidth: [selectedFips, granularity],
         },
@@ -161,6 +182,9 @@ export function ChoroplethMap({
     isDark,
     granularity,
     overlayLayers,
+    secondaryMetric,
+    primaryBreaks,
+    secondaryBreaks,
   ]);
 
   const handleClick = useCallback(
