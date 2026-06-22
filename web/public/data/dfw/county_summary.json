@@ -48,7 +48,8 @@
     "federal_per_crash": 1433280.147788945,
     "vehicle_dependency": 0.687703428733852,
     "drunk_driver_crashes_per_capita": 7.612387952366155,
-    "pedestrian_crashes_per_capita": 4.746547782063602
+    "pedestrian_crashes_per_capita": 4.746547782063602,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48113",
@@ -99,7 +100,8 @@
     "federal_per_crash": 2528639.229142607,
     "vehicle_dependency": 0.7483492247139976,
     "drunk_driver_crashes_per_capita": 19.394611600819722,
-    "pedestrian_crashes_per_capita": 28.842283786565563
+    "pedestrian_crashes_per_capita": 28.842283786565563,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48121",
@@ -150,7 +152,8 @@
     "federal_per_crash": 3387249.5514210523,
     "vehicle_dependency": 0.7291698409655273,
     "drunk_driver_crashes_per_capita": 6.133386348350965,
-    "pedestrian_crashes_per_capita": 8.882835401060019
+    "pedestrian_crashes_per_capita": 8.882835401060019,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48139",
@@ -201,7 +204,8 @@
     "federal_per_crash": 1082750.9197747747,
     "vehicle_dependency": 0.8475676086907153,
     "drunk_driver_crashes_per_capita": 24.028206171816386,
-    "pedestrian_crashes_per_capita": 19.124490626547736
+    "pedestrian_crashes_per_capita": 19.124490626547736,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48221",
@@ -252,7 +256,8 @@
     "federal_per_crash": 264831.3246478873,
     "vehicle_dependency": 0.8260122324045479,
     "drunk_driver_crashes_per_capita": 14.019128321754573,
-    "pedestrian_crashes_per_capita": 12.461447397115174
+    "pedestrian_crashes_per_capita": 12.461447397115174,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48231",
@@ -303,7 +308,8 @@
     "federal_per_crash": 1888266.305284091,
     "vehicle_dependency": 0.8094580547351438,
     "drunk_driver_crashes_per_capita": 40.03164406149623,
-    "pedestrian_crashes_per_capita": 30.50030023733046
+    "pedestrian_crashes_per_capita": 30.50030023733046,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48251",
@@ -354,7 +360,8 @@
     "federal_per_crash": 510371.83344827587,
     "vehicle_dependency": 0.8982912002601183,
     "drunk_driver_crashes_per_capita": 12.71051795360661,
-    "pedestrian_crashes_per_capita": 14.828937612541045
+    "pedestrian_crashes_per_capita": 14.828937612541045,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48257",
@@ -405,7 +412,8 @@
     "federal_per_crash": 1450997.0883163265,
     "vehicle_dependency": 0.8162989238541997,
     "drunk_driver_crashes_per_capita": 22.3994823230752,
-    "pedestrian_crashes_per_capita": 18.044027426921687
+    "pedestrian_crashes_per_capita": 18.044027426921687,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48367",
@@ -456,7 +464,8 @@
     "federal_per_crash": 2084329.1332738094,
     "vehicle_dependency": 0.8303914760870811,
     "drunk_driver_crashes_per_capita": 12.651901897152689,
-    "pedestrian_crashes_per_capita": 11.38671170743742
+    "pedestrian_crashes_per_capita": 11.38671170743742,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48397",
@@ -507,7 +516,8 @@
     "federal_per_crash": 8113353.253666667,
     "vehicle_dependency": 0.7695460629652311,
     "drunk_driver_crashes_per_capita": 14.53848851031805,
-    "pedestrian_crashes_per_capita": 11.972872890850159
+    "pedestrian_crashes_per_capita": 11.972872890850159,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48439",
@@ -558,7 +568,8 @@
     "federal_per_crash": 1856034.0561332367,
     "vehicle_dependency": 0.7910207831346666,
     "drunk_driver_crashes_per_capita": 9.645355269805403,
-    "pedestrian_crashes_per_capita": 20.601729702496975
+    "pedestrian_crashes_per_capita": 20.601729702496975,
+    "metro_id": "dfw"
   },
   {
     "county_fips": "48497",
@@ -609,6 +620,7 @@
     "federal_per_crash": 179509.48,
     "vehicle_dependency": 0.8508024624627271,
     "drunk_driver_crashes_per_capita": 37.31394850675106,
-    "pedestrian_crashes_per_capita": 9.673986649898422
+    "pedestrian_crashes_per_capita": 9.673986649898422,
+    "metro_id": "dfw"
   }
 ]
