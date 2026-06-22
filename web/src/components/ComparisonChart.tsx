@@ -1,6 +1,13 @@
 "use client";
 
-import { formatValue, type CountyData, type Granularity, type MetricConfig } from "@/lib/data";
+import {
+  formatValue,
+  classifyBin,
+  getBivariateColor,
+  type CountyData,
+  type Granularity,
+  type MetricConfig,
+} from "@/lib/data";
 
 const BLOCK_GROUP_LIMIT = 20;
 
@@ -10,6 +17,9 @@ interface ComparisonChartProps {
   selectedFips: string | null;
   onSelect: (fips: string) => void;
   granularity: Granularity;
+  secondaryMetric: MetricConfig | null;
+  primaryBreaks: number[] | null;
+  secondaryBreaks: number[] | null;
 }
 
 export function ComparisonChart({
@@ -18,6 +28,9 @@ export function ComparisonChart({
   selectedFips,
   onSelect,
   granularity,
+  secondaryMetric,
+  primaryBreaks,
+  secondaryBreaks,
 }: ComparisonChartProps) {
   if (granularity === "metro" && counties.length <= 1) {
     return (
@@ -45,12 +58,12 @@ export function ComparisonChart({
 
   const maxVal = Math.max(...sorted.map((c) => (c[metric.key] as number) ?? 0));
 
-  const [r, g, b] = metric.colorScale[metric.colorScale.length - 1];
+  const isBivariate = secondaryMetric !== null && primaryBreaks !== null && secondaryBreaks !== null;
+  const [defaultR, defaultG, defaultB] = metric.colorScale[metric.colorScale.length - 1];
 
-  const heading =
-    granularity === "block_group"
-      ? `${metric.label} — Top/Bottom ${BLOCK_GROUP_LIMIT} Block Groups`
-      : `${metric.label} — All Counties`;
+  const heading = isBlockGroup
+    ? `${metric.label} — Top/Bottom ${BLOCK_GROUP_LIMIT} Block Groups`
+    : `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""} — All Counties`;
 
   return (
     <div className="p-3">
@@ -62,10 +75,19 @@ export function ComparisonChart({
           const val = (county[metric.key] as number) ?? 0;
           const pct = maxVal > 0 ? (val / maxVal) * 100 : 0;
           const isSelected = county.county_fips === selectedFips;
+
+          let barR = defaultR, barG = defaultG, barB = defaultB;
+          if (isBivariate) {
+            const pBin = classifyBin(val, primaryBreaks!);
+            const secVal = county[secondaryMetric!.key] as number | null;
+            const sBin = secVal !== null && !Number.isNaN(secVal) ? classifyBin(secVal, secondaryBreaks!) : 0;
+            [barR, barG, barB] = getBivariateColor(pBin, sBin, 255);
+          }
+
           const barOpacity = isSelected ? 1 : 0.6;
           const nameShort = isBlockGroup
             ? county.county_fips
-            : county.county_name.replace(" County, Texas", "");
+            : county.county_name.replace(/ County,.*$/, "");
 
           return (
             <button
@@ -91,12 +113,16 @@ export function ComparisonChart({
                   className="absolute inset-y-0 left-0 rounded-sm transition-all"
                   style={{
                     width: `${pct}%`,
-                    backgroundColor: `rgba(${r}, ${g}, ${b}, ${barOpacity})`,
+                    backgroundColor: `rgba(${barR}, ${barG}, ${barB}, ${barOpacity})`,
                   }}
                 />
               </div>
               <span className="w-18 shrink-0 text-right font-mono text-xs text-slate-700 dark:text-slate-400">
                 {formatValue(val, metric.format)}
+                {isBivariate && (() => {
+                  const secVal = county[secondaryMetric!.key] as number | null;
+                  return secVal !== null ? ` / ${formatValue(secVal, secondaryMetric!.format)}` : "";
+                })()}
               </span>
             </button>
           );
