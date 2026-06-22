@@ -1,0 +1,202 @@
+[
+  {
+    "county_fips": "34035",
+    "total_fatalities": 23,
+    "total_crashes": 22,
+    "pedestrian_involved_crashes": 8,
+    "drunk_driver_crashes": 2,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36005",
+    "total_fatalities": 40,
+    "total_crashes": 39,
+    "pedestrian_involved_crashes": 22,
+    "drunk_driver_crashes": 9,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34023",
+    "total_fatalities": 48,
+    "total_crashes": 44,
+    "pedestrian_involved_crashes": 17,
+    "drunk_driver_crashes": 12,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36119",
+    "total_fatalities": 34,
+    "total_crashes": 31,
+    "pedestrian_involved_crashes": 8,
+    "drunk_driver_crashes": 9,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34003",
+    "total_fatalities": 27,
+    "total_crashes": 25,
+    "pedestrian_involved_crashes": 10,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34025",
+    "total_fatalities": 43,
+    "total_crashes": 40,
+    "pedestrian_involved_crashes": 12,
+    "drunk_driver_crashes": 12,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36027",
+    "total_fatalities": 19,
+    "total_crashes": 18,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36059",
+    "total_fatalities": 79,
+    "total_crashes": 74,
+    "pedestrian_involved_crashes": 28,
+    "drunk_driver_crashes": 10,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34027",
+    "total_fatalities": 29,
+    "total_crashes": 26,
+    "pedestrian_involved_crashes": 9,
+    "drunk_driver_crashes": 4,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36071",
+    "total_fatalities": 37,
+    "total_crashes": 34,
+    "pedestrian_involved_crashes": 5,
+    "drunk_driver_crashes": 7,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36085",
+    "total_fatalities": 14,
+    "total_crashes": 13,
+    "pedestrian_involved_crashes": 4,
+    "drunk_driver_crashes": 2,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36079",
+    "total_fatalities": 7,
+    "total_crashes": 7,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36061",
+    "total_fatalities": 38,
+    "total_crashes": 38,
+    "pedestrian_involved_crashes": 25,
+    "drunk_driver_crashes": 8,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36103",
+    "total_fatalities": 122,
+    "total_crashes": 113,
+    "pedestrian_involved_crashes": 43,
+    "drunk_driver_crashes": 18,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34019",
+    "total_fatalities": 8,
+    "total_crashes": 8,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34013",
+    "total_fatalities": 40,
+    "total_crashes": 39,
+    "pedestrian_involved_crashes": 25,
+    "drunk_driver_crashes": 9,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34039",
+    "total_fatalities": 34,
+    "total_crashes": 33,
+    "pedestrian_involved_crashes": 15,
+    "drunk_driver_crashes": 8,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36047",
+    "total_fatalities": 56,
+    "total_crashes": 56,
+    "pedestrian_involved_crashes": 42,
+    "drunk_driver_crashes": 7,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36081",
+    "total_fatalities": 59,
+    "total_crashes": 54,
+    "pedestrian_involved_crashes": 36,
+    "drunk_driver_crashes": 10,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "36087",
+    "total_fatalities": 18,
+    "total_crashes": 17,
+    "pedestrian_involved_crashes": 8,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34029",
+    "total_fatalities": 53,
+    "total_crashes": 52,
+    "pedestrian_involved_crashes": 18,
+    "drunk_driver_crashes": 8,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34031",
+    "total_fatalities": 18,
+    "total_crashes": 18,
+    "pedestrian_involved_crashes": 5,
+    "drunk_driver_crashes": 7,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34017",
+    "total_fatalities": 26,
+    "total_crashes": 23,
+    "pedestrian_involved_crashes": 18,
+    "drunk_driver_crashes": 5,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "42103",
+    "total_fatalities": 4,
+    "total_crashes": 4,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "34037",
+    "total_fatalities": 7,
+    "total_crashes": 7,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  }
+]
