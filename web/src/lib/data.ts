@@ -1,3 +1,5 @@
+import { METROS } from "@/lib/metro";
+
 export interface CountyData {
   county_fips: string;
   county_name: string;
@@ -628,6 +630,44 @@ export function mergeOverlay(
     const over = overlay[c.county_fips];
     return over ? { ...c, ...over } : c;
   });
+}
+
+export async function loadAllData(granularity: Granularity): Promise<CountyData[]> {
+  const metroIds = Object.keys(METROS);
+  const results = await Promise.allSettled(
+    metroIds.map((id) => loadData(id, granularity))
+  );
+  const data = results
+    .filter((r): r is PromiseFulfilledResult<CountyData[]> => r.status === "fulfilled")
+    .flatMap((r) => r.value);
+  if (data.length === 0) throw new Error(`No ${granularity} data loaded for any metro`);
+  return data;
+}
+
+export async function loadAllGeoJSON(granularity: Granularity): Promise<GeoJSON.FeatureCollection> {
+  const metroIds = Object.keys(METROS);
+  const results = await Promise.allSettled(
+    metroIds.map((id) => loadGeoJSON(id, granularity))
+  );
+  const features = results
+    .filter((r): r is PromiseFulfilledResult<GeoJSON.FeatureCollection> => r.status === "fulfilled")
+    .flatMap((r) => r.value.features);
+  if (features.length === 0) throw new Error(`No ${granularity} GeoJSON loaded for any metro`);
+  return { type: "FeatureCollection", features };
+}
+
+export async function loadAllOverlayIndexes(): Promise<Record<string, OverlayIndex>> {
+  const metroIds = Object.keys(METROS);
+  const results = await Promise.allSettled(
+    metroIds.map(async (id) => ({ id, index: await loadOverlayIndex(id) }))
+  );
+  const indexes: Record<string, OverlayIndex> = {};
+  for (const r of results) {
+    if (r.status === "fulfilled" && r.value.index) {
+      indexes[r.value.id] = r.value.index;
+    }
+  }
+  return indexes;
 }
 
 /** Format a metric value for display. */
