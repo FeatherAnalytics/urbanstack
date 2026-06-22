@@ -12,10 +12,10 @@ from urbanstack.transform.county_mart import (
 
 def _make_acs_df() -> pl.DataFrame:
     rows = []
-    for name, fips in DFW.counties.items():
+    for name, fips in DFW.states["48"].items():
         rows.append(
             {
-                "state_fips": DFW.state_fips,
+                "state_fips": "48",
                 "county_fips": fips,
                 "name": f"{name} County, Texas",
                 "tract_fips": None,
@@ -38,10 +38,10 @@ def _make_acs_df() -> pl.DataFrame:
 
 def _make_gazetteer_df() -> pl.DataFrame:
     rows = []
-    for name, fips in DFW.counties.items():
+    for name, fips in DFW.states["48"].items():
         rows.append(
             {
-                "county_fips": f"{DFW.state_fips}{fips}",
+                "county_fips": f"48{fips}",
                 "county_name": f"{name} County",
                 "state_abbr": "TX",
                 "land_area_sqm": 2_589_988_000,
@@ -55,12 +55,12 @@ def _make_gazetteer_df() -> pl.DataFrame:
 
 def _make_epa_sld_df() -> pl.DataFrame:
     rows = []
-    for fips in DFW.counties.values():
+    for fips in DFW.states["48"].values():
         for bg in range(3):
             rows.append(
                 {
-                    "geoid": f"{DFW.state_fips}{fips}01010{bg}",
-                    "state_fips": DFW.state_fips,
+                    "geoid": f"48{fips}01010{bg}",
+                    "state_fips": "48",
                     "county_fips": fips,
                     "tract_fips": "010100",
                     "cbsa": "19100",
@@ -85,13 +85,13 @@ def _make_epa_sld_df() -> pl.DataFrame:
 def _make_fars_df() -> pl.DataFrame:
     rows = []
     case_id = 1000
-    for fips in DFW.counties.values():
+    for fips in DFW.states["48"].values():
         for _ in range(2):
             case_id += 1
             rows.append(
                 {
                     "case_id": case_id,
-                    "state_fips": DFW.state_fips,
+                    "state_fips": "48",
                     "county_fips": fips,
                     "year": 2022,
                     "month": 6,
@@ -108,10 +108,10 @@ def _make_fars_df() -> pl.DataFrame:
 
 def _make_usaspending_df() -> pl.DataFrame:
     rows = []
-    for fips in DFW.counties.values():
+    for fips in DFW.states["48"].values():
         rows.append(
             {
-                "county_fips": f"{DFW.state_fips}{fips}",
+                "county_fips": f"48{fips}",
                 "county_name": "Test County",
                 "total_obligation": 1_000_000.0,
                 "per_capita": 10.0,

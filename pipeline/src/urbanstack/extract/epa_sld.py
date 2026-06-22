@@ -74,7 +74,6 @@ def extract_epa_sld(
     rename = _resolve_columns(csv_path)
     keep_cols = list(rename.keys())
 
-    county_codes = metro.county_fips_set
     state_col = next(k for k, v in rename.items() if v == "state_fips")
     county_col = next(k for k, v in rename.items() if v == "county_fips")
 
@@ -82,8 +81,10 @@ def extract_epa_sld(
         pl.scan_csv(csv_path, infer_schema_length=1000)
         .select(keep_cols)
         .filter(
-            (pl.col(state_col).cast(pl.Utf8).str.zfill(2) == metro.state_fips)
-            & (pl.col(county_col).cast(pl.Utf8).str.zfill(3).is_in(county_codes))
+            (
+                pl.col(state_col).cast(pl.Utf8).str.zfill(2)
+                + pl.col(county_col).cast(pl.Utf8).str.zfill(3)
+            ).is_in(metro.county_fips_5_set)
         )
         .collect()
         .rename(rename)
@@ -115,6 +116,6 @@ def extract_epa_sld(
 
     parquet_dir.mkdir(parents=True, exist_ok=True)
     df.write_parquet(parquet_path)
-    logger.info("Wrote %d DFW block groups to %s", len(df), parquet_path)
+    logger.info("Wrote %d %s block groups to %s", len(df), metro.metro_id, parquet_path)
 
     return df
