@@ -89,12 +89,18 @@ def extract_epa_sld(
         .rename(rename)
     )
 
+    state = pl.col("state_fips").cast(pl.Utf8).str.zfill(2)
+    county = pl.col("county_fips").cast(pl.Utf8).str.zfill(3)
+    tract = pl.col("tract_fips").cast(pl.Int64).cast(pl.Utf8).str.zfill(6)
+    blkgrp = pl.col("blkgrp_fips").cast(pl.Int64).cast(pl.Utf8).str.zfill(1)
+
     df = df.with_columns(
-        pl.col("state_fips").cast(pl.Utf8).str.zfill(2),
-        pl.col("county_fips").cast(pl.Utf8).str.zfill(3),
-        pl.col("geoid").cast(pl.Int64).cast(pl.Utf8).str.zfill(12),
-        pl.col("tract_fips").cast(pl.Int64).cast(pl.Utf8),
+        state.alias("state_fips"),
+        county.alias("county_fips"),
+        tract.alias("tract_fips"),
+        blkgrp.alias("blkgrp_fips"),
         pl.col("cbsa").cast(pl.Int64).cast(pl.Utf8),
+        (state + county + tract + blkgrp).alias("geoid"),
     )
 
     float_cols = [c for c in df.columns if df[c].dtype in (pl.Float64, pl.Float32)]
