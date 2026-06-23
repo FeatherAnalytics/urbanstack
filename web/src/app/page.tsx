@@ -44,6 +44,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [selectedMetro, setSelectedMetro] = useState<string | null>(null);
   const [showTraffic, setShowTraffic] = useState(false);
   const [showRail, setShowRail] = useState(false);
   const [showBus, setShowBus] = useState(false);
@@ -67,13 +68,28 @@ export default function Home() {
   const trafficLayer = useTrafficLayer(showTraffic);
   const transitLayers = useTransitLayers(transitModes);
 
-  const viewport = useMemo(() => ({
+  const [viewport, setViewport] = useState({
     longitude: -92.0,
     latitude: 37.5,
     zoom: 5,
     pitch: 0,
     bearing: 0,
-  }), []);
+  });
+  const [viewportKey, setViewportKey] = useState(0);
+
+  const flyToMetro = useCallback((metroId: string) => {
+    const metro = METROS[metroId];
+    if (!metro) return;
+    setSelectedMetro(metroId);
+    setViewport({
+      longitude: metro.center[1],
+      latitude: metro.center[0],
+      zoom: metro.zoom,
+      pitch: 0,
+      bearing: 0,
+    });
+    setViewportKey((k) => k + 1);
+  }, []);
 
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleViewStateChange = useCallback(
@@ -153,30 +169,27 @@ export default function Home() {
     setSelectedYear(null);
 
     if (granularity === "block_group") {
-      // Block groups: geometry comes from PMTiles (MVTLayer), only load attribute data
-      loadAllData(granularity)
-        .then((data) => {
-          setBaseCounties(data);
-          setCounties(data);
-          setGeojson(null); // MVTLayer handles geometry
-          setLoading(false);
-        })
-        .catch(() => {
-          // Fallback to county if block group data unavailable
-          Promise.all([loadAllData("county"), loadAllGeoJSON("county")])
-            .then(([data, geo]) => {
-              setBaseCounties(data);
-              setCounties(data);
-              setGeojson(geo);
-              setGranularity("county");
-              setLoading(false);
-            })
-            .catch((fallbackErr: unknown) => {
-              const msg = fallbackErr instanceof Error ? fallbackErr.message : "Failed to load data";
-              setError(msg);
-              setLoading(false);
-            });
-        });
+      if (!selectedMetro) {
+        setLoading(false);
+        return;
+      }
+      // Block groups: load only selected metro's data via DuckDB
+      if (typeof window === "undefined") return;
+      import("@/lib/duckdb").then(({ queryBlockGroups }) =>
+        queryBlockGroups(selectedMetro)
+          .then((rows) => {
+            // Parquet schema matches CountyData fields — enforced by pipeline
+            const data = rows as unknown as CountyData[];
+            setBaseCounties(data);
+            setCounties(data);
+            setGeojson(null); // PMTiles handles geometry
+            setLoading(false);
+          })
+          .catch(() => {
+            setGranularity("county");
+            setLoading(false);
+          })
+      );
     } else {
       // County/metro: load both GeoJSON and attribute data as before
       Promise.all([loadAllData(granularity), loadAllGeoJSON(granularity)])
@@ -192,7 +205,7 @@ export default function Home() {
           setLoading(false);
         });
     }
-  }, [granularity]);
+  }, [granularity, selectedMetro]);
 
   useEffect(() => {
     if (!selectedYear || granularity !== "county") return;
@@ -252,6 +265,22 @@ export default function Home() {
           Urban Data Explorer
         </span>
         <div className="ml-auto flex items-center gap-3">
+          <select
+            value={selectedMetro ?? ""}
+            onChange={(e) => {
+              const v = e.target.value || null;
+              if (v) flyToMetro(v);
+              else setSelectedMetro(null);
+            }}
+            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          >
+            <option value="">All US</option>
+            {Object.values(METROS).map((m) => (
+              <option key={m.metro_id} value={m.metro_id}>
+                {m.metro_name}
+              </option>
+            ))}
+          </select>
           {overlayIndex && granularity === "county" && (
             <select
               value={selectedYear ?? ""}
@@ -272,12 +301,21 @@ export default function Home() {
           )}
           <select
             value={granularity}
-            onChange={(e) => setGranularity(e.target.value as Granularity)}
+            onChange={(e) => {
+              const g = e.target.value as Granularity;
+              if (g === "block_group" && !selectedMetro) {
+                const first = Object.keys(METROS)[0];
+                flyToMetro(first);
+              }
+              setGranularity(g);
+            }}
             className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
           >
             <option value="metro">Metro Area</option>
             <option value="county">County</option>
-            <option value="block_group">Block Group</option>
+            <option value="block_group">
+              Block Group{selectedMetro ? "" : " (select metro)"}
+            </option>
           </select>
           <ThemeToggle isDark={isDark} onToggle={toggle} />
         </div>
@@ -301,6 +339,7 @@ export default function Home() {
         {/* Map area with floating county popup */}
         <main ref={mapRef} className="relative min-h-[300px] flex-1">
           <ChoroplethMap
+            key={viewportKey}
             geojson={geojson}
             counties={counties}
             metric={selectedMetric}
