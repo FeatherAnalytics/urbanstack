@@ -111,15 +111,15 @@ def cmd_transform(args: argparse.Namespace, settings: Settings) -> None:
 
 
 def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
-    import json
     import subprocess
+    import sys
 
     metro = get_metro(args.metro)
     web_dir = settings.web_data_dir(metro.metro_id)
     geojson_path = web_dir / "block_groups.geojson"
     if not geojson_path.exists():
         logger.error("GeoJSON not found: %s", geojson_path)
-        return
+        sys.exit(1)
 
     exports_dir = Path(settings.data_dir).resolve().parent / "exports"
     exports_dir.mkdir(parents=True, exist_ok=True)

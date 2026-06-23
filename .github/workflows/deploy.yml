@@ -51,9 +51,9 @@ jobs:
 
       - name: Upload PMTiles to R2
         run: |
-          npx wrangler r2 object put "urbanstack/exports/dfw_block_groups.pmtiles" --file pipeline/exports/dfw_block_groups.pmtiles --remote
-          npx wrangler r2 object put "urbanstack/exports/chicago_block_groups.pmtiles" --file pipeline/exports/chicago_block_groups.pmtiles --remote
-          npx wrangler r2 object put "urbanstack/exports/nyc_block_groups.pmtiles" --file pipeline/exports/nyc_block_groups.pmtiles --remote
+          for f in pipeline/exports/*.pmtiles; do
+            npx wrangler r2 object put "urbanstack/exports/$(basename $f)" --file "$f" --remote
+          done
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
@@ -64,7 +64,7 @@ jobs:
         env:
           NEXT_PUBLIC_BASE_PATH: /urbanstack
           NEXT_PUBLIC_TOMTOM_API_KEY: ${{ secrets.NEXT_PUBLIC_TOMTOM_API_KEY }}
-          NEXT_PUBLIC_R2_URL: https://pub-67ffcc9780314ab6a2cb7c45ad6398eb.r2.dev
+          NEXT_PUBLIC_R2_URL: https://pub-67ffcc9780314ab6a2cb7c45ad6398eb.r2.dev/exports
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

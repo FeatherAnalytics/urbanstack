@@ -32,14 +32,14 @@ dev:
 
 # yagni: Makefile targets, create scripts/ when logic grows
 export-tiles:
-	cd pipeline && uv run python -m urbanstack.cli export --metro dfw
-	cd pipeline && uv run python -m urbanstack.cli export --metro chicago
-	cd pipeline && uv run python -m urbanstack.cli export --metro nyc
+	@cd pipeline && for metro in dfw chicago nyc; do \
+		uv run python -m urbanstack.cli export --metro $$metro; \
+	done
 
 upload-r2:
 	@for f in pipeline/exports/*.pmtiles; do \
 		echo "Uploading $$(basename $$f)..."; \
-		wrangler r2 object put "urbanstack/$$(basename $$f)" --file "$$f"; \
+		wrangler r2 object put "urbanstack/exports/$$(basename $$f)" --file "$$f"; \
 	done
 
 clean:
