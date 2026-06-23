@@ -42,17 +42,18 @@ jobs:
           git clone https://github.com/felt/tippecanoe.git /tmp/tippecanoe
           cd /tmp/tippecanoe && make -j$(nproc) && sudo make install
 
-      - name: Generate PMTiles
+      - name: Generate PMTiles and national Parquet
         run: |
           cd pipeline
           for metro in dfw chicago nyc; do
             uv run python -m urbanstack.cli export --metro $metro
           done
+          uv run python -m urbanstack.cli national
 
-      - name: Upload PMTiles to R2
+      - name: Upload exports to R2
         run: |
-          for f in pipeline/exports/*.pmtiles; do
-            npx wrangler r2 object put "urbanstack/exports/$(basename $f)" --file "$f" --remote
+          for f in pipeline/exports/*.pmtiles pipeline/exports/*.parquet; do
+            [ -f "$f" ] && npx wrangler r2 object put "urbanstack/exports/$(basename $f)" --file "$f" --remote
           done
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
