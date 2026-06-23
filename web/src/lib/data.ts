@@ -638,14 +638,6 @@ export function mergeOverlay(
 }
 
 export async function loadAllData(granularity: Granularity): Promise<CountyData[]> {
-  if (granularity === "block_group") {
-    if (typeof window === "undefined") throw new Error("DuckDB requires browser environment");
-    const { queryBlockGroups } = await import("@/lib/duckdb");
-    const rows = await queryBlockGroups();
-    // Parquet schema matches CountyData fields — enforced by pipeline
-    return rows as unknown as CountyData[];
-  }
-
   const metroIds = Object.keys(METROS);
   const results = await Promise.allSettled(
     metroIds.map((id) => loadData(id, granularity))
