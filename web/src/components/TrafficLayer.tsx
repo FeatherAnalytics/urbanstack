@@ -4,27 +4,20 @@ import { useEffect, useState } from "react";
 import { TileLayer } from "@deck.gl/geo-layers";
 import { BitmapLayer } from "@deck.gl/layers";
 
-/**
- * deck.gl TileLayer that renders TomTom traffic flow raster tiles
- * via our API proxy. Refreshes every 5 min when tab is visible.
- */
+const TOMTOM_API_KEY = process.env.NEXT_PUBLIC_TOMTOM_API_KEY ?? "";
+
 export function useTrafficLayer(enabled: boolean) {
   const [cacheBuster, setCacheBuster] = useState(0);
 
-  // Refresh tile URLs every 5 min, only when tab is visible
   useEffect(() => {
     if (!enabled) return;
 
     const interval = setInterval(() => {
-      if (!document.hidden) {
-        setCacheBuster(Date.now());
-      }
+      if (!document.hidden) setCacheBuster(Date.now());
     }, 5 * 60 * 1000);
 
     const handleVisibility = () => {
-      if (!document.hidden) {
-        setCacheBuster(Date.now());
-      }
+      if (!document.hidden) setCacheBuster(Date.now());
     };
     document.addEventListener("visibilitychange", handleVisibility);
 
@@ -34,33 +27,31 @@ export function useTrafficLayer(enabled: boolean) {
     };
   }, [enabled]);
 
-  const layer = enabled
-    ? new TileLayer({
-        id: "traffic-tiles",
-        data: `/api/traffic?z={z}&x={x}&y={y}&_t=${cacheBuster}`,
-        minZoom: 0,
-        maxZoom: 18,
-        tileSize: 256,
-        renderSubLayers: (props) => {
-          const { boundingBox } = props.tile;
-          return new BitmapLayer(props, {
-            data: undefined,
-            image: props.data,
-            bounds: [
-              boundingBox[0][0],
-              boundingBox[0][1],
-              boundingBox[1][0],
-              boundingBox[1][1],
-            ],
-          });
-        },
-        updateTriggers: {
-          data: [cacheBuster],
-        },
-      })
-    : null;
+  if (!enabled || !TOMTOM_API_KEY) return null;
 
-  return layer;
+  return new TileLayer({
+    id: "traffic-tiles",
+    data: `https://api.tomtom.com/traffic/map/4/tile/flow/relative/{z}/{x}/{y}.png?key=${TOMTOM_API_KEY}&tileSize=256&_t=${cacheBuster}`,
+    minZoom: 0,
+    maxZoom: 18,
+    tileSize: 256,
+    renderSubLayers: (props) => {
+      const { boundingBox } = props.tile;
+      return new BitmapLayer(props, {
+        data: undefined,
+        image: props.data,
+        bounds: [
+          boundingBox[0][0],
+          boundingBox[0][1],
+          boundingBox[1][0],
+          boundingBox[1][1],
+        ],
+      });
+    },
+    updateTriggers: {
+      data: [cacheBuster],
+    },
+  });
 }
 
 interface TrafficToggleProps {
