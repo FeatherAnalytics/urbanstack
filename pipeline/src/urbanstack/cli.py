@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from urbanstack.config import Settings, load_settings
@@ -109,6 +110,42 @@ def cmd_transform(args: argparse.Namespace, settings: Settings) -> None:
     build_year_overlays(settings, metro)
 
 
+def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
+    import json
+    import subprocess
+
+    metro = get_metro(args.metro)
+    web_dir = settings.web_data_dir(metro.metro_id)
+    geojson_path = web_dir / "block_groups.geojson"
+    if not geojson_path.exists():
+        logger.error("GeoJSON not found: %s", geojson_path)
+        return
+
+    exports_dir = Path(settings.data_dir).resolve().parent / "exports"
+    exports_dir.mkdir(parents=True, exist_ok=True)
+    output_path = exports_dir / f"{metro.metro_id}_block_groups.pmtiles"
+
+    # yagni: inline tippecanoe call, extract to module when there are 3+ export formats
+    logger.info("Building PMTiles for %s: %s → %s", metro.metro_id, geojson_path, output_path)
+    subprocess.run(
+        [
+            "tippecanoe",
+            "-ab",
+            "-z12",
+            "-Z3",
+            "--coalesce-densest-as-needed",
+            "--force",
+            "-o",
+            str(output_path),
+            "-l",
+            "block_groups",
+            str(geojson_path),
+        ],
+        check=True,
+    )
+    logger.info("PMTiles written: %s (%.1f MB)", output_path, output_path.stat().st_size / 1e6)
+
+
 def cmd_national(_args: argparse.Namespace, _settings: Settings) -> None:
     logger.info("National union not yet implemented")
 
@@ -136,6 +173,10 @@ def main() -> None:
     p_transform.add_argument("--metro", required=True, choices=metro_choices)
     p_transform.add_argument("--force", action="store_true")
 
+    # export
+    p_export = sub.add_parser("export", help="Export PMTiles from GeoJSON")
+    p_export.add_argument("--metro", required=True, choices=metro_choices)
+
     # national
     sub.add_parser("national", help="Build national union tables")
 
@@ -150,6 +191,7 @@ def main() -> None:
     commands = {
         "extract": cmd_extract,
         "transform": cmd_transform,
+        "export": cmd_export,
         "national": cmd_national,
         "load": cmd_load,
     }
