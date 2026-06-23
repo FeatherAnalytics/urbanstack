@@ -565,13 +565,15 @@ export const CATEGORIES: MetricCategory[] = [
 
 export type Granularity = "metro" | "county" | "block_group";
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 function dataPath(metroId: string, granularity: Granularity): string {
-  return `/data/${metroId}/${granularity}_summary.json`;
+  return `${BASE_PATH}/data/${metroId}/${granularity}_summary.json`;
 }
 
 function geoJsonPath(metroId: string, granularity: Granularity): string {
   const file = granularity === "block_group" ? "block_groups" : "counties";
-  return `/data/${metroId}/${file}.geojson`;
+  return `${BASE_PATH}/data/${metroId}/${file}.geojson`;
 }
 
 /** Load data for any granularity level. */
@@ -596,7 +598,7 @@ export interface OverlayIndex {
 
 export async function loadOverlayIndex(metroId: string): Promise<OverlayIndex | null> {
   try {
-    const resp = await fetch(`/data/${metroId}/overlays/index.json`);
+    const resp = await fetch(`${BASE_PATH}/data/${metroId}/overlays/index.json`);
     if (!resp.ok) return null;
     return resp.json() as Promise<OverlayIndex>;
   } catch {
@@ -609,7 +611,7 @@ export async function loadYearOverlay(
   year: number,
 ): Promise<Record<string, Partial<CountyData>> | null> {
   try {
-    const resp = await fetch(`/data/${metroId}/overlays/county_${year}.json`);
+    const resp = await fetch(`${BASE_PATH}/data/${metroId}/overlays/county_${year}.json`);
     if (!resp.ok) return null;
     const records = (await resp.json()) as Partial<CountyData>[];
     const map: Record<string, Partial<CountyData>> = {};
