@@ -39,7 +39,7 @@ export-tiles:
 upload-r2:
 	@for f in pipeline/exports/*.pmtiles; do \
 		echo "Uploading $$(basename $$f)..."; \
-		wrangler r2 object put "urbanstack-data/$$(basename $$f)" --file "$$f"; \
+		wrangler r2 object put "urbanstack/$$(basename $$f)" --file "$$f"; \
 	done
 
 clean:
