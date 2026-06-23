@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from "react";
 import { GeoJsonLayer } from "@deck.gl/layers";
 import { METROS } from "@/lib/metro";
 
+const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+
 type TransitMode = "rail" | "bus";
 
 const RAIL_TYPES = new Set(["rail", "tram", "other"]);
@@ -23,7 +25,7 @@ export function useTransitLayers(modes: Set<TransitMode>) {
     async function fetchAllGeoJSON(filename: string): Promise<GeoJSON.FeatureCollection> {
       const results = await Promise.allSettled(
         metroIds.map((id) =>
-          fetch(`/data/${id}/${filename}`).then((r) => {
+          fetch(`${BASE_PATH}/data/${id}/${filename}`).then((r) => {
             if (!r.ok) throw new Error(r.statusText);
             return r.json();
           })
