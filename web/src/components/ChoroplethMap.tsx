@@ -27,6 +27,14 @@ const BASEMAP_DARK =
 const BASEMAP_LIGHT =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
+const PMTILES_SOURCES = Object.keys(METROS).map((id) => ({
+  id,
+  source: new PMTilesTileSource(
+    `${R2_BASE_URL}/${id}_block_groups.pmtiles`,
+    { core: {} },
+  ),
+}));
+
 interface ChoroplethMapProps {
   geojson: GeoJSON.FeatureCollection | null;
   counties: CountyData[];
@@ -152,20 +160,10 @@ export function ChoroplethMap({
     [selectedFips, isBlockGroup],
   );
 
-  const pmtilesSources = useMemo(() => {
-    return Object.keys(METROS).map((id) => ({
-      id,
-      source: new PMTilesTileSource(
-        `${R2_BASE_URL}/${id}_block_groups.pmtiles`,
-        { core: {} },
-      ),
-    }));
-  }, []);
-
   const layers = useMemo(() => {
     if (isBlockGroup) {
       return [
-        ...pmtilesSources.map(({ id, source }) =>
+        ...PMTILES_SOURCES.map(({ id, source }) =>
           new TileLayer({
             id: `block-groups-${id}`,
             minZoom: 3,
@@ -239,7 +237,7 @@ export function ChoroplethMap({
     primaryBreaks,
     secondaryBreaks,
     isBlockGroup,
-    pmtilesSources,
+    PMTILES_SOURCES,
   ]);
 
   const handleClick = useCallback(
