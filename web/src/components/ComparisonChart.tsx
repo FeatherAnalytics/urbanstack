@@ -56,7 +56,11 @@ export function ComparisonChart({
       ].filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i)
     : sorted;
 
-  const maxVal = Math.max(...sorted.map((c) => (c[metric.key] as number) ?? 0));
+  let maxVal = 0;
+  for (const c of sorted) {
+    const v = (c[metric.key] as number) ?? 0;
+    if (v > maxVal) maxVal = v;
+  }
 
   const isBivariate = secondaryMetric !== null && primaryBreaks !== null && secondaryBreaks !== null;
   const [defaultR, defaultG, defaultB] = metric.colorScale[metric.colorScale.length - 1];
