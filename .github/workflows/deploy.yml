@@ -51,9 +51,9 @@ jobs:
 
       - name: Upload PMTiles to R2
         run: |
-          npx wrangler r2 object put "urbanstack-data/exports/dfw_block_groups.pmtiles" --file pipeline/exports/dfw_block_groups.pmtiles --remote
-          npx wrangler r2 object put "urbanstack-data/exports/chicago_block_groups.pmtiles" --file pipeline/exports/chicago_block_groups.pmtiles --remote
-          npx wrangler r2 object put "urbanstack-data/exports/nyc_block_groups.pmtiles" --file pipeline/exports/nyc_block_groups.pmtiles --remote
+          npx wrangler r2 object put "urbanstack/exports/dfw_block_groups.pmtiles" --file pipeline/exports/dfw_block_groups.pmtiles --remote
+          npx wrangler r2 object put "urbanstack/exports/chicago_block_groups.pmtiles" --file pipeline/exports/chicago_block_groups.pmtiles --remote
+          npx wrangler r2 object put "urbanstack/exports/nyc_block_groups.pmtiles" --file pipeline/exports/nyc_block_groups.pmtiles --remote
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
