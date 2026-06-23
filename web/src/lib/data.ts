@@ -566,6 +566,9 @@ export const CATEGORIES: MetricCategory[] = [
 export type Granularity = "metro" | "county" | "block_group";
 
 const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
+// yagni: inline const, create config.ts when there are 3+ config values
+export const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_URL
+  ?? "https://pub-67ffcc9780314ab6a2cb7c45ad6398eb.r2.dev/exports";
 
 function dataPath(metroId: string, granularity: Granularity): string {
   return `${BASE_PATH}/data/${metroId}/${granularity}_summary.json`;
