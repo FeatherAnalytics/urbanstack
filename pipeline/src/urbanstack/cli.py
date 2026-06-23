@@ -145,37 +145,20 @@ def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
     logger.info("PMTiles written: %s (%.1f MB)", output_path, output_path.stat().st_size / 1e6)
 
 
-def cmd_national(_args: argparse.Namespace, settings: Settings) -> None:
-    import polars as pl
+def cmd_national(args: argparse.Namespace, settings: Settings) -> None:
+    from urbanstack.transform.block_group_mart import build_national_block_group_mart
 
-    settings.exports_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Building national block group mart")
+    build_national_block_group_mart(settings, force=args.force)
 
-    # Union all metro block group Parquets
-    frames = []
-    for metro_id in sorted(METRO_REGISTRY):
-        path = settings.metro_marts_dir(metro_id) / "block_group_summary.parquet"
-        if path.exists():
-            df = pl.read_parquet(path)
-            if "metro_id" not in df.columns:
-                df = df.with_columns(pl.lit(metro_id).alias("metro_id"))
-            frames.append(df)
-            logger.info("Added %s: %d rows", metro_id, len(df))
-        else:
-            logger.warning("Skipping %s: %s not found", metro_id, path)
 
-    if not frames:
-        logger.error("No metro Parquet files found")
-        return
+def cmd_extract_national(args: argparse.Namespace, settings: Settings) -> None:
+    from urbanstack.extract.acs import extract_acs_national
 
-    combined = pl.concat(frames, how="diagonal_relaxed")
-    output_path = settings.exports_dir / "block_groups.parquet"
-    combined.write_parquet(output_path)
-    logger.info(
-        "National Parquet: %d rows, %.1f MB → %s",
-        len(combined),
-        output_path.stat().st_size / 1e6,
-        output_path,
-    )
+    year = args.year or 2023
+    for granularity in ["county", "block_group"]:
+        logger.info("Extracting national ACS %s for %d", granularity, year)
+        extract_acs_national(settings, granularity=granularity, year=year, force=args.force)
 
 
 def cmd_load(_args: argparse.Namespace, _settings: Settings) -> None:
@@ -205,8 +188,14 @@ def main() -> None:
     p_export = sub.add_parser("export", help="Export PMTiles from GeoJSON")
     p_export.add_argument("--metro", required=True, choices=metro_choices)
 
+    # extract-national
+    p_extract_nat = sub.add_parser("extract-national", help="Extract national ACS data")
+    p_extract_nat.add_argument("--year", type=int, default=None)
+    p_extract_nat.add_argument("--force", action="store_true")
+
     # national
-    sub.add_parser("national", help="Build national union tables")
+    p_national = sub.add_parser("national", help="Build national block group mart")
+    p_national.add_argument("--force", action="store_true")
 
     # load
     sub.add_parser("load", help="Load marts into DuckDB")
@@ -220,6 +209,7 @@ def main() -> None:
         "extract": cmd_extract,
         "transform": cmd_transform,
         "export": cmd_export,
+        "extract-national": cmd_extract_national,
         "national": cmd_national,
         "load": cmd_load,
     }

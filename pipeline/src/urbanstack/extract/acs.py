@@ -117,6 +117,75 @@ def _fetch_block_groups(url: str, api_key: str, metro: MetroConfig) -> list[list
     return _fetch_multi(url, batches)
 
 
+ALL_STATE_FIPS = [
+    "01", "02", "04", "05", "06", "08", "09", "10", "11", "12",
+    "13", "15", "16", "17", "18", "19", "20", "21", "22", "23",
+    "24", "25", "26", "27", "28", "29", "30", "31", "32", "33",
+    "34", "35", "36", "37", "38", "39", "40", "41", "42", "44",
+    "45", "46", "47", "48", "49", "50", "51", "53", "54", "55", "56",
+]
+
+
+def _fetch_county_national(url: str, api_key: str) -> list[list[str]]:
+    return _fetch(url, {
+        "get": f"NAME,{','.join(ACS_VARIABLES.keys())}",
+        "for": "county:*",
+        "key": api_key,
+    })
+
+
+def _fetch_block_groups_national(url: str, api_key: str) -> list[list[str]]:
+    batches: list[list[tuple[str, str]]] = []
+    for state_fips in ALL_STATE_FIPS:
+        batches.append([
+            ("get", f"NAME,{','.join(ACS_VARIABLES.keys())}"),
+            ("for", "block group:*"),
+            ("in", f"state:{state_fips} county:*"),
+            ("key", api_key),
+        ])
+    return _fetch_multi(url, batches)
+
+
+def extract_acs_national(
+    settings: Settings,
+    granularity: Granularity = "county",
+    year: int = 2023,
+    *,
+    force: bool = False,
+) -> pl.DataFrame:
+    if not settings.census_api_key:
+        raise ValueError("CENSUS_API_KEY is required")
+
+    parquet_dir = settings.staging_dir / "national" / "acs"
+    parquet_path = parquet_dir / f"acs_{granularity}_{year}.parquet"
+
+    if parquet_path.exists() and not force:
+        logger.info("Parquet exists, skipping: %s", parquet_path)
+        return pl.read_parquet(parquet_path)
+
+    url = ACS_BASE_URL.format(year=year)
+
+    if granularity == "county":
+        raw = _fetch_county_national(url, settings.census_api_key)
+    else:
+        raw = _fetch_block_groups_national(url, settings.census_api_key)
+
+    raw_dir = settings.raw_dir / "national" / "acs"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = raw_dir / f"acs_{granularity}_{year}.json"
+    raw_path.write_text(json.dumps(raw, indent=2))
+
+    records = _parse_response(raw, granularity)
+    rows = [r.model_dump() for r in records]
+    df = pl.DataFrame(rows)
+
+    parquet_dir.mkdir(parents=True, exist_ok=True)
+    df.write_parquet(parquet_path)
+    logger.info("Wrote %d rows to %s", len(df), parquet_path)
+
+    return df
+
+
 def extract_acs(
     settings: Settings,
     metro: MetroConfig,
