@@ -6,7 +6,7 @@ import polars as pl
 
 from urbanstack.config import Settings
 from urbanstack.extract.acs import extract_acs
-from urbanstack.metro import MetroConfig
+from urbanstack.metro import METRO_REGISTRY, MetroConfig
 from urbanstack.transform._shared import infer_congestion, infer_ridership, sanitize_records
 from urbanstack.transform.derived import apply_derived_metrics
 from urbanstack.transform.spatial import assign_points_to_areas, load_boundaries
@@ -110,6 +110,88 @@ def _join_epa_sld(base: pl.DataFrame, epa: pl.DataFrame) -> pl.DataFrame:
         pl.col("pct_ao0").alias("pct_zero_car_hh"),
     )
     return base.join(epa_cols, left_on="geoid_12", right_on="geoid", how="left")
+
+
+def build_national_block_group_mart(
+    settings: Settings, *, force: bool = False
+) -> pl.DataFrame:
+    """Build block group mart from national ACS data (no metro dependency)."""
+    mart_dir = settings.exports_dir
+    mart_path = mart_dir / "block_groups.parquet"
+
+    if mart_path.exists() and not force:
+        logger.info("National mart exists, skipping: %s", mart_path)
+        return pl.read_parquet(mart_path)
+
+    acs_path = settings.staging_dir / "national" / "acs" / "acs_block_group_2023.parquet"
+    if not acs_path.exists():
+        raise FileNotFoundError(f"National ACS not found: {acs_path}. Run `urbanstack extract-national` first.")
+
+    acs = pl.read_parquet(acs_path)
+    acs = acs.filter(pl.col("tract_fips").is_not_null())
+    logger.info("National ACS: %d block groups", len(acs))
+
+    base = _build_acs_base(acs)
+
+    # yagni: national EPA SLD, FARS, NTD, UMR joins deferred — add when sources extracted nationally
+    null_cols = {
+        "avg_walkability": pl.Float64,
+        "avg_pop_density": pl.Float64,
+        "avg_job_density": pl.Float64,
+        "avg_intersection_density": pl.Float64,
+        "avg_transit_frequency": pl.Float64,
+        "pct_zero_car_hh": pl.Float64,
+        "total_delay_hours": pl.Float64,
+        "total_congestion_cost": pl.Float64,
+        "delay_per_capita": pl.Float64,
+        "congestion_cost_per_capita": pl.Float64,
+        "total_annual_ridership": pl.Int64,
+        "ridership_per_capita": pl.Float64,
+        "total_fatalities": pl.Int64,
+        "total_crashes": pl.Int64,
+        "pedestrian_involved_crashes": pl.Int64,
+        "drunk_driver_crashes": pl.Int64,
+        "fatalities_per_capita": pl.Float64,
+        "crashes_per_capita": pl.Float64,
+        "federal_obligation": pl.Float64,
+        "federal_per_capita": pl.Float64,
+        "land_area_sqm": pl.Int64,
+        "water_area_sqm": pl.Int64,
+        "land_area_sqmi": pl.Float64,
+        "latitude": pl.Float64,
+        "longitude": pl.Float64,
+        "pop_density_sqmi": pl.Float64,
+    }
+    missing = {
+        name: pl.lit(None).cast(dtype)
+        for name, dtype in null_cols.items()
+        if name not in base.columns
+    }
+    if missing:
+        base = base.with_columns(**missing)
+
+    base = base.rename({
+        "geoid_12": "county_fips",
+        "total_population": "population",
+        "name": "county_name",
+    })
+
+    base = apply_derived_metrics(base, granularity="block_group")
+
+    # Map county_fips_5 to metro_id for known metros
+    fips_to_metro: dict[str, str] = {}
+    for metro_id, metro in METRO_REGISTRY.items():
+        for fips5 in metro.county_fips_5_set:
+            fips_to_metro[fips5] = metro_id
+    base = base.with_columns(
+        pl.col("county_fips_5").replace_strict(fips_to_metro, default=None).alias("metro_id")
+    )
+
+    mart_dir.mkdir(parents=True, exist_ok=True)
+    base.write_parquet(mart_path)
+    logger.info("National block group mart: %d rows, %.1f MB → %s", len(base), mart_path.stat().st_size / 1e6, mart_path)
+
+    return base
 
 
 def build_block_group_mart(
