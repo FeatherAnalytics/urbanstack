@@ -122,12 +122,34 @@ Sidebar feature: small range chart showing data coverage per source. Data source
 - Layers/filters reference by ID, decoupling data loading from visualization
 - Better architecture for multi-metro, multi-source UI
 
+### Mobile-Friendly Responsive Design
+Current layout is desktop-first: sidebar + full-screen map + bottom chart. Needs a complete mobile experience for portfolio credibility and real-world usability.
+
+**Layout approach:**
+- **Mobile (< 768px):** Full-screen map with bottom sheet drawer (pull-up panel). Metric selector in collapsible bottom sheet. Comparison chart slides up on demand. No sidebar — everything lives in drawers/sheets over the map.
+- **Tablet (768–1024px):** Collapsible sidebar (toggle button). Bottom chart remains but reduced height.
+- **Desktop (> 1024px):** Current layout unchanged.
+
+**Key changes:**
+- Bottom sheet component for metric selector, county detail, and comparison chart
+- Touch-friendly map controls (larger tap targets for zoom, overlay toggles)
+- Swipe gestures for bottom sheet (drag up to expand, down to collapse)
+- Map viewport adapts — tighter initial zoom on mobile to show local area
+- Font sizes and spacing scale for touch (minimum 44px tap targets per WCAG)
+- Test on iOS Safari and Chrome Android — deck.gl WebGL has mobile-specific quirks
+
+**Performance considerations:**
+- PMTiles already helps — streaming tiles means less memory pressure on mobile
+- Lazy-load comparison chart (heavy DOM) until user requests it
+- Reduce initial block group detail level on mobile (lower maxZoom for PMTiles)
+
+**When to build:** After Phase 2 ships (done). This is a high-impact UX improvement for portfolio presentation.
+
 ### Frontend UX Improvements
 - Collapsible metric category sections in sidebar
 - Color scale legend on map
 - Calculation formula tooltip on hover for derived metrics
 - Stronger visual distinction between estimated vs measured metrics
-- Responsive improvements for mobile
 
 ### Derived Metric Ideas (Future)
 - Transit access score (EPA SLD walkability + transit frequency + ridership)
