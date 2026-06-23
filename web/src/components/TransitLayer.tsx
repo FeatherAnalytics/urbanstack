@@ -2,9 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GeoJsonLayer } from "@deck.gl/layers";
+import { BASE_PATH } from "@/lib/data";
 import { METROS } from "@/lib/metro";
-
-const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 type TransitMode = "rail" | "bus";
 
