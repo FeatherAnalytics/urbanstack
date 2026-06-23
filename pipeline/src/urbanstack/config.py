@@ -32,6 +32,10 @@ class Settings:
     def metro_marts_dir(self, metro_id: str) -> Path:
         return self.marts_dir / metro_id
 
+    @property
+    def exports_dir(self) -> Path:
+        return Path(self.data_dir).resolve().parent / "exports"
+
     def web_data_dir(self, metro_id: str) -> Path:
         return Path(self.data_dir).resolve().parent.parent / "web" / "public" / "data" / metro_id
 
