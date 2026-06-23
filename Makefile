@@ -1,4 +1,4 @@
-.PHONY: setup test lint format dev clean
+.PHONY: setup test lint format dev export-tiles upload-r2 clean
 
 setup: setup-pipeline setup-web
 
@@ -29,6 +29,18 @@ format:
 
 dev:
 	cd web && npm run dev
+
+# yagni: Makefile targets, create scripts/ when logic grows
+export-tiles:
+	cd pipeline && uv run python -m urbanstack.cli export --metro dfw
+	cd pipeline && uv run python -m urbanstack.cli export --metro chicago
+	cd pipeline && uv run python -m urbanstack.cli export --metro nyc
+
+upload-r2:
+	@for f in pipeline/exports/*.pmtiles; do \
+		echo "Uploading $$(basename $$f)..."; \
+		wrangler r2 object put "urbanstack-data/$$(basename $$f)" --file "$$f"; \
+	done
 
 clean:
 	rm -rf data/raw/* data/staging/* data/marts/*

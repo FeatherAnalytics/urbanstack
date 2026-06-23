@@ -42,6 +42,12 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 
+# PMTiles exports (generated, uploaded to R2)
+pipeline/exports/
+
+# Reference assets (PDFs, proprietary docs)
+assets/
+
 # Misc
 *.log
 .superpowers/

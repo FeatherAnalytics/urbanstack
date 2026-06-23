@@ -43,6 +43,50 @@ Current architecture: Python pipeline → static JSON → Next.js static fetch.
 | BLS QCEW | National | County | Employment and wages by industry |
 | EPA EJScreen | National | Block group | Environmental justice indicators |
 | USDOT Safety Data (CRSS) | National | Event-level | Non-fatal crash data (complements FARS) |
+| BTS Transportation Noise | National | Raster / tract | Modeled highway, aviation, and rail noise levels (dB) |
+| NLCD Tree Canopy / Landsat NDVI | National | 30m raster → block group | Vegetation greenness and tree canopy cover |
+| Trust for Public Land ParkServe | National | Block group | Park access: % population within 10-min walk of a park |
+
+### Transportation Noise (BTS)
+DOT's Bureau of Transportation Statistics publishes the **National Transportation Noise Map** — modeled noise levels (dB LAeq) from highway traffic, aviation, and rail for the entire US.
+
+**Data sources:**
+- **ArcGIS map service** at [maps.dot.gov/BTS/NationalTransportationNoiseMap](https://maps.dot.gov/BTS/NationalTransportationNoiseMap/) — queryable raster tiles showing noise contours (45–80+ dB). Can overlay directly or sample via spatial query.
+- **Census tract-level downloads** from [University of Washington DEOHS](https://deohs.washington.edu/national-transportation-noise-exposure-map-download) — population exposure estimates by dB band per tract. CSV format, joinable to existing tract/block-group data via GEOID.
+- **BTS data inventory** at [data.bts.gov](https://data.bts.gov/stories/s/National-Transportation-Noise-Map/ri89-bhxh/) — metadata, methodology docs, vintage info.
+
+**Integration approach:**
+- **Tabular (tract-level):** Download UW DEOHS tract-level CSVs → new extract module `extract/noise.py` → join to block group mart via tract GEOID prefix (block group GEOID starts with its parent tract GEOID). Metrics: avg dB exposure, % population above 55 dB (EPA threshold), % above 65 dB (HUD threshold).
+- **Raster (visualization):** Query ArcGIS tile service directly from deck.gl as a `TileLayer` (same pattern as TomTom traffic tiles). No pipeline needed — purely a frontend overlay toggle.
+- **Derived metrics:** Noise-safety correlation (crash rate vs noise level as proxy for traffic volume), noise equity index (noise exposure weighted by income).
+
+**Why it fits:** Noise is a direct proxy for traffic intensity and a recognized public health indicator. Complements existing walkability (EPA SLD), crash data (FARS), and congestion metrics (UMR). National coverage means it scales to all-US in Phase 3.
+
+### Vegetation Greenness (NDVI / Tree Canopy)
+Satellite-derived vegetation indices measure greenery at the block group level. Research shows strong relationships between urban greenery and noise — dense tree canopy reduces traffic noise 3–7 dB over 15–20m, and a 1% increase in green view index correlates with a 2% decrease in noise complaints (NYC longitudinal study).
+
+**Data sources:**
+- **USGS NLCD Tree Canopy** — 30m resolution percent tree canopy cover for the entire US. Available from [MRLC](https://www.mrlc.gov/). Most directly actionable: download national raster, compute mean % canopy per block group via zonal statistics.
+- **USGS Landsat NDVI** — 30m resolution normalized vegetation index from [Landsat Collection 2](https://www.usgs.gov/landsat-missions/landsat-normalized-difference-vegetation-index). Higher fidelity than MODIS (250m) for urban areas. Use summer peak (April–September) max composite.
+- **NASA MODIS NDVI** — 250m, 16-day composites from [NASA Earthdata](https://www.earthdata.nasa.gov/topics/land-surface/normalized-difference-vegetation-index-ndvi). Coarser but simpler to process. Good enough for county-level analysis.
+- **EPA EnviroAtlas** — Pre-computed % tree cover and % green space at block group level for [~1,400 cities](https://www.epa.gov/enviroatlas/data-download). Not nationally comprehensive but zero raster processing needed for covered cities.
+- **Trust for Public Land ParkServe** — [Block group level](https://www.tpl.org/park-data-downloads) park access metrics: % population within 10-min walk of a park, park acres per 1,000 residents. National coverage. Complementary to NDVI (park access ≠ greenness).
+
+**Integration approach:**
+- **Preferred:** Download NLCD Tree Canopy national GeoTIFF → new extract module `extract/tree_canopy.py` → use `rasterstats` library to compute mean % canopy per block group polygon → join to block group mart via GEOID.
+- **Alternative:** Use EnviroAtlas pre-computed data where available, fall back to NLCD for uncovered areas.
+- **Metrics:** Mean % tree canopy, mean NDVI, park access score (ParkServe).
+- **Derived metrics:**
+  - **Noise-greenery gap:** Block groups with high noise + low greenery = priority areas for urban canopy investment. Formula: `noise_dB_normalized - canopy_pct_normalized` (positive = underserved).
+  - **Green equity index:** Canopy % weighted by income quintile — do lower-income block groups have less canopy?
+  - **Environmental quality composite:** Combine walkability (EPA SLD) + canopy + noise + crash rate into a single index.
+
+**Why it fits:** Greenery is the natural complement to noise data — research confirms the physical and perceptual relationship. Together they tell a story about livability that neither tells alone. NLCD is free, national, and 30m resolution. The `rasterstats` zonal computation is a one-time batch job, not a recurring API call.
+
+**References:**
+- [Influence of Green Areas on Urban Sound Environment (Springer, 2023)](https://link.springer.com/article/10.1007/s40726-023-00284-5)
+- [Urban Environment and Noise Perception, NYC (Springer, 2025)](https://link.springer.com/article/10.1007/s44212-025-00093-9)
+- [Tree Characteristics and Noise in Montreal (ScienceDirect, 2021)](https://www.sciencedirect.com/science/article/abs/pii/S0013935121011828)
 
 ### Time Series Visualization
 Sidebar feature: small range chart showing data coverage per source. Data sources on y-axis, time on x-axis. Shows which years each source covers and allows visual comparison of temporal overlap.
