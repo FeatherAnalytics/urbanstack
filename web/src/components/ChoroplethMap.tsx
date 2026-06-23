@@ -112,8 +112,9 @@ export function ChoroplethMap({
       const county = dataByFips.get(fips);
       if (!county) return [40, 40, 40, 160];
 
-      const primaryVal = county[metric.key] as number | null;
-      if (primaryVal === null || primaryVal === undefined || Number.isNaN(primaryVal)) return [40, 40, 40, 120];
+      const rawVal = county[metric.key];
+      const primaryVal = rawVal === null || rawVal === undefined ? null : Number(rawVal);
+      if (primaryVal === null || !Number.isFinite(primaryVal)) return [40, 40, 40, 120];
 
       // Bivariate mode
       if (secondaryMetric && primaryBreaks && secondaryBreaks) {
@@ -189,6 +190,11 @@ export function ChoroplethMap({
                 getLineColor,
                 getLineWidth,
                 lineWidthUnits: "pixels" as const,
+                updateTriggers: {
+                  getFillColor: [metric.key, minVal, maxVal, secondaryMetric?.key, primaryBreaks, secondaryBreaks],
+                  getLineColor: [selectedFips, isDark],
+                  getLineWidth: [selectedFips],
+                },
               });
             },
             updateTriggers: {

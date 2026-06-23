@@ -121,9 +121,8 @@ def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
         logger.error("GeoJSON not found: %s", geojson_path)
         sys.exit(1)
 
-    exports_dir = Path(settings.data_dir).resolve().parent / "exports"
-    exports_dir.mkdir(parents=True, exist_ok=True)
-    output_path = exports_dir / f"{metro.metro_id}_block_groups.pmtiles"
+    settings.exports_dir.mkdir(parents=True, exist_ok=True)
+    output_path = settings.exports_dir / f"{metro.metro_id}_block_groups.pmtiles"
 
     # yagni: inline tippecanoe call, extract to module when there are 3+ export formats
     logger.info("Building PMTiles for %s: %s → %s", metro.metro_id, geojson_path, output_path)
@@ -146,8 +145,37 @@ def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
     logger.info("PMTiles written: %s (%.1f MB)", output_path, output_path.stat().st_size / 1e6)
 
 
-def cmd_national(_args: argparse.Namespace, _settings: Settings) -> None:
-    logger.info("National union not yet implemented")
+def cmd_national(_args: argparse.Namespace, settings: Settings) -> None:
+    import polars as pl
+
+    settings.exports_dir.mkdir(parents=True, exist_ok=True)
+
+    # Union all metro block group Parquets
+    frames = []
+    for metro_id in sorted(METRO_REGISTRY):
+        path = settings.metro_marts_dir(metro_id) / "block_group_summary.parquet"
+        if path.exists():
+            df = pl.read_parquet(path)
+            if "metro_id" not in df.columns:
+                df = df.with_columns(pl.lit(metro_id).alias("metro_id"))
+            frames.append(df)
+            logger.info("Added %s: %d rows", metro_id, len(df))
+        else:
+            logger.warning("Skipping %s: %s not found", metro_id, path)
+
+    if not frames:
+        logger.error("No metro Parquet files found")
+        return
+
+    combined = pl.concat(frames, how="diagonal_relaxed")
+    output_path = settings.exports_dir / "block_groups.parquet"
+    combined.write_parquet(output_path)
+    logger.info(
+        "National Parquet: %d rows, %.1f MB → %s",
+        len(combined),
+        output_path.stat().st_size / 1e6,
+        output_path,
+    )
 
 
 def cmd_load(_args: argparse.Namespace, _settings: Settings) -> None:

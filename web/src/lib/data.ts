@@ -638,6 +638,14 @@ export function mergeOverlay(
 }
 
 export async function loadAllData(granularity: Granularity): Promise<CountyData[]> {
+  if (granularity === "block_group") {
+    if (typeof window === "undefined") throw new Error("DuckDB requires browser environment");
+    const { queryBlockGroups } = await import("@/lib/duckdb");
+    const rows = await queryBlockGroups();
+    // Parquet schema matches CountyData fields — enforced by pipeline
+    return rows as unknown as CountyData[];
+  }
+
   const metroIds = Object.keys(METROS);
   const results = await Promise.allSettled(
     metroIds.map((id) => loadData(id, granularity))
@@ -703,6 +711,7 @@ export function interpolateColor(
   stops: [number, number, number][],
 ): [number, number, number, number] {
   if (stops.length < 2) return [...stops[0], 180] as [number, number, number, number];
+  if (!Number.isFinite(t)) return [...stops[0], 180] as [number, number, number, number];
   const clamped = Math.max(0, Math.min(1, t));
   const segments = stops.length - 1;
   const segment = Math.min(Math.floor(clamped * segments), segments - 1);
