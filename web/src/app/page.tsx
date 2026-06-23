@@ -151,15 +151,18 @@ export default function Home() {
     setError(null);
     setSelectedFips(null);
     setSelectedYear(null);
-    Promise.all([loadAllData(granularity), loadAllGeoJSON(granularity)])
-      .then(([data, geo]) => {
-        setBaseCounties(data);
-        setCounties(data);
-        setGeojson(geo);
-        setLoading(false);
-      })
-      .catch((err: unknown) => {
-        if (granularity !== "county") {
+
+    if (granularity === "block_group") {
+      // Block groups: geometry comes from PMTiles (MVTLayer), only load attribute data
+      loadAllData(granularity)
+        .then((data) => {
+          setBaseCounties(data);
+          setCounties(data);
+          setGeojson(null); // MVTLayer handles geometry
+          setLoading(false);
+        })
+        .catch(() => {
+          // Fallback to county if block group data unavailable
           Promise.all([loadAllData("county"), loadAllGeoJSON("county")])
             .then(([data, geo]) => {
               setBaseCounties(data);
@@ -169,20 +172,26 @@ export default function Home() {
               setLoading(false);
             })
             .catch((fallbackErr: unknown) => {
-              const msg =
-                fallbackErr instanceof Error
-                  ? fallbackErr.message
-                  : "Failed to load data";
+              const msg = fallbackErr instanceof Error ? fallbackErr.message : "Failed to load data";
               setError(msg);
               setLoading(false);
             });
-        } else {
-          const msg =
-            err instanceof Error ? err.message : "Failed to load data";
+        });
+    } else {
+      // County/metro: load both GeoJSON and attribute data as before
+      Promise.all([loadAllData(granularity), loadAllGeoJSON(granularity)])
+        .then(([data, geo]) => {
+          setBaseCounties(data);
+          setCounties(data);
+          setGeojson(geo);
+          setLoading(false);
+        })
+        .catch((err: unknown) => {
+          const msg = err instanceof Error ? err.message : "Failed to load data";
           setError(msg);
           setLoading(false);
-        }
-      });
+        });
+    }
   }, [granularity]);
 
   useEffect(() => {

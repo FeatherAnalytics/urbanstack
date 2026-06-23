@@ -4,16 +4,22 @@ import { useCallback, useMemo } from "react";
 import { Map as MapGL } from "react-map-gl/maplibre";
 import DeckGL from "@deck.gl/react";
 import { GeoJsonLayer } from "@deck.gl/layers";
+import { TileLayer } from "@deck.gl/geo-layers";
+import { MVTLoader } from "@loaders.gl/mvt";
+import { load } from "@loaders.gl/core";
+import { PMTilesTileSource } from "@loaders.gl/pmtiles";
 import type { Layer } from "@deck.gl/core";
 import {
   interpolateColor,
   formatValue,
   classifyBin,
   getBivariateColor,
+  R2_BASE_URL,
   type CountyData,
   type Granularity,
   type MetricConfig,
 } from "@/lib/data";
+import { METROS } from "@/lib/metro";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 const BASEMAP_DARK =
@@ -146,7 +152,56 @@ export function ChoroplethMap({
     [selectedFips, isBlockGroup],
   );
 
+  const pmtilesSources = useMemo(() => {
+    return Object.keys(METROS).map((id) => ({
+      id,
+      source: new PMTilesTileSource(
+        `${R2_BASE_URL}/${id}_block_groups.pmtiles`,
+        { core: {} },
+      ),
+    }));
+  }, []);
+
   const layers = useMemo(() => {
+    if (isBlockGroup) {
+      return [
+        ...pmtilesSources.map(({ id, source }) =>
+          new TileLayer({
+            id: `block-groups-${id}`,
+            minZoom: 3,
+            maxZoom: 12,
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck.gl tile type
+            getTileData: async (tile: any) => {
+              const { x, y, z } = tile.index;
+              const arrayBuffer = await source.getTile({ x, y, z });
+              if (!arrayBuffer) return null;
+              return load(arrayBuffer, MVTLoader, {
+                mvt: { coordinates: "wgs84", tileIndex: { x, y, z } },
+              });
+            },
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck.gl subLayer props
+            renderSubLayers: (props: any) => {
+              if (!props.data) return null;
+              return new GeoJsonLayer({
+                ...props,
+                filled: true,
+                stroked: true,
+                pickable: true,
+                getFillColor,
+                getLineColor,
+                getLineWidth,
+                lineWidthUnits: "pixels" as const,
+              });
+            },
+            updateTriggers: {
+              renderSubLayers: [metric.key, minVal, maxVal, selectedFips, isDark, secondaryMetric?.key, primaryBreaks, secondaryBreaks],
+            },
+          })
+        ),
+        ...overlayLayers,
+      ];
+    }
+
     if (!geojson) return [...overlayLayers];
 
     return [
@@ -183,6 +238,8 @@ export function ChoroplethMap({
     secondaryMetric,
     primaryBreaks,
     secondaryBreaks,
+    isBlockGroup,
+    pmtilesSources,
   ]);
 
   const handleClick = useCallback(
