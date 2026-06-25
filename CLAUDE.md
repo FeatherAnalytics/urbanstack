@@ -74,6 +74,7 @@ Each source has an extract module, pydantic contract, and doc in `docs/sources/`
 | TMAS | `tmas_stations` | Traffic monitoring station locations |
 | UMR | `umr` | Urban Mobility Report congestion metrics |
 | USASpending | `usaspending` | Federal transportation grants |
+| OSM Parks | `osm_parks` | Park/green space polygons from OpenStreetMap (Overpass API) |
 
 Shared helper: `extract/_socrata.py` (Socrata API client).
 
@@ -82,7 +83,7 @@ Shared helper: `extract/_socrata.py` (Socrata API client).
 - `pipeline/` — Python ETL (extract → validate → transform → load)
   - `extract/` — One module per data source (see table above)
   - `contracts/` — Pydantic schemas per source
-  - `transform/` — Mart builders (`county_mart`, `block_group_mart`, `metro_mart`), plus `derived.py` (metric registry) and `spatial.py` (reusable spatial joins)
+  - `transform/` — Mart builders (`county_mart`, `block_group_mart`, `metro_mart`), plus `derived.py` (metric registry) and `spatial.py` (spatial joins, proximity, centroids, haversine)
   - `load/duckdb_loader.py` — Parquet → DuckDB ingestion
   - `geography.py` — County FIPS/name resolution utilities
 - `web/` — Next.js + deck.gl frontend
@@ -115,7 +116,7 @@ reliable, and production-quality.
 
 ### Extensibility
 - All geography-specific config in `MetroConfig` (see docs/ARCHITECTURE.md)
-- Adding a metric = one entry in `derived.py` + one entry in `data.ts`
+- Adding a metric = one entry in `derived.py` + one entry in `data.ts` (6 categories: Demographics, Transportation, Safety, Spending, Congestion, Public Space)
 - Adding a city = one `MetroConfig` instance (after refactor)
 - Modules: `spatial.py`, `derived.py`, contracts — must stay geography-agnostic
 
