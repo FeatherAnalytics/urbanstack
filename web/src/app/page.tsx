@@ -8,6 +8,8 @@ import {
   computeMinMax,
   getVisibleGeoIds,
   computeQuantileBins,
+  loadData,
+  loadGeoJSON,
   loadAllData,
   loadAllGeoJSON,
   loadAllOverlayIndexes,
@@ -27,6 +29,7 @@ import { ThemeToggle, useTheme } from "@/components/ThemeToggle";
 import { MapControls } from "@/components/MapControls";
 import { useTrafficLayer } from "@/components/TrafficLayer";
 import { useTransitLayers } from "@/components/TransitLayer";
+import { TransitLegend } from "@/components/TransitLegend";
 import { ColorLegend } from "@/components/ColorLegend";
 
 export default function Home() {
@@ -52,6 +55,7 @@ export default function Home() {
   const [overlayIndex, setOverlayIndex] = useState<OverlayIndex | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [baseCounties, setBaseCounties] = useState<CountyData[]>([]);
+  const [countyToMetro, setCountyToMetro] = useState<Record<string, string>>({});
   const [colorScaleMode, setColorScaleMode] = useState<ColorScaleMode>("global");
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
 
@@ -66,7 +70,7 @@ export default function Home() {
   }, [showRail, showBus]);
 
   const trafficLayer = useTrafficLayer(showTraffic);
-  const transitLayers = useTransitLayers(transitModes);
+  const { layers: transitLayers, routes: transitRoutes, availableModes: transitModeAvail } = useTransitLayers(transitModes, selectedMetro);
 
   const [viewport, setViewport] = useState({
     longitude: -92.0,
@@ -149,6 +153,16 @@ export default function Home() {
   }, [trafficLayer, transitLayers]);
 
   useEffect(() => {
+    if (granularity !== "county" && granularity !== "metro") return;
+    const map: Record<string, string> = {};
+    for (const c of baseCounties) {
+      const mid = c.metro_id;
+      if (mid) map[c.county_fips] = mid;
+    }
+    if (Object.keys(map).length > 0) setCountyToMetro(map);
+  }, [baseCounties, granularity]);
+
+  useEffect(() => {
     loadAllOverlayIndexes().then((indexes) => {
       const allYears = new Set<number>();
       for (const idx of Object.values(indexes)) {
@@ -173,23 +187,18 @@ export default function Home() {
         setLoading(false);
         return;
       }
-      // Block groups: load only selected metro's data via DuckDB
-      if (typeof window === "undefined") return;
-      import("@/lib/duckdb").then(({ queryBlockGroups }) =>
-        queryBlockGroups(selectedMetro)
-          .then((rows) => {
-            // Parquet schema matches CountyData fields — enforced by pipeline
-            const data = rows as unknown as CountyData[];
-            setBaseCounties(data);
-            setCounties(data);
-            setGeojson(null); // PMTiles handles geometry
-            setLoading(false);
-          })
-          .catch(() => {
-            setGranularity("county");
-            setLoading(false);
-          })
-      );
+      Promise.all([loadData(selectedMetro, "block_group"), loadGeoJSON(selectedMetro, "block_group")])
+        .then(([data, geo]) => {
+          setBaseCounties(data);
+          setCounties(data);
+          setGeojson(geo);
+          setLoading(false);
+        })
+        .catch((err) => {
+          console.error("Failed to load block groups:", err);
+          setGranularity("county");
+          setLoading(false);
+        });
     } else {
       // County/metro: load both GeoJSON and attribute data as before
       Promise.all([loadAllData(granularity), loadAllGeoJSON(granularity)])
@@ -348,6 +357,7 @@ export default function Home() {
             onHoverCounty={handleHover}
             isDark={isDark}
             granularity={granularity}
+            countyToMetro={countyToMetro}
             overlayLayers={overlayLayers}
             viewport={viewport}
             minVal={effectiveMinMax.min}
@@ -372,7 +382,11 @@ export default function Home() {
             onToggleRail={() => setShowRail((v) => !v)}
             showBus={showBus}
             onToggleBus={() => setShowBus((v) => !v)}
+            hasMetroSelected={selectedMetro !== null}
+            hasRail={transitModeAvail.rail}
+            hasBus={transitModeAvail.bus}
           />
+          <TransitLegend routes={transitRoutes} />
           <div className="absolute left-1 top-3 z-30 lg:left-1">
             <ColorLegend
               primaryMetric={selectedMetric}
