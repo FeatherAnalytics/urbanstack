@@ -289,7 +289,7 @@ export const METRICS: MetricConfig[] = [
     category: "Transportation",
     format: "number",
     colorScale: BLUE_SCALE,
-    description: "Total miles traveled by transit vehicles while in passenger service across DFW agencies (DART, Trinity Metro, DCTA)",
+    description: "Total miles traveled by transit vehicles while in passenger service across the metro's transit agencies",
     source: "NTD Monthly Ridership",
     dateRange: "2025",
   },
@@ -943,7 +943,7 @@ export const METRIC_COMBOS: MetricCombo[] = [
     label: "Transit × Income",
     primary: "avg_transit_frequency",
     secondary: "per_capita_income",
-    description: "Do low-income areas have transit access? Based on Griffin & Sener (2016) DFW equity analysis.",
+    description: "Do low-income areas have transit access? Based on Griffin & Sener (2016) equity analysis methodology.",
   },
   {
     key: "density-ridership",
