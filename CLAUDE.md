@@ -139,3 +139,11 @@ cd pipeline
 uv run python -m urbanstack.extract.acs      # Extract single source
 uv run python -m urbanstack.transform.county_mart  # Build county mart
 ```
+
+## Dev Server
+
+- **Do NOT run `npm run dev` as a background task.** Next.js 16 Turbopack hangs when
+  backgrounded by Claude's task runner. Ask the user to run it themselves with
+  `! cd web && npm run dev` so it stays in the foreground.
+- First request triggers Turbopack compilation (~2-3s). Subsequent loads are fast.
+- Do not set `NEXT_PUBLIC_BASE_PATH` for local dev — basePath is only for GitHub Pages deployment.

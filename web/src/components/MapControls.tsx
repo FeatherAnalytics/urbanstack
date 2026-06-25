@@ -10,6 +10,9 @@ interface MapControlsProps {
   onToggleRail: () => void;
   showBus: boolean;
   onToggleBus: () => void;
+  hasMetroSelected: boolean;
+  hasRail: boolean;
+  hasBus: boolean;
 }
 
 export function MapControls({
@@ -19,16 +22,23 @@ export function MapControls({
   onToggleRail,
   showBus,
   onToggleBus,
+  hasMetroSelected,
+  hasRail,
+  hasBus,
 }: MapControlsProps) {
   return (
     <div className="absolute bottom-3 left-3 z-30 flex gap-1.5 rounded-lg border border-slate-200/80 bg-white/70 p-1 shadow-md backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/70">
       <TrafficToggle enabled={showTraffic} onToggle={onToggleTraffic} />
-      <TransitToggles
-        railEnabled={showRail}
-        busEnabled={showBus}
-        onToggleRail={onToggleRail}
-        onToggleBus={onToggleBus}
-      />
+      {hasMetroSelected && (
+        <TransitToggles
+          railEnabled={showRail}
+          busEnabled={showBus}
+          onToggleRail={onToggleRail}
+          onToggleBus={onToggleBus}
+          railAvailable={hasRail}
+          busAvailable={hasBus}
+        />
+      )}
     </div>
   );
 }
