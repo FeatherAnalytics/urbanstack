@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { interpolateColor, formatValue, computeDisplayRange, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS } from "@/lib/data";
+import { interpolateColor, formatValue, computeDisplayRange, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS, computeRank, ordinal, formatRank } from "@/lib/data";
 import type { CountyData } from "@/lib/data";
 
 describe("interpolateColor", () => {
@@ -151,5 +151,22 @@ describe("METRIC_COMBOS", () => {
       expect(combo.key).toBeTruthy();
       expect(combo.primary).not.toBe(combo.secondary);
     }
+  });
+});
+
+describe("formatRank", () => {
+  const counties = [
+    { county_fips: "001", county_name: "A", population: 5000 },
+    { county_fips: "002", county_name: "B", population: 3000 },
+    { county_fips: "003", county_name: "C", population: 1000 },
+    { county_fips: "004", county_name: "D", population: null },
+  ] as CountyData[];
+
+  it("formats rank with total count", () => {
+    expect(formatRank(counties[0], "population", counties)).toBe("1st of 3");
+  });
+
+  it("excludes null values from count", () => {
+    expect(formatRank(counties[2], "population", counties)).toBe("3rd of 3");
   });
 });

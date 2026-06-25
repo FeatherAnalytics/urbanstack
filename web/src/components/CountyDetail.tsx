@@ -3,8 +3,7 @@
 import {
   CATEGORIES,
   formatValue,
-  computeRank,
-  ordinal,
+  formatRank,
   groupMetricsByCategory,
   type CountyData,
   type MetricConfig,
@@ -118,7 +117,7 @@ function MetricList({
             <div className="flex flex-col gap-px">
               {filteredMetrics.map((metric) => {
                 const val = county[metric.key] as number | null;
-                const rank = computeRank(county, metric.key, allCounties);
+                const rankLabel = formatRank(county, metric.key, allCounties);
                 const isSelected = metric.key === selectedMetric.key;
 
                 return (
@@ -137,8 +136,8 @@ function MetricList({
                       <span className="font-mono text-slate-900 dark:text-white">
                         {formatValue(val, metric.format)}
                       </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-600">
-                        {ordinal(rank)}
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                        {rankLabel}
                       </span>
                     </span>
                   </div>

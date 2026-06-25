@@ -808,6 +808,20 @@ export function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
 }
 
+/** Format rank with denominator: "3rd of 45" */
+export function formatRank(
+  county: CountyData,
+  metric: MetricKey,
+  allCounties: CountyData[],
+): string {
+  const valid = allCounties.filter((c) => {
+    const v = c[metric];
+    return v !== null && v !== undefined && !Number.isNaN(v as number);
+  });
+  const rank = computeRank(county, metric, allCounties);
+  return `${ordinal(rank)} of ${valid.length}`;
+}
+
 /** Group METRICS by category, preserving CATEGORIES order. */
 export function groupMetricsByCategory(): Record<
   MetricCategory,
