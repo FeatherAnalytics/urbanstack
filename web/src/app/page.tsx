@@ -96,12 +96,13 @@ export default function Home() {
     setViewportKey((k) => k + 1);
   }, []);
 
-  // Read URL params on mount
+  // Read URL params on mount — initializes state from external source (URL)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
 
     const metroParam = params.get("metro");
     if (metroParam && METROS[metroParam]) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       flyToMetro(metroParam);
     }
 
