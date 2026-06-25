@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { interpolateColor, formatValue, computeMinMax, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS } from "@/lib/data";
+import { interpolateColor, formatValue, computeDisplayRange, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS } from "@/lib/data";
 import type { CountyData } from "@/lib/data";
 
 describe("interpolateColor", () => {
@@ -30,7 +30,7 @@ describe("formatValue", () => {
   });
 });
 
-describe("computeMinMax", () => {
+describe("computeDisplayRange", () => {
   const counties: CountyData[] = [
     { county_fips: "001", county_name: "A", per_capita_income: 30000 } as CountyData,
     { county_fips: "002", county_name: "B", per_capita_income: 50000 } as CountyData,
@@ -38,12 +38,12 @@ describe("computeMinMax", () => {
   ];
 
   it("computes global min/max when visibleIds is null", () => {
-    const result = computeMinMax(counties, "per_capita_income", null);
+    const result = computeDisplayRange(counties, "per_capita_income", null);
     expect(result).toEqual({ min: 30000, max: 50000 });
   });
 
   it("computes viewport min/max when visibleIds is provided", () => {
-    const result = computeMinMax(counties, "per_capita_income", new Set(["001", "003"]));
+    const result = computeDisplayRange(counties, "per_capita_income", new Set(["001", "003"]));
     expect(result).toEqual({ min: 30000, max: 40000 });
   });
 
@@ -51,7 +51,7 @@ describe("computeMinMax", () => {
     const empty: CountyData[] = [
       { county_fips: "001", county_name: "A", per_capita_income: null } as CountyData,
     ];
-    const result = computeMinMax(empty, "per_capita_income", null);
+    const result = computeDisplayRange(empty, "per_capita_income", null);
     expect(result).toEqual({ min: 0, max: 0 });
   });
 });
@@ -129,8 +129,8 @@ describe("getBivariateColor", () => {
 });
 
 describe("METRIC_COMBOS", () => {
-  it("has 7 pre-built combos", () => {
-    expect(METRIC_COMBOS).toHaveLength(7);
+  it("has 10 pre-built combos", () => {
+    expect(METRIC_COMBOS).toHaveLength(10);
   });
 
   it("each combo has distinct primary and secondary keys", () => {
