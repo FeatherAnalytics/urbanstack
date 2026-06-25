@@ -47,6 +47,7 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [selectedMetro, setSelectedMetro] = useState<string | null>(null);
   const [showTraffic, setShowTraffic] = useState(false);
   const [showRail, setShowRail] = useState(false);
@@ -313,7 +314,7 @@ export default function Home() {
         <span className="text-sm text-slate-500 dark:text-slate-400">
           Urban Data Explorer
         </span>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex flex-wrap items-center gap-2 lg:gap-3">
           <select
             aria-label="Select metro area"
             value={selectedMetro ?? ""}
@@ -322,7 +323,7 @@ export default function Home() {
               if (v) flyToMetro(v);
               else setSelectedMetro(null);
             }}
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            className="rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 lg:px-2 lg:text-xs"
           >
             <option value="">All US</option>
             {Object.values(METROS).map((m) => (
@@ -342,7 +343,7 @@ export default function Home() {
                 setSelectedYear(v ? Number(v) : null);
                 if (!v) setCounties(baseCounties);
               }}
-              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              className="rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 lg:px-2 lg:text-xs"
             >
               <option value="">All Years (Cumulative)</option>
               {overlayIndex.years.map((y) => (
@@ -363,7 +364,7 @@ export default function Home() {
               }
               setGranularity(g);
             }}
-            className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+            className="rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 lg:px-2 lg:text-xs"
           >
             <option value="metro">Metro Area</option>
             <option value="county">County</option>
@@ -377,22 +378,51 @@ export default function Home() {
 
       {/* Main content: sidebar + map */}
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
-        {/* Left sidebar — metric selector only */}
-        <aside className="shrink-0 overflow-y-auto border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:w-64 lg:border-b-0 lg:border-r">
-          <h2 className="sr-only">Metric Selection</h2>
-          <div className="max-h-48 overflow-y-auto lg:max-h-none">
-            <MetricSelector
-              selected={selectedMetric}
-              onSelect={(m) => { setSelectedMetric(m); setSecondaryMetric(null); }}
-              counties={counties}
-              secondaryMetric={secondaryMetric}
-              onSelectSecondary={setSecondaryMetric}
-            />
+        {/* Left sidebar — mobile overlay, desktop static */}
+        <aside className={`
+          ${sidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          fixed inset-y-0 left-0 z-50 w-64 overflow-y-auto border-r border-slate-200 bg-white transition-transform duration-200 dark:border-slate-700 dark:bg-slate-900
+          lg:static lg:z-auto lg:translate-x-0 lg:shrink-0
+        `}>
+          <div className="flex items-center justify-between p-3 lg:hidden">
+            <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Metrics</span>
+            <button
+              onClick={() => setSidebarOpen(false)}
+              aria-label="Close metrics panel"
+              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-800"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           </div>
+          <h2 className="sr-only">Metric Selection</h2>
+          <MetricSelector
+            selected={selectedMetric}
+            onSelect={(m) => { setSelectedMetric(m); setSecondaryMetric(null); setSidebarOpen(false); }}
+            counties={counties}
+            secondaryMetric={secondaryMetric}
+            onSelectSecondary={setSecondaryMetric}
+          />
         </aside>
+
+        {/* Mobile sidebar backdrop */}
+        {sidebarOpen && (
+          <div
+            className="fixed inset-0 z-40 bg-black/30 lg:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
 
         {/* Map area with floating county popup */}
         <main ref={mapRef} className="relative min-h-[300px] flex-1">
+          <button
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open metrics panel"
+            className="absolute top-3 left-3 z-30 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-md backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/90 dark:text-slate-300 lg:hidden"
+          >
+            ☰ Metrics
+          </button>
           <ChoroplethMap
             key={viewportKey}
             geojson={geojson}
