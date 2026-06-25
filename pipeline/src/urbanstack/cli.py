@@ -133,7 +133,7 @@ def _export_single_metro(metro_id: str, settings: Settings) -> None:
             "-Z3",
             "--coalesce-densest-as-needed",
             "--force",
-            "--buffer=128",
+            "--buffer=127",
             "-o",
             str(output_path),
             "-l",
