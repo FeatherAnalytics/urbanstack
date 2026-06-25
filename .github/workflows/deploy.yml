@@ -50,8 +50,9 @@ jobs:
 
       - name: Upload exports to R2
         run: |
+          shopt -s nullglob
           for f in pipeline/exports/*.pmtiles pipeline/exports/*.parquet; do
-            [ -f "$f" ] && npx wrangler r2 object put "urbanstack/exports/$(basename $f)" --file "$f" --remote
+            npx wrangler r2 object put "urbanstack/exports/$(basename $f)" --file "$f" --remote
           done
         env:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
