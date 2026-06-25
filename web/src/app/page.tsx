@@ -95,6 +95,46 @@ export default function Home() {
     setViewportKey((k) => k + 1);
   }, []);
 
+  // Read URL params on mount
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    const metroParam = params.get("metro");
+    if (metroParam && METROS[metroParam]) {
+      flyToMetro(metroParam);
+    }
+
+    const metricParam = params.get("metric");
+    if (metricParam) {
+      const found = METRICS.find((m) => m.key === metricParam);
+      if (found) setSelectedMetric(found);
+    }
+
+    const granParam = params.get("scale");
+    if (granParam === "metro" || granParam === "county" || granParam === "block_group") {
+      setGranularity(granParam);
+    }
+
+    const yearParam = params.get("year");
+    if (yearParam) {
+      setSelectedYear(Number(yearParam) || null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Write state to URL
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (selectedMetro) params.set("metro", selectedMetro);
+    if (selectedMetric.key !== METRICS[0].key) params.set("metric", selectedMetric.key);
+    if (granularity !== "county") params.set("scale", granularity);
+    if (selectedYear) params.set("year", String(selectedYear));
+
+    const qs = params.toString();
+    const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
+    window.history.replaceState(null, "", url);
+  }, [selectedMetro, selectedMetric.key, granularity, selectedYear]);
+
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleViewStateChange = useCallback(
     (viewState: Record<string, unknown>) => {
