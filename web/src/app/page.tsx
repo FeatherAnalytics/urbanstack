@@ -419,6 +419,7 @@ export default function Home() {
           secondaryMetric={secondaryMetric}
           primaryBreaks={primaryBreaks}
           secondaryBreaks={secondaryBreaks}
+          selectedMetro={selectedMetro}
         />
       </div>
     </div>
