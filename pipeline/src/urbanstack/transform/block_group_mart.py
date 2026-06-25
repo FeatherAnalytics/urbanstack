@@ -1,6 +1,5 @@
 import json
 import logging
-from pathlib import Path
 
 import polars as pl
 
@@ -9,7 +8,12 @@ from urbanstack.extract.acs import extract_acs
 from urbanstack.metro import METRO_REGISTRY, MetroConfig
 from urbanstack.transform._shared import infer_congestion, infer_ridership, sanitize_records
 from urbanstack.transform.derived import apply_derived_metrics
-from urbanstack.transform.spatial import assign_points_to_areas, load_boundaries
+from urbanstack.transform.spatial import (
+    assign_points_to_areas,
+    compute_centroids,
+    compute_amenity_proximity,
+    load_boundaries,
+)
 from urbanstack.utils import find_parquet
 
 logger = logging.getLogger(__name__)
@@ -74,7 +78,8 @@ def _build_acs_base(acs: pl.DataFrame) -> pl.DataFrame:
 
 
 def _aggregate_fars_to_block_groups(
-    fars: pl.DataFrame, geojson_path: Path
+    fars: pl.DataFrame,
+    boundaries: list[tuple[str, list[list[list[float]]]]],
 ) -> pl.DataFrame:
     """Spatial-join FARS crashes to block groups and aggregate."""
     valid = fars.filter(
@@ -82,7 +87,6 @@ def _aggregate_fars_to_block_groups(
     )
     logger.info("FARS: %d crashes with valid coords (of %d)", len(valid), len(fars))
 
-    boundaries = load_boundaries(geojson_path)
     joined = assign_points_to_areas(valid, boundaries)
     matched = joined.filter(pl.col("area_id").is_not_null())
     logger.info("FARS: %d crashes matched to block groups", len(matched))
@@ -242,13 +246,34 @@ def build_block_group_mart(
         )
 
     geojson_path = settings.web_data_dir(metro.metro_id) / "block_groups.geojson"
+    boundaries = load_boundaries(geojson_path) if geojson_path.exists() else None
+
     fars_path = find_parquet(staging / "fars")
-    if fars_path and fars_path.exists() and geojson_path.exists():
+    if fars_path and fars_path.exists() and boundaries:
         fars = pl.read_parquet(fars_path)
-        fars_agg = _aggregate_fars_to_block_groups(fars, geojson_path)
+        fars_agg = _aggregate_fars_to_block_groups(fars, boundaries)
         base = base.join(fars_agg, on="geoid_12", how="left")
     else:
         logger.warning("FARS or block group GeoJSON missing — crash columns will be null")
+
+    parks_path = find_parquet(staging / "osm_parks")
+    if parks_path and parks_path.exists() and boundaries:
+        parks = pl.read_parquet(parks_path)
+        centroids = compute_centroids(boundaries)
+        proximity = compute_amenity_proximity(centroids, parks)
+        base = base.join(
+            proximity.select("area_id", "park_count_nearby", "total_park_area_sqm"),
+            left_on="geoid_12",
+            right_on="area_id",
+            how="left",
+        )
+        base = base.with_columns(
+            pl.col("park_count_nearby").fill_null(0),
+            pl.col("total_park_area_sqm").fill_null(0.0),
+        )
+        logger.info("Park proximity: joined %d block groups", len(proximity))
+    else:
+        logger.warning("OSM parks or block group GeoJSON missing — park columns will be null")
 
     # Block groups with no FARS crashes should be 0, not null
     safety_cols = ["total_fatalities", "total_crashes", "pedestrian_involved_crashes", "drunk_driver_crashes"]
@@ -280,6 +305,8 @@ def build_block_group_mart(
         "latitude": pl.Float64,
         "longitude": pl.Float64,
         "pop_density_sqmi": pl.Float64,
+        "park_count_nearby": pl.Int64,
+        "total_park_area_sqm": pl.Float64,
     }
     missing = {
         name: pl.lit(None).cast(dtype)

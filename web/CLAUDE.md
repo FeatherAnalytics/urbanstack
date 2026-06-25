@@ -29,8 +29,8 @@ npm run lint    # ESLint
 
 - Static JSON/GeoJSON in `public/data/{metroId}/` — no API calls for core data
 - `lib/metro.ts` — metro registry (`MetroConfig`, `METROS`, `DEFAULT_METRO`)
-- `lib/data.ts` — metric configs, types (`CountyData`, `MetricConfig`), color interpolation, formatting
+- `lib/data.ts` — metric configs, types (`CountyData`, `MetricConfig`), color interpolation, formatting, bivariate combos, `INTERSECTION_DENSITY_BENCHMARK` (259/sq mi)
 - GeoJSON files per metro: `counties.geojson`, `block_groups.geojson` (~27MB, lazy-loaded), `transit_routes.geojson`, `transit_stops.geojson`
 - Summary JSONs per metro: `county_summary.json`, `block_group_summary.json`, `metro_summary.json`
-- Adding a metric: one entry in `lib/data.ts` METRICS array + corresponding field in summary JSON
+- Adding a metric: one entry in `lib/data.ts` METRICS array + corresponding field in summary JSON (categories: Demographics, Transportation, Safety, Spending, Congestion, Public Space)
 - Adding a metro: one entry in `lib/metro.ts` METROS + data files in `public/data/{metroId}/`

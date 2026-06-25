@@ -46,6 +46,11 @@ export interface CountyData {
   vehicle_dependency: number | null;
   drunk_driver_crashes_per_capita: number | null;
   pedestrian_crashes_per_capita: number | null;
+  // Public Space
+  avg_intersection_density: number | null;
+  park_count_nearby: number | null;
+  total_park_area_sqm: number | null;
+  green_sqm_per_capita: number | null;
 }
 
 export type MetricKey = keyof Omit<CountyData, "county_fips" | "county_name">;
@@ -55,7 +60,8 @@ export type MetricCategory =
   | "Transportation"
   | "Safety"
   | "Spending"
-  | "Congestion";
+  | "Congestion"
+  | "Public Space";
 
 export type MetricFormat = "number" | "currency" | "percent" | "decimal";
 
@@ -99,6 +105,13 @@ const PURPLE_SCALE: [number, number, number][] = [
   [239, 237, 245],
   [158, 154, 200],
   [106, 81, 163],
+];
+
+// Sequential teal (public space / green)
+const TEAL_SCALE: [number, number, number][] = [
+  [224, 243, 219],
+  [69, 186, 150],
+  [0, 109, 91],
 ];
 
 // Sequential orange (congestion — higher = worse)
@@ -554,6 +567,45 @@ export const METRICS: MetricConfig[] = [
     source: "Census ACS + EPA SLD",
     dateRange: "2023",
   },
+
+  // Public Space
+  {
+    key: "avg_intersection_density",
+    label: "Intersection Density (/sq mi)",
+    category: "Public Space",
+    format: "decimal",
+    colorScale: TEAL_SCALE,
+    description: "Weighted street intersections per square mile. World Bank benchmark: 259/sq mi (100/km²) for walkable connectivity.",
+    source: "EPA Smart Location Database",
+    dateRange: "2021",
+  },
+  {
+    key: "park_count_nearby",
+    label: "Parks Within 400m",
+    category: "Public Space",
+    format: "number",
+    colorScale: TEAL_SCALE,
+    description: "Number of parks within a 5-minute walk (400m) of area centroid (block groups) or total parks within county boundary (counties).",
+    source: "OpenStreetMap via Overpass API",
+  },
+  {
+    key: "total_park_area_sqm",
+    label: "Total Park Area (m²)",
+    category: "Public Space",
+    format: "number",
+    colorScale: TEAL_SCALE,
+    description: "Total approximate area of nearby parks in square meters (block groups: within 400m; counties: all parks within boundary).",
+    source: "OpenStreetMap via Overpass API",
+  },
+  {
+    key: "green_sqm_per_capita",
+    label: "Green Space Per Capita (m²)",
+    category: "Public Space",
+    format: "decimal",
+    colorScale: TEAL_SCALE,
+    description: "Park area per resident in square meters. WHO recommends 9 m² minimum. Suppressed for areas under 100 population.",
+    source: "OpenStreetMap + Census ACS",
+  },
 ];
 
 export const CATEGORIES: MetricCategory[] = [
@@ -562,7 +614,11 @@ export const CATEGORIES: MetricCategory[] = [
   "Safety",
   "Spending",
   "Congestion",
+  "Public Space",
 ];
+
+// World Bank benchmark: 100 intersections/km² converted to sq mi
+export const INTERSECTION_DENSITY_BENCHMARK = 259;
 
 export type Granularity = "metro" | "county" | "block_group";
 
@@ -773,7 +829,7 @@ export interface ViewportBounds {
   north: number;
 }
 
-export function computeMinMax(
+export function computeDisplayRange(
   counties: CountyData[],
   metricKey: MetricKey,
   visibleIds: Set<string> | null,
@@ -783,15 +839,12 @@ export function computeMinMax(
     : counties;
   const values = filtered
     .map((c) => c[metricKey] as number | null)
-    .filter((v): v is number => v !== null && v !== undefined && !Number.isNaN(v));
+    .filter((v): v is number => v !== null && v !== undefined && Number.isFinite(v));
   if (values.length === 0) return { min: 0, max: 0 };
-  let min = Infinity;
-  let max = -Infinity;
-  for (const v of values) {
-    if (v < min) min = v;
-    if (v > max) max = v;
-  }
-  return { min, max };
+  const sorted = [...values].sort((a, b) => a - b);
+  const p10 = sorted[Math.floor(sorted.length * 0.1)];
+  const p90 = sorted[Math.min(Math.floor(sorted.length * 0.9), sorted.length - 1)];
+  return { min: p10, max: p90 };
 }
 
 function centroid(coords: number[][]): [number, number] {
@@ -926,5 +979,26 @@ export const METRIC_COMBOS: MetricCombo[] = [
     primary: "per_capita_income",
     secondary: "vehicle_dependency",
     description: "Low income + high car dependency = forced car ownership. Financial vulnerability indicator.",
+  },
+  {
+    key: "park-access-income",
+    label: "Park Access × Income",
+    primary: "park_count_nearby",
+    secondary: "per_capita_income",
+    description: "Do low-income areas have park access? World Bank SIAD equity framework.",
+  },
+  {
+    key: "green-space-density",
+    label: "Green Space × Density",
+    primary: "green_sqm_per_capita",
+    secondary: "pop_density_sqmi",
+    description: "Dense areas with least green space face highest urban heat island and health impacts.",
+  },
+  {
+    key: "intersection-ped-safety",
+    label: "Street Grid × Ped Safety",
+    primary: "avg_intersection_density",
+    secondary: "ped_fatality_rate_per_100k",
+    description: "UN-Habitat: denser street grids correlate with lower pedestrian fatalities. Benchmark: 259/sq mi.",
   },
 ];

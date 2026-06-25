@@ -28,7 +28,7 @@ function GradientLegend({ metric, minMax }: { metric: MetricConfig; minMax: { mi
           {formatValue(minMax.min, metric.format)}
         </span>
         <div
-          className="h-3 flex-1 rounded-sm"
+          className="h-3 min-w-16 flex-1 rounded-sm"
           style={{ background: `linear-gradient(to right, ${gradientStops.join(", ")})` }}
           role="img"
           aria-label={`Color scale from ${formatValue(minMax.min, metric.format)} to ${formatValue(minMax.max, metric.format)}`}

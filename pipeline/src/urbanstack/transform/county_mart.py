@@ -8,6 +8,7 @@ from urbanstack.config import Settings
 from urbanstack.metro import MetroConfig
 from urbanstack.transform._shared import infer_congestion, infer_ridership, sanitize_records
 from urbanstack.transform.derived import apply_derived_metrics
+from urbanstack.transform.spatial import assign_points_to_areas, load_boundaries
 from urbanstack.utils import find_parquet
 
 logger = logging.getLogger(__name__)
@@ -262,6 +263,35 @@ def build_county_mart(settings: Settings, metro: MetroConfig, *, force: bool = F
         base = base.join(fhwa_agg, on="county_fips", how="left")
     else:
         logger.warning("FHWA or station mapping missing — traffic volume columns will be null")
+
+    # park_count_nearby = total parks in county (containment), not 400m proximity like block groups
+    parks_path = find_parquet(staging / "osm_parks")
+    counties_geojson = settings.web_data_dir(metro.metro_id) / "counties.geojson"
+    if parks_path and parks_path.exists() and counties_geojson.exists():
+        parks = pl.read_parquet(parks_path)
+        boundaries = load_boundaries(counties_geojson)
+        assigned = assign_points_to_areas(
+            parks, boundaries,
+            lat_col="centroid_lat", lon_col="centroid_lon",
+        )
+        park_agg = (
+            assigned.filter(pl.col("area_id").is_not_null())
+            .group_by("area_id")
+            .agg(
+                pl.len().alias("park_count_nearby"),
+                pl.col("area_sqm").sum().alias("total_park_area_sqm"),
+            )
+        )
+        base = base.join(
+            park_agg, left_on="county_fips", right_on="area_id", how="left",
+        )
+        base = base.with_columns(
+            pl.col("park_count_nearby").fill_null(0),
+            pl.col("total_park_area_sqm").fill_null(0.0),
+        )
+        logger.info("Park containment: %d parks assigned to counties", len(park_agg))
+    else:
+        logger.warning("OSM parks or counties GeoJSON missing — park columns will be null")
 
     rename_map: dict[str, str] = {
         "total_population": "population",

@@ -1,6 +1,6 @@
 import logging
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import Callable
 
 import polars as pl
 
@@ -48,8 +48,12 @@ DERIVED_METRICS: list[DerivedMetric] = [
         dtype=pl.Float64,
         requires=["congestion_cost_per_capita", "per_capita_income"],
         compute=lambda _: (
-            pl.col("congestion_cost_per_capita").cast(pl.Float64)
-            / pl.col("per_capita_income").cast(pl.Float64)
+            pl.when(pl.col("per_capita_income") > 0)
+            .then(
+                pl.col("congestion_cost_per_capita").cast(pl.Float64)
+                / pl.col("per_capita_income").cast(pl.Float64)
+            )
+            .otherwise(None)
         ),
     ),
     DerivedMetric(
@@ -89,6 +93,16 @@ DERIVED_METRICS: list[DerivedMetric] = [
             pl.col("drunk_driver_crashes").cast(pl.Float64)
             / pl.col("population").cast(pl.Float64)
             * 100_000
+        ),
+        min_population=MIN_POP_FOR_RATES,
+    ),
+    DerivedMetric(
+        name="green_sqm_per_capita",
+        dtype=pl.Float64,
+        requires=["total_park_area_sqm", "population"],
+        compute=lambda _: (
+            pl.col("total_park_area_sqm").cast(pl.Float64)
+            / pl.col("population").cast(pl.Float64)
         ),
         min_population=MIN_POP_FOR_RATES,
     ),
