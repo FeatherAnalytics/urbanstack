@@ -744,8 +744,14 @@ export function formatValue(value: number | null | undefined, format: MetricForm
       return `$${value.toFixed(2)}`;
     case "percent":
       return `${(value * 100).toFixed(1)}%`;
-    case "decimal":
-      return value.toFixed(1);
+    case "decimal": {
+      if (value === 0) return "0";
+      const abs = Math.abs(value);
+      if (abs >= 0.1) return value.toFixed(1);
+      // Use toPrecision to show significant digits, then strip trailing zeros
+      const str = value.toPrecision(2);
+      return parseFloat(str).toString();
+    }
     case "number":
       return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
