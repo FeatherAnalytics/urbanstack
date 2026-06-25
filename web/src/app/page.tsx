@@ -5,7 +5,7 @@ import {
   METRICS,
   loadYearOverlay,
   mergeOverlay,
-  computeMinMax,
+  computeDisplayRange,
   getVisibleGeoIds,
   computeQuantileBins,
   loadData,
@@ -120,13 +120,13 @@ export default function Home() {
   }, [colorScaleMode, viewportBounds, geojson]);
 
   const effectiveMinMax = useMemo(
-    () => computeMinMax(counties, selectedMetric.key, visibleIds),
+    () => computeDisplayRange(counties, selectedMetric.key, visibleIds),
     [counties, selectedMetric.key, visibleIds],
   );
 
   const secondaryMinMax = useMemo(() => {
     if (!secondaryMetric) return null;
-    return computeMinMax(counties, secondaryMetric.key, visibleIds);
+    return computeDisplayRange(counties, secondaryMetric.key, visibleIds);
   }, [secondaryMetric, counties, visibleIds]);
 
   const primaryBreaks = useMemo(() => {

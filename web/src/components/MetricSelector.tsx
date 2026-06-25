@@ -147,6 +147,13 @@ export function MetricSelector({
   const navRef = useRef<HTMLElement>(null);
   const [comboTooltip, setComboTooltip] = useState<TooltipState | null>(null);
 
+  const activeComboKey = useMemo(
+    () => METRIC_COMBOS.find(
+      (c) => c.primary === selected.key && c.secondary === secondaryMetric?.key,
+    )?.key ?? null,
+    [selected.key, secondaryMetric?.key],
+  );
+
   const visibleCategories = useMemo(() => {
     return CATEGORIES.filter((cat) =>
       grouped[cat].some((m) => hasData(counties, m.key)),
@@ -179,7 +186,7 @@ export function MetricSelector({
       <MetricList
         grouped={grouped}
         visibleCategories={visibleCategories}
-        selected={selected}
+        selected={activeComboKey ? null : selected}
         onSelect={onSelect}
         counties={counties}
         exclude={secondaryMetric?.key ?? null}
@@ -207,7 +214,11 @@ export function MetricSelector({
                   setComboTooltip({ metric: { ...primary, description: combo.description, source: "Pre-built combination" }, ...pos });
                 }}
                 onMouseLeave={() => setComboTooltip(null)}
-                className="flex w-full items-baseline rounded px-2 py-1 text-left text-sm text-slate-700 transition-colors hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                className={`flex w-full items-baseline rounded px-2 py-1 text-left text-sm transition-colors ${
+                  activeComboKey === combo.key
+                    ? "bg-slate-200 text-slate-900 dark:bg-slate-700 dark:text-white"
+                    : "text-slate-700 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+                }`}
               >
                 {combo.label}
               </button>
