@@ -251,7 +251,6 @@ export function ChoroplethMap({
     primaryBreaks,
     secondaryBreaks,
     isBlockGroup,
-    PMTILES_SOURCES,
   ]);
 
   const handleClick = useCallback(
@@ -325,6 +324,7 @@ export function MapTooltip({ county, metric, secondaryMetric, x, y, containerRef
 
   const val = county[metric.key] as number | null;
   const secVal = secondaryMetric ? (county[secondaryMetric.key] as number | null) : null;
+  // eslint-disable-next-line react-hooks/refs -- tooltip needs container rect for positioning
   const rect = containerRef?.current?.getBoundingClientRect();
   const absX = (rect?.left ?? 0) + x;
   const absY = (rect?.top ?? 0) + y;

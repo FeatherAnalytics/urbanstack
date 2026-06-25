@@ -44,8 +44,3 @@
     transform: translateY(0);
   }
 }
-
-/* Smooth transitions for chart state changes */
-.chart-transition {
-  transition: opacity 0.15s ease-in-out;
-}
