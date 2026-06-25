@@ -110,16 +110,15 @@ def cmd_transform(args: argparse.Namespace, settings: Settings) -> None:
     build_year_overlays(settings, metro)
 
 
-def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
+def _export_single_metro(metro_id: str, settings: Settings) -> None:
     import subprocess
-    import sys
 
-    metro = get_metro(args.metro)
+    metro = get_metro(metro_id)
     web_dir = settings.web_data_dir(metro.metro_id)
     geojson_path = web_dir / "block_groups.geojson"
     if not geojson_path.exists():
-        logger.error("GeoJSON not found: %s", geojson_path)
-        sys.exit(1)
+        logger.warning("GeoJSON not found, skipping %s: %s", metro.metro_id, geojson_path)
+        return
 
     settings.exports_dir.mkdir(parents=True, exist_ok=True)
     output_path = settings.exports_dir / f"{metro.metro_id}_block_groups.pmtiles"
@@ -134,6 +133,7 @@ def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
             "-Z3",
             "--coalesce-densest-as-needed",
             "--force",
+            "--buffer=128",
             "-o",
             str(output_path),
             "-l",
@@ -143,6 +143,14 @@ def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
         check=True,
     )
     logger.info("PMTiles written: %s (%.1f MB)", output_path, output_path.stat().st_size / 1e6)
+
+
+def cmd_export(args: argparse.Namespace, settings: Settings) -> None:
+    if args.metro == "all":
+        for metro_id in METRO_REGISTRY:
+            _export_single_metro(metro_id, settings)
+    else:
+        _export_single_metro(args.metro, settings)
 
 
 def cmd_national(args: argparse.Namespace, settings: Settings) -> None:
@@ -186,7 +194,7 @@ def main() -> None:
 
     # export
     p_export = sub.add_parser("export", help="Export PMTiles from GeoJSON")
-    p_export.add_argument("--metro", required=True, choices=metro_choices)
+    p_export.add_argument("--metro", required=True, choices=["all", *metro_choices])
 
     # extract-national
     p_extract_nat = sub.add_parser("extract-national", help="Extract national ACS data")

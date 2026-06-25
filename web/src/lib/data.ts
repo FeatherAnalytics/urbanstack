@@ -3,6 +3,7 @@ import { METROS } from "@/lib/metro";
 export interface CountyData {
   county_fips: string;
   county_name: string;
+  metro_id?: string;
   population: number | null;
   per_capita_income: number | null;
   median_household_income: number | null;

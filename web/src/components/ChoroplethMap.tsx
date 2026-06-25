@@ -8,6 +8,7 @@ import { TileLayer } from "@deck.gl/geo-layers";
 import { MVTLoader } from "@loaders.gl/mvt";
 import { load } from "@loaders.gl/core";
 import { PMTilesTileSource } from "@loaders.gl/pmtiles";
+import { ClipExtension } from "@deck.gl/extensions";
 import type { Layer } from "@deck.gl/core";
 import {
   interpolateColor,
@@ -27,6 +28,8 @@ const BASEMAP_DARK =
 const BASEMAP_LIGHT =
   "https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json";
 
+const CLIP_EXT = new ClipExtension();
+
 const PMTILES_SOURCES = Object.keys(METROS).map((id) => ({
   id,
   source: new PMTilesTileSource(
@@ -43,8 +46,8 @@ interface ChoroplethMapProps {
   onSelectCounty: (fips: string | null) => void;
   onHoverCounty: (county: CountyData | null, x: number, y: number) => void;
   isDark: boolean;
-  /** Current data granularity — controls fill alpha, line width, and metro matching */
   granularity: Granularity;
+  countyToMetro?: Record<string, string>;
   /** Additional deck.gl layers rendered on top of the choropleth */
   overlayLayers?: Layer[];
   /** Map viewport (center, zoom, pitch, bearing) — driven by metro config */
@@ -69,6 +72,7 @@ export function ChoroplethMap({
   onHoverCounty,
   isDark,
   granularity,
+  countyToMetro = {},
   overlayLayers = [],
   viewport,
   minVal,
@@ -81,11 +85,12 @@ export function ChoroplethMap({
   const isMetro = granularity === "metro";
   const isBlockGroup = granularity === "block_group";
 
-  // Build a lookup from FIPS -> CountyData
+  // Build a lookup from FIPS -> CountyData (also index by metro_id for metro view)
   const dataByFips = useMemo(() => {
     const map = new Map<string, CountyData>();
     for (const c of counties) {
       map.set(c.county_fips, c);
+      if (c.metro_id) map.set(c.metro_id, c);
     }
     return map;
   }, [counties]);
@@ -181,11 +186,14 @@ export function ChoroplethMap({
             // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck.gl subLayer props
             renderSubLayers: (props: any) => {
               if (!props.data) return null;
+              const { west, south, east, north } = props.tile.bbox;
               return new GeoJsonLayer({
                 ...props,
                 filled: true,
                 stroked: true,
                 pickable: true,
+                extensions: [CLIP_EXT],
+                clipBounds: [west, south, east, north],
                 getFillColor,
                 getLineColor,
                 getLineWidth,
@@ -250,37 +258,38 @@ export function ChoroplethMap({
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck.gl event type
     (info: any) => {
       if (info.object) {
-        // Metro: clicking any polygon selects the single metro record
-        if (isMetro && counties.length > 0) {
-          onSelectCounty(counties[0].county_fips);
+        const fips = info.object.properties?.GEOID as string | undefined;
+        if (isMetro && fips) {
+          const metroId = countyToMetro[fips];
+          if (metroId) onSelectCounty(metroId);
           return;
         }
-        const fips = info.object.properties?.GEOID as string | undefined;
         onSelectCounty(fips ?? null);
       } else {
         onSelectCounty(null);
       }
     },
-    [onSelectCounty, isMetro, counties],
+    [onSelectCounty, isMetro, countyToMetro],
   );
 
   const handleHover = useCallback(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck.gl event type
     (info: any) => {
       if (info.object) {
-        // Metro: hovering any polygon shows the single metro record
-        if (isMetro && counties.length > 0) {
-          onHoverCounty(counties[0], info.x ?? 0, info.y ?? 0);
+        const fips = info.object.properties?.GEOID as string | undefined;
+        if (isMetro && fips) {
+          const metroId = countyToMetro[fips];
+          const metro = metroId ? dataByFips.get(metroId) ?? null : null;
+          onHoverCounty(metro, info.x ?? 0, info.y ?? 0);
           return;
         }
-        const fips = info.object.properties?.GEOID as string | undefined;
         const county = fips ? dataByFips.get(fips) ?? null : null;
         onHoverCounty(county, info.x ?? 0, info.y ?? 0);
       } else {
         onHoverCounty(null, 0, 0);
       }
     },
-    [dataByFips, onHoverCounty, isMetro, counties],
+    [dataByFips, onHoverCounty, isMetro, countyToMetro],
   );
 
   const basemapStyle = isDark ? BASEMAP_DARK : BASEMAP_LIGHT;

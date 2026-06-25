@@ -3,42 +3,51 @@
 import { useEffect, useMemo, useState } from "react";
 import { GeoJsonLayer } from "@deck.gl/layers";
 import { BASE_PATH } from "@/lib/data";
-import { METROS } from "@/lib/metro";
 
 type TransitMode = "rail" | "bus";
 
-const RAIL_TYPES = new Set(["rail", "tram", "other"]);
+export const RAIL_TYPES = new Set(["rail", "tram", "other"]);
 
-export function useTransitLayers(modes: Set<TransitMode>) {
+// yagni: frontend overrides until pipeline normalizes GTFS names at extract time
+const AGENCY_OVERRIDES: Record<string, string> = {
+  "TRE - TRINITY RAILWAY": "Trinity Metro",
+};
+
+const NAME_OVERRIDES: Record<string, string> = {
+  "TRE - TRINITY RAILWAY": "Trinity Railway Express",
+  "RED - DART LIGHT RAIL - RED LINE": "Red",
+};
+
+const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
+
+export function useTransitLayers(modes: Set<TransitMode>, selectedMetro: string | null) {
   const [routeData, setRouteData] =
     useState<GeoJSON.FeatureCollection | null>(null);
   const [stopData, setStopData] =
     useState<GeoJSON.FeatureCollection | null>(null);
 
-  const enabled = modes.size > 0;
+  const enabled = modes.size > 0 && selectedMetro !== null;
 
   useEffect(() => {
-    if (!enabled || (routeData && stopData)) return;
-    const metroIds = Object.keys(METROS);
+    setRouteData(null);
+    setStopData(null);
+    if (!selectedMetro) return;
 
-    async function fetchAllGeoJSON(filename: string): Promise<GeoJSON.FeatureCollection> {
-      const results = await Promise.allSettled(
-        metroIds.map((id) =>
-          fetch(`${BASE_PATH}/data/${id}/${filename}`).then((r) => {
-            if (!r.ok) throw new Error(r.statusText);
-            return r.json();
-          })
-        )
-      );
-      const features = results
-        .filter((r): r is PromiseFulfilledResult<GeoJSON.FeatureCollection> => r.status === "fulfilled")
-        .flatMap((r) => r.value.features);
-      return { type: "FeatureCollection", features };
+    const metro = selectedMetro;
+    function fetchGeoJSON(filename: string): Promise<GeoJSON.FeatureCollection> {
+      return fetch(`${BASE_PATH}/data/${metro}/${filename}`).then((r) => {
+        if (!r.ok) throw new Error(r.statusText);
+        return r.json();
+      });
     }
 
-    fetchAllGeoJSON("transit_routes.geojson").then(setRouteData);
-    fetchAllGeoJSON("transit_stops.geojson").then(setStopData);
-  }, [enabled, routeData, stopData]);
+    fetchGeoJSON("transit_routes.geojson")
+      .then(setRouteData)
+      .catch((err) => { console.error("Failed to load transit routes:", err); setRouteData(EMPTY_FC); });
+    fetchGeoJSON("transit_stops.geojson")
+      .then(setStopData)
+      .catch((err) => { console.error("Failed to load transit stops:", err); setStopData(EMPTY_FC); });
+  }, [selectedMetro]);
 
   const filteredRoutes = useMemo(() => {
     if (!routeData || !enabled) return null;
@@ -145,7 +154,81 @@ export function useTransitLayers(modes: Set<TransitMode>) {
     return result;
   }, [enabled, filteredRoutes, filteredStops]);
 
-  return layers;
+  const availableModes = useMemo(() => {
+    if (!routeData) return { rail: false, bus: false };
+    let hasRail = false;
+    let hasBus = false;
+    for (const f of routeData.features) {
+      const type = f.properties?.route_type as string | undefined;
+      if (RAIL_TYPES.has(type ?? "")) hasRail = true;
+      else hasBus = true;
+      if (hasRail && hasBus) break;
+    }
+    return { rail: hasRail, bus: hasBus };
+  }, [routeData]);
+
+  return { layers, routes: filteredRoutes, availableModes };
+}
+
+export interface TransitRouteInfo {
+  agency: string;
+  name: string;
+  type: string;
+  color: string;
+}
+
+function normalizeName(raw: string): string {
+  const idx = raw.indexOf(" - ");
+  const short = idx >= 0 ? raw.slice(0, idx).trim() : raw.trim();
+  const long = idx >= 0 ? raw.slice(idx + 3).trim() : "";
+
+  if (/^\d+[A-Z]?X?$/.test(short) || /^[A-Z]{1,3}$/.test(short)) {
+    if (!long) return short;
+    const desc = long
+      .replace(/\s*(DART\s+)?LIGHT RAIL\b/gi, "")
+      .replace(/\s*LINE\b/gi, "")
+      .replace(/\s*RAILWAY\b/gi, "")
+      .replace(/^\s*-\s*/, "")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (!desc || desc.toLowerCase() === short.toLowerCase()) return short;
+    return `${short} ${toTitle(desc)}`;
+  }
+
+  const cleaned = short
+    .replace(/\s*(LIGHT RAIL|RAILWAY)\b/gi, "")
+    .replace(/\s*LINE\b$/gi, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  return toTitle(cleaned || short);
+}
+
+function toTitle(s: string): string {
+  return s.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+export function getTransitRouteList(
+  routes: GeoJSON.FeatureCollection | null,
+): TransitRouteInfo[] {
+  if (!routes || routes.features.length === 0) return [];
+  const seen = new Set<string>();
+  const list: TransitRouteInfo[] = [];
+  for (const f of routes.features) {
+    const p = f.properties ?? {};
+    const key = `${p.agency}::${p.route_name}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const rawName = p.route_name ?? "";
+    const agency = AGENCY_OVERRIDES[rawName] ?? p.agency ?? "";
+    list.push({
+      agency,
+      name: NAME_OVERRIDES[rawName] ?? normalizeName(rawName),
+      type: p.route_type ?? "bus",
+      color: p.color ?? "",
+    });
+  }
+  list.sort((a, b) => a.agency.localeCompare(b.agency) || a.name.localeCompare(b.name));
+  return list;
 }
 
 function hexToRgba(
@@ -164,6 +247,8 @@ interface TransitToggleProps {
   busEnabled: boolean;
   onToggleRail: () => void;
   onToggleBus: () => void;
+  railAvailable?: boolean;
+  busAvailable?: boolean;
 }
 
 export function TransitToggles({
@@ -171,9 +256,12 @@ export function TransitToggles({
   busEnabled,
   onToggleRail,
   onToggleBus,
+  railAvailable = true,
+  busAvailable = true,
 }: TransitToggleProps) {
   return (
     <>
+      {railAvailable && (
       <button
         onClick={onToggleRail}
         title={railEnabled ? "Hide rail" : "Show rail"}
@@ -204,6 +292,8 @@ export function TransitToggles({
         </svg>
         Rail
       </button>
+      )}
+      {busAvailable && (
       <button
         onClick={onToggleBus}
         title={busEnabled ? "Hide bus" : "Show bus"}
@@ -233,6 +323,7 @@ export function TransitToggles({
         </svg>
         Bus
       </button>
+      )}
     </>
   );
 }
