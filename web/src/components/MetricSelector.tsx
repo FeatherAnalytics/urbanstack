@@ -121,7 +121,7 @@ function MetricList({
                 >
                   <span>{metric.label}</span>
                   {metric.dateRange && (
-                    <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-600">
+                    <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-500">
                       {metric.dateRange}
                     </span>
                   )}
