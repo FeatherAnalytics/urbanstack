@@ -157,7 +157,10 @@ def cmd_national(args: argparse.Namespace, settings: Settings) -> None:
     from urbanstack.transform.block_group_mart import build_national_block_group_mart
 
     logger.info("Building national block group mart")
-    build_national_block_group_mart(settings, force=args.force)
+    try:
+        build_national_block_group_mart(settings, force=args.force)
+    except FileNotFoundError as exc:
+        logger.warning("Skipping national mart — %s", exc)
 
 
 def cmd_extract_national(args: argparse.Namespace, settings: Settings) -> None:
