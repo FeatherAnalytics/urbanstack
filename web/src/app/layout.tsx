@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "UrbanStack — DFW Urban Data Explorer",
+  title: "UrbanStack — Urban Data Explorer",
   description:
-    "Interactive choropleth map of Dallas-Fort Worth metro county data",
+    "Interactive choropleth map of U.S. metro area urban data",
 };
 
 /**
