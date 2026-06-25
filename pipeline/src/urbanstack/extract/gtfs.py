@@ -20,7 +20,8 @@ def _download_feed(agency: str, url: str, raw_dir: Path, *, force: bool) -> Path
         logger.info("GTFS zip exists, skipping download: %s", zip_path)
         return zip_path
 
-    resp = requests.get(url, timeout=120)
+    headers = {"User-Agent": "UrbanStack/1.0 (transit data pipeline)"}
+    resp = requests.get(url, headers=headers, timeout=120)
     resp.raise_for_status()
     zip_path.write_bytes(resp.content)
     logger.info("Downloaded %s GTFS to %s", agency, zip_path)
@@ -32,9 +33,14 @@ def _read_csv_from_zip(zip_path: Path, filename: str) -> list[dict[str, str]]:
         names = zf.namelist()
         match = None
         for name in names:
-            if name.endswith(filename) or name == filename:
+            if name == filename:
                 match = name
                 break
+        if match is None:
+            for name in names:
+                if name.endswith("/" + filename):
+                    match = name
+                    break
         if match is None:
             return []
         with zf.open(match) as f:
@@ -168,11 +174,15 @@ def extract_gtfs(
                 f"Unknown agency '{agency}'. Available: {list(metro.gtfs_feeds.keys())}"
             )
 
-        zip_path = _download_feed(agency, url, raw_dir, force=force)
+        try:
+            zip_path = _download_feed(agency, url, raw_dir, force=force)
 
-        route_rows = _read_csv_from_zip(zip_path, "routes.txt")
-        stop_rows = _read_csv_from_zip(zip_path, "stops.txt")
-        shape_rows = _read_csv_from_zip(zip_path, "shapes.txt")
+            route_rows = _read_csv_from_zip(zip_path, "routes.txt")
+            stop_rows = _read_csv_from_zip(zip_path, "stops.txt")
+            shape_rows = _read_csv_from_zip(zip_path, "shapes.txt")
+        except (requests.RequestException, zipfile.BadZipFile, OSError, UnicodeDecodeError) as exc:
+            logger.warning("Skipping %s: %s", agency, exc)
+            continue
 
         all_routes.extend(_parse_routes(agency, route_rows))
         all_stops.extend(_parse_stops(agency, stop_rows))

@@ -45,9 +45,7 @@ jobs:
       - name: Generate PMTiles and national Parquet
         run: |
           cd pipeline
-          for metro in dfw chicago nyc; do
-            uv run python -m urbanstack.cli export --metro $metro
-          done
+          uv run python -m urbanstack.cli export --metro all
           uv run python -m urbanstack.cli national
 
       - name: Upload exports to R2
