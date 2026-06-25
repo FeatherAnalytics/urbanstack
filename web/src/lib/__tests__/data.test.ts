@@ -28,6 +28,19 @@ describe("formatValue", () => {
   it("returns N/A for null", () => {
     expect(formatValue(null, "number")).toBe("N/A");
   });
+
+  it("shows significant digits for very small decimals", () => {
+    expect(formatValue(0.0009, "decimal")).toBe("0.0009");
+    expect(formatValue(0.045, "decimal")).toBe("0.045");
+    expect(formatValue(0.005, "decimal")).toBe("0.005");
+  });
+
+  it("keeps toFixed(1) for normal decimals", () => {
+    expect(formatValue(11.9, "decimal")).toBe("11.9");
+    expect(formatValue(2.3, "decimal")).toBe("2.3");
+    expect(formatValue(0.7, "decimal")).toBe("0.7");
+    expect(formatValue(0.1, "decimal")).toBe("0.1");
+  });
 });
 
 describe("computeDisplayRange", () => {
