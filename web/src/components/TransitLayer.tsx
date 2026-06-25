@@ -29,6 +29,7 @@ export function useTransitLayers(modes: Set<TransitMode>, selectedMetro: string 
   const enabled = modes.size > 0 && selectedMetro !== null;
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting state when selectedMetro changes
     setRouteData(null);
     setStopData(null);
     if (!selectedMetro) return;

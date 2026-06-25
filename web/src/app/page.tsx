@@ -201,6 +201,7 @@ export default function Home() {
       const mid = c.metro_id;
       if (mid) map[c.county_fips] = mid;
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading external data (county-to-metro mapping)
     if (Object.keys(map).length > 0) setCountyToMetro(map);
   }, [baseCounties, granularity]);
 
@@ -219,6 +220,7 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- loading external data (counties/block groups)
     setLoading(true);
     setError(null);
     setSelectedFips(null);
@@ -486,7 +488,7 @@ export default function Home() {
       </div>
 
       {/* Bottom comparison chart */}
-      <div className="chart-transition shrink-0 overflow-y-auto border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
+      <div className="shrink-0 overflow-y-auto border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
         <h2 className="sr-only">Data Comparison</h2>
         <ComparisonChart
           counties={counties}

@@ -59,6 +59,7 @@ export function useTheme(): { isDark: boolean; toggle: () => void } {
   // Sync state with DOM on mount (the inline script in layout.tsx already set
   // the class, so read from DOM to avoid a mismatch)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing with external system (DOM class list)
     setIsDark(document.documentElement.classList.contains("dark"));
   }, []);
 
