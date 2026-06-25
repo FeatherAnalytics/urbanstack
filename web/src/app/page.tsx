@@ -307,7 +307,7 @@ export default function Home() {
     <div className="flex h-screen flex-col bg-slate-50 dark:bg-slate-900">
       {/* Header */}
       <header className="flex shrink-0 items-center gap-3 border-b border-slate-200 bg-white px-4 py-2 dark:border-slate-700 dark:bg-slate-900">
-        <h1 className="text-base font-semibold text-slate-900 dark:text-white">
+        <h1 className="font-[family-name:var(--font-display)] text-lg tracking-tight text-slate-900 dark:text-white">
           UrbanStack
         </h1>
         <span className="text-sm text-slate-500 dark:text-slate-400">
@@ -455,7 +455,7 @@ export default function Home() {
       </div>
 
       {/* Bottom comparison chart */}
-      <div className="shrink-0 overflow-y-auto border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
+      <div className="chart-transition shrink-0 overflow-y-auto border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
         <h2 className="sr-only">Data Comparison</h2>
         <ComparisonChart
           counties={counties}
