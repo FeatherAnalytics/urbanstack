@@ -102,9 +102,18 @@ export function ComparisonChart({
           }
 
           const barOpacity = isSelected ? 1 : 0.6;
-          const nameShort = isBlockGroup
-            ? county.county_fips
-            : county.county_name.replace(/ County,.*$/, "");
+          let nameShort: string;
+          if (isBlockGroup) {
+            // county_name format: "Block Group 1; Census Tract 301.01; Collin County; Texas"
+            const parts = county.county_name.split(";");
+            const countyPart = parts.length >= 3
+              ? parts[2].trim().replace(/ County$/, "")
+              : "";
+            const fipsSuffix = county.county_fips.slice(-4);
+            nameShort = countyPart ? `${countyPart} ${fipsSuffix}` : county.county_fips;
+          } else {
+            nameShort = county.county_name.replace(/ County,.*$/, "");
+          }
 
           return (
             <button
@@ -117,7 +126,7 @@ export function ComparisonChart({
               }`}
             >
               <span
-                className={`${isBlockGroup ? "w-28" : "w-24"} shrink-0 text-right text-xs ${
+                className={`${isBlockGroup ? "w-32" : "w-24"} shrink-0 text-right text-xs ${
                   isSelected
                     ? "font-semibold text-slate-900 dark:text-white"
                     : "text-slate-700 dark:text-slate-400"
