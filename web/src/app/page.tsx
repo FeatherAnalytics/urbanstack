@@ -275,6 +275,7 @@ export default function Home() {
         </span>
         <div className="ml-auto flex items-center gap-3">
           <select
+            aria-label="Select metro area"
             value={selectedMetro ?? ""}
             onChange={(e) => {
               const v = e.target.value || null;
@@ -290,15 +291,18 @@ export default function Home() {
               </option>
             ))}
           </select>
-          {overlayIndex && granularity === "county" && (
+          {overlayIndex && (
             <select
-              value={selectedYear ?? ""}
+              aria-label="Select year"
+              title="Filters Census ACS demographic and transportation metrics. Safety, spending, and congestion metrics use fixed date ranges shown in the sidebar."
+              value={granularity === "county" ? (selectedYear ?? "") : ""}
+              disabled={granularity !== "county"}
               onChange={(e) => {
                 const v = e.target.value;
                 setSelectedYear(v ? Number(v) : null);
                 if (!v) setCounties(baseCounties);
               }}
-              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+              className="rounded border border-slate-300 bg-white px-2 py-1 text-xs text-slate-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
             >
               <option value="">All Years (Cumulative)</option>
               {overlayIndex.years.map((y) => (
@@ -309,6 +313,7 @@ export default function Home() {
             </select>
           )}
           <select
+            aria-label="Select geographic scale"
             value={granularity}
             onChange={(e) => {
               const g = e.target.value as Granularity;
@@ -334,6 +339,7 @@ export default function Home() {
       <div className="flex min-h-0 flex-1 flex-col lg:flex-row">
         {/* Left sidebar — metric selector only */}
         <aside className="shrink-0 overflow-y-auto border-b border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:w-64 lg:border-b-0 lg:border-r">
+          <h2 className="sr-only">Metric Selection</h2>
           <div className="max-h-48 overflow-y-auto lg:max-h-none">
             <MetricSelector
               selected={selectedMetric}
@@ -410,6 +416,7 @@ export default function Home() {
 
       {/* Bottom comparison chart */}
       <div className="shrink-0 overflow-y-auto border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
+        <h2 className="sr-only">Data Comparison</h2>
         <ComparisonChart
           counties={counties}
           metric={selectedMetric}
