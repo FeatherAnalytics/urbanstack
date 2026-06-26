@@ -366,38 +366,6 @@ def main() -> int:
         logger.error("No routes extracted. No GeoJSON generated.")
         return 1
 
-    # Filter to metro bounding box with padding to avoid clipping edge routes
-    pad = 0.3  # degrees (~33km)
-    min_lat, max_lat, min_lon, max_lon = metro.bounds
-    before_stops = len(all_stops)
-    all_stops = all_stops.filter(
-        (pl.col("latitude") >= min_lat - pad)
-        & (pl.col("latitude") <= max_lat + pad)
-        & (pl.col("longitude") >= min_lon - pad)
-        & (pl.col("longitude") <= max_lon + pad)
-    )
-    logger.info("Filtered stops to metro bounds: %d → %d", before_stops, len(all_stops))
-
-    # Filter shapes at the shape level (not point level) to preserve linestring geometry.
-    # A shape qualifies if ≥50% of its points are within padded metro bounds.
-    before_shapes = len(all_shapes)
-    in_bounds = (
-        (pl.col("latitude") >= min_lat - pad)
-        & (pl.col("latitude") <= max_lat + pad)
-        & (pl.col("longitude") >= min_lon - pad)
-        & (pl.col("longitude") <= max_lon + pad)
-    )
-    shape_pcts = all_shapes.with_columns(in_bounds.cast(pl.Int8).alias("_in")).group_by(
-        ["agency", "shape_id"]
-    ).agg(
-        (pl.col("_in").sum() / pl.len()).alias("pct_in_bounds")
-    )
-    local_shapes = shape_pcts.filter(pl.col("pct_in_bounds") >= 0.8)
-    all_shapes = all_shapes.join(
-        local_shapes.select(["agency", "shape_id"]), on=["agency", "shape_id"], how="inner"
-    )
-    logger.info("Filtered shapes to metro bounds: %d → %d", before_shapes, len(all_shapes))
-
     # Get list of agencies that were extracted
     agencies = all_routes["agency"].unique().to_list()
     logger.info("Extracted %d agencies: %s", len(agencies), ", ".join(agencies))
@@ -411,15 +379,13 @@ def main() -> int:
     active_stops, stop_modes = _load_stop_modes(raw_dir, agencies)
     logger.info("Active stop keys: %d", len(active_stops))
 
-    # Step 4: Build routes GeoJSON
+    # Step 4: Build routes GeoJSON — no filtering, show all data
     routes_geojson = build_routes_geojson(all_shapes, all_routes, trips_df)
     route_count = len(routes_geojson["features"])
     logger.info("Routes: %d total", route_count)
     _count_by_agency(routes_geojson["features"], "routes")
 
-    # Step 5: Build stops GeoJSON — only stops served by routes in the GeoJSON.
-    # Collect (agency, route_id) pairs from route features, then use trips to
-    # find which stops serve those routes. Ensures route-stop consistency.
+    # Step 5: Build stops — only stops served by routes that have shapes.
     rendered_routes: set[tuple[str, str]] = set()
     for feat in routes_geojson["features"]:
         p = feat["properties"]
