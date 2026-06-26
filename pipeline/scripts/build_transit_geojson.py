@@ -2,12 +2,12 @@
 """Download GTFS feeds and convert to GeoJSON for the web app.
 
 USAGE:
-    cd pipeline && uv run python scripts/build_transit_geojson.py
+    cd pipeline && uv run python scripts/build_transit_geojson.py [--metro METRO_ID] [--force]
 
-Runs the GTFS extractor to download real feeds from DART, Trinity Metro, DCTA,
+Runs the GTFS extractor to download real feeds using transit discovery,
 then converts shape/route/stop data into GeoJSON files at:
-    web/public/data/transit_routes.geojson
-    web/public/data/transit_stops.geojson
+    web/public/data/{metro_id}/transit_routes.geojson
+    web/public/data/{metro_id}/transit_stops.geojson
 """
 
 import json
@@ -18,7 +18,7 @@ from pathlib import Path
 import polars as pl
 
 from urbanstack.config import load_settings
-from urbanstack.extract.gtfs import GTFS_FEEDS, _read_csv_from_zip, extract_gtfs
+from urbanstack.extract.gtfs import _read_csv_from_zip, extract_gtfs
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -280,73 +280,62 @@ def _count_by_mode(features: list[dict]) -> None:
 
 
 def main() -> int:
+    import argparse as ap
+
+    from urbanstack.metro import get_metro
+
+    parser = ap.ArgumentParser(description="Build transit GeoJSON from GTFS feeds")
+    parser.add_argument("--metro", default="dfw", help="Metro ID (dfw, chicago, nyc)")
+    parser.add_argument("--force", action="store_true", help="Force re-download")
+    args = parser.parse_args()
+
     settings = load_settings()
     settings.ensure_dirs()
+    metro = get_metro(args.metro)
 
-    # Step 1: Download and extract GTFS feeds
-    logger.info("Extracting GTFS feeds...")
-    succeeded_agencies: list[str] = []
-    failed_agencies: list[str] = []
+    # Step 1: Extract GTFS (uses transit discovery internally)
+    logger.info("Extracting GTFS feeds for %s...", metro.metro_id)
+    result = extract_gtfs(settings, metro, force=args.force)
+    all_routes = result["routes"]
+    all_stops = result["stops"]
+    all_shapes = result["shapes"]
 
-    # Try each agency individually so failures don't block others
-    all_routes = pl.DataFrame()
-    all_stops = pl.DataFrame()
-    all_shapes = pl.DataFrame()
-
-    for agency in GTFS_FEEDS:
-        try:
-            result = extract_gtfs(settings, agencies=[agency], force=True)
-            r, s, sh = result["routes"], result["stops"], result["shapes"]
-            if not r.is_empty():
-                all_routes = pl.concat([all_routes, r]) if not all_routes.is_empty() else r
-            if not s.is_empty():
-                all_stops = pl.concat([all_stops, s]) if not all_stops.is_empty() else s
-            if not sh.is_empty():
-                all_shapes = pl.concat([all_shapes, sh]) if not all_shapes.is_empty() else sh
-            succeeded_agencies.append(agency)
-            logger.info("OK: %s", agency)
-        except Exception:
-            logger.exception("FAILED: %s — skipping", agency)
-            failed_agencies.append(agency)
-
-    if not succeeded_agencies:
-        logger.error("All agencies failed. No GeoJSON generated.")
+    if all_routes.is_empty():
+        logger.error("No routes extracted. No GeoJSON generated.")
         return 1
 
-    if failed_agencies:
-        logger.warning("Skipped agencies: %s", ", ".join(failed_agencies))
+    # Get list of agencies that were extracted
+    agencies = all_routes["agency"].unique().to_list()
+    logger.info("Extracted %d agencies: %s", len(agencies), ", ".join(agencies))
 
-    # Step 2: Load trips.txt for shape_id -> route_id mapping
-    logger.info("Loading trips.txt from ZIPs...")
-    raw_dir = settings.raw_dir / "gtfs"
-    trips_df = _load_trips_from_zips(raw_dir, succeeded_agencies)
+    # Step 2: Load trips.txt for shape->route mapping
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "gtfs"
+    trips_df = _load_trips_from_zips(raw_dir, agencies)
     logger.info("Trips: %d unique (agency, route_id, shape_id) rows", len(trips_df))
 
-    # Step 3: Load active stop IDs and mode classification from GTFS
-    logger.info("Loading stop_times/trips/routes for stop modes...")
-    active_stops, stop_modes = _load_stop_modes(raw_dir, succeeded_agencies)
+    # Step 3: Load stop modes
+    active_stops, stop_modes = _load_stop_modes(raw_dir, agencies)
     logger.info("Active stop keys: %d", len(active_stops))
 
     # Step 4: Build routes GeoJSON
-    logger.info("Building routes GeoJSON...")
     routes_geojson = build_routes_geojson(all_shapes, all_routes, trips_df)
     route_count = len(routes_geojson["features"])
     logger.info("Routes: %d total", route_count)
     _count_by_agency(routes_geojson["features"], "routes")
 
     # Step 5: Build stops GeoJSON
-    logger.info("Building stops GeoJSON...")
     stops_geojson = build_stops_geojson(all_stops, active_stops, stop_modes)
     stop_count = len(stops_geojson["features"])
     logger.info("Stops: %d total", stop_count)
     _count_by_agency(stops_geojson["features"], "stops")
     _count_by_mode(stops_geojson["features"])
 
-    # Step 6: Write output
-    WEB_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Step 6: Write to metro-specific directory
+    out_dir = WEB_DATA_DIR / metro.metro_id
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    routes_path = WEB_DATA_DIR / "transit_routes.geojson"
-    stops_path = WEB_DATA_DIR / "transit_stops.geojson"
+    routes_path = out_dir / "transit_routes.geojson"
+    stops_path = out_dir / "transit_stops.geojson"
 
     routes_path.write_text(json.dumps(routes_geojson))
     stops_path.write_text(json.dumps(stops_geojson))

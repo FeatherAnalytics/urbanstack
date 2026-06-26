@@ -6,6 +6,7 @@ from pathlib import Path
 
 import polars as pl
 import requests
+from pydantic import ValidationError
 
 from urbanstack.config import Settings
 from urbanstack.contracts.gtfs import GtfsRoute, GtfsShape, GtfsStop
@@ -58,18 +59,21 @@ def _parse_routes(agency: str, rows: list[dict[str, str]]) -> list[GtfsRoute]:
             route_type = int(route_type_raw)
         except (ValueError, TypeError):
             route_type = 3
-        records.append(
-            GtfsRoute.model_validate(
-                {
-                    "agency": agency,
-                    "route_id": row["route_id"],
-                    "route_short_name": row.get("route_short_name", ""),
-                    "route_long_name": row.get("route_long_name", ""),
-                    "route_type": route_type,
-                    "route_color": row.get("route_color", ""),
-                }
+        try:
+            records.append(
+                GtfsRoute.model_validate(
+                    {
+                        "agency": agency,
+                        "route_id": row["route_id"],
+                        "route_short_name": row.get("route_short_name", ""),
+                        "route_long_name": row.get("route_long_name", ""),
+                        "route_type": route_type,
+                        "route_color": row.get("route_color", ""),
+                    }
+                )
             )
-        )
+        except ValidationError:
+            continue
     return records
 
 
@@ -87,17 +91,20 @@ def _parse_stops(agency: str, rows: list[dict[str, str]]) -> list[GtfsStop]:
             continue
         if lat_f == 0.0 and lon_f == 0.0:
             continue
-        records.append(
-            GtfsStop.model_validate(
-                {
-                    "agency": agency,
-                    "stop_id": row["stop_id"],
-                    "stop_name": row.get("stop_name", ""),
-                    "latitude": lat_f,
-                    "longitude": lon_f,
-                }
+        try:
+            records.append(
+                GtfsStop.model_validate(
+                    {
+                        "agency": agency,
+                        "stop_id": row["stop_id"],
+                        "stop_name": row.get("stop_name", ""),
+                        "latitude": lat_f,
+                        "longitude": lon_f,
+                    }
+                )
             )
-        )
+        except ValidationError:
+            continue
     return records
 
 
@@ -115,17 +122,20 @@ def _parse_shapes(agency: str, rows: list[dict[str, str]]) -> list[GtfsShape]:
             seq_i = int(seq)
         except (ValueError, TypeError):
             continue
-        records.append(
-            GtfsShape.model_validate(
-                {
-                    "agency": agency,
-                    "shape_id": row["shape_id"],
-                    "latitude": lat_f,
-                    "longitude": lon_f,
-                    "sequence": seq_i,
-                }
+        try:
+            records.append(
+                GtfsShape.model_validate(
+                    {
+                        "agency": agency,
+                        "shape_id": row["shape_id"],
+                        "latitude": lat_f,
+                        "longitude": lon_f,
+                        "sequence": seq_i,
+                    }
+                )
             )
-        )
+        except ValidationError:
+            continue
     return records
 
 
