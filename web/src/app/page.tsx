@@ -144,34 +144,31 @@ export default function Home() {
     window.history.replaceState(null, "", url);
   }, [selectedMetro, selectedMetric.key, granularity, selectedYear]);
 
-  // Seed initial viewport bounds from starting viewport
-  useEffect(() => {
-    const span = 360 / Math.pow(2, viewport.zoom);
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const updateBoundsFromView = useCallback((vs: { longitude: number; latitude: number; zoom: number }) => {
+    const span = 360 / Math.pow(2, vs.zoom);
     setViewportBounds(stabilizeViewportBounds({
-      west: viewport.longitude - span / 2,
-      east: viewport.longitude + span / 2,
-      south: viewport.latitude - span / 4,
-      north: viewport.latitude + span / 4,
+      west: vs.longitude - span / 2,
+      east: vs.longitude + span / 2,
+      south: vs.latitude - span / 4,
+      north: vs.latitude + span / 4,
     }));
-  }, [viewport.longitude, viewport.latitude, viewport.zoom]);
+  }, []);
+
+  // Seed initial viewport bounds
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- seeding from metro config
+    updateBoundsFromView(viewport);
+  }, [viewport, updateBoundsFromView]);
 
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleViewStateChange = useCallback(
     (viewState: Record<string, unknown>) => {
       if (viewportTimerRef.current) clearTimeout(viewportTimerRef.current);
       viewportTimerRef.current = setTimeout(() => {
-        const vs = viewState as { longitude: number; latitude: number; zoom: number };
-        const span = 360 / Math.pow(2, vs.zoom);
-        setViewportBounds(stabilizeViewportBounds({
-          west: vs.longitude - span / 2,
-          east: vs.longitude + span / 2,
-          south: vs.latitude - span / 4,
-          north: vs.latitude + span / 4,
-        }));
+        updateBoundsFromView(viewState as { longitude: number; latitude: number; zoom: number });
       }, 600);
     },
-    [],
+    [updateBoundsFromView],
   );
 
   const visibleIds = useMemo(() => {
