@@ -1,6 +1,7 @@
 "use client";
 
 import { BIVARIATE_PALETTE, formatValue, type ColorScaleMode, type Granularity, type MetricConfig } from "@/lib/data";
+import { ClassifiedLegend } from "./ClassifiedLegend";
 
 interface ColorLegendProps {
   primaryMetric: MetricConfig;
@@ -11,6 +12,13 @@ interface ColorLegendProps {
   onToggleMode: () => void;
   onExitCompare?: () => void;
   granularity: Granularity;
+  quantileBreaks?: number[] | null;
+  classifiedPalette?: [number, number, number, number][] | null;
+  selectedBins?: Set<number>;
+  onSelectionChange?: (newSelection: Set<number>) => void;
+  bivariatePalette?: [number, number, number][][] | null;
+  selectedBivariateCell?: { row: number; col: number } | null;
+  onBivariateCellClick?: (cell: { row: number; col: number } | null) => void;
 }
 
 function GradientLegend({ metric, minMax }: { metric: MetricConfig; minMax: { min: number; max: number } }) {
@@ -41,52 +49,90 @@ function GradientLegend({ metric, minMax }: { metric: MetricConfig; minMax: { mi
   );
 }
 
+interface BivariateLegendProps {
+  primaryMetric: MetricConfig;
+  secondaryMetric: MetricConfig;
+  palette: [number, number, number][][];
+  selectedCell: { row: number; col: number } | null;
+  onCellClick: (cell: { row: number; col: number } | null) => void;
+}
+
 function BivariateLegend({
   primaryMetric,
   secondaryMetric,
-}: {
-  primaryMetric: MetricConfig;
-  secondaryMetric: MetricConfig;
-}) {
+  palette,
+  selectedCell,
+  onCellClick,
+}: BivariateLegendProps) {
+  const hasSelection = selectedCell !== null;
+  const cellSize = 22;
+  const gap = 2;
+  const gridSide = cellSize * 3 + gap * 2;
+  const diag = Math.round(gridSide * Math.SQRT2);
+
   return (
-    <>
-      <div className="mb-1.5 text-[11px] text-slate-600 dark:text-slate-400">
-        {primaryMetric.label} &times; {secondaryMetric.label}
-      </div>
-      <div className="flex items-end gap-1">
+    <div className="flex flex-col items-center">
+      {/* Diamond grid — rotated 45° so (min,min) is bottom, (max,max) is top */}
+      <div style={{ width: diag, height: diag, position: "relative" }}>
         <div
-          className="text-[9px] text-slate-500 dark:text-slate-500"
-          style={{ writingMode: "vertical-lr", transform: "rotate(180deg)", height: 72 }}
+          data-testid="bivariate-grid"
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(3, ${cellSize}px)`,
+            gridTemplateRows: `repeat(3, ${cellSize}px)`,
+            gap: `${gap}px`,
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%) rotate(45deg)",
+          }}
         >
-          {primaryMetric.label} &rarr;
-        </div>
-        <div>
-          <div
-            data-testid="bivariate-grid"
-            className="grid gap-px"
-            style={{
-              gridTemplateColumns: "repeat(3, 22px)",
-              gridTemplateRows: "repeat(3, 22px)",
-              transform: "scaleY(-1)",
-            }}
-          >
-            {BIVARIATE_PALETTE.flatMap((row, ri) =>
-              row.map((color, ci) => (
-                <div
+          {/* Render rows top-to-bottom = high primary → low primary */}
+          {[2, 1, 0].map((ri) =>
+            [0, 1, 2].map((ci) => {
+              const color = palette[ri][ci];
+              const isSelected = selectedCell?.row === ri && selectedCell?.col === ci;
+              const dimmed = hasSelection && !isSelected;
+              return (
+                <button
                   key={`${ri}-${ci}`}
-                  className="rounded-sm"
-                  style={{ backgroundColor: `rgb(${color[0]},${color[1]},${color[2]})` }}
-                  title={`Primary: ${["Low", "Mid", "High"][ri]}, Secondary: ${["Low", "Mid", "High"][ci]}`}
+                  type="button"
+                  className="rounded-sm border-0 p-0"
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    backgroundColor: `rgb(${color[0]},${color[1]},${color[2]})`,
+                    opacity: dimmed ? 0.4 : 1,
+                    outline: isSelected ? "2px solid white" : "none",
+                    outlineOffset: isSelected ? "-2px" : undefined,
+                    cursor: "pointer",
+                  }}
+                  aria-label={`${primaryMetric.label} ${["Low", "Mid", "High"][ri]}, ${secondaryMetric.label} ${["Low", "Mid", "High"][ci]}`}
+                  aria-pressed={isSelected}
+                  onClick={() => onCellClick(isSelected ? null : { row: ri, col: ci })}
                 />
-              )),
-            )}
-          </div>
-          <div className="mt-0.5 text-center text-[9px] text-slate-500 dark:text-slate-500">
-            {secondaryMetric.label} &rarr;
-          </div>
+              );
+            }),
+          )}
         </div>
+        {/* Arrows just below left and right corners, pointing outward */}
+        <span
+          className="absolute text-xs text-slate-400 dark:text-slate-500"
+          style={{ left: -4, top: diag / 2 + 4 }}
+          aria-hidden="true"
+        >↖</span>
+        <span
+          className="absolute text-xs text-slate-400 dark:text-slate-500"
+          style={{ right: -4, top: diag / 2 + 4 }}
+          aria-hidden="true"
+        >↗</span>
       </div>
-    </>
+      {/* Axis labels — horizontal below diamond */}
+      <div className="mt-1 flex w-full justify-between text-[9px] leading-tight text-slate-400 dark:text-slate-500" style={{ width: diag + 20, maxWidth: "100%" }}>
+        <span className="max-w-[45%] text-left">{primaryMetric.label}</span>
+        <span className="max-w-[45%] text-right">{secondaryMetric.label}</span>
+      </div>
+    </div>
   );
 }
 
@@ -99,14 +145,38 @@ export function ColorLegend({
   onToggleMode,
   onExitCompare,
   granularity,
+  quantileBreaks = null,
+  classifiedPalette = null,
+  selectedBins = new Set<number>(),
+  onSelectionChange = () => {},
+  bivariatePalette = null,
+  selectedBivariateCell = null,
+  onBivariateCellClick = () => {},
 }: ColorLegendProps) {
   const isBivariate = secondaryMetric !== null && secondaryMinMax !== null;
+  const isClassified = !isBivariate && quantileBreaks !== null && classifiedPalette !== null;
   const showToggle = granularity !== "metro";
+
+  const effectiveBivariatePalette = bivariatePalette ?? BIVARIATE_PALETTE;
 
   return (
     <div className="rounded-lg border border-slate-200/80 bg-white/90 p-2.5 shadow-md backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/90">
       {isBivariate ? (
-        <BivariateLegend primaryMetric={primaryMetric} secondaryMetric={secondaryMetric!} />
+        <BivariateLegend
+          primaryMetric={primaryMetric}
+          secondaryMetric={secondaryMetric!}
+          palette={effectiveBivariatePalette}
+          selectedCell={selectedBivariateCell ?? null}
+          onCellClick={onBivariateCellClick}
+        />
+      ) : isClassified ? (
+        <ClassifiedLegend
+          metric={primaryMetric}
+          palette={classifiedPalette!}
+          breaks={quantileBreaks!}
+          selectedBins={selectedBins}
+          onSelectionChange={onSelectionChange}
+        />
       ) : (
         <GradientLegend metric={primaryMetric} minMax={primaryMinMax} />
       )}

@@ -15,6 +15,7 @@ import {
   formatValue,
   classifyBin,
   getBivariateColor,
+  classifyValue,
   R2_BASE_URL,
   type CountyData,
   type Granularity,
@@ -61,6 +62,11 @@ interface ChoroplethMapProps {
   secondaryMetric: MetricConfig | null;
   primaryBreaks: number[] | null;
   secondaryBreaks: number[] | null;
+  quantileBreaks?: number[] | null;
+  classifiedPalette?: [number, number, number, number][] | null;
+  highlightedBins?: Set<number> | null;
+  bivariatePalette?: [number, number, number][][] | null;
+  highlightedBivariateCell?: { row: number; col: number } | null;
 }
 
 export function ChoroplethMap({
@@ -81,6 +87,11 @@ export function ChoroplethMap({
   secondaryMetric,
   primaryBreaks,
   secondaryBreaks,
+  quantileBreaks = null,
+  classifiedPalette = null,
+  highlightedBins = null,
+  bivariatePalette = null,
+  highlightedBivariateCell = null,
 }: ChoroplethMapProps) {
   const isMetro = granularity === "metro";
   const isBlockGroup = granularity === "block_group";
@@ -127,17 +138,34 @@ export function ChoroplethMap({
         if (secVal === null || secVal === undefined || Number.isNaN(secVal)) return [200, 200, 200, fillAlpha];
         const pBin = classifyBin(primaryVal, primaryBreaks);
         const sBin = classifyBin(secVal, secondaryBreaks);
+        if (bivariatePalette) {
+          const row = Math.max(0, Math.min(2, pBin));
+          const col = Math.max(0, Math.min(2, sBin));
+          const rgb = bivariatePalette[row][col];
+          const isHighlighted = !highlightedBivariateCell ||
+            (highlightedBivariateCell.row === row && highlightedBivariateCell.col === col);
+          return [rgb[0], rgb[1], rgb[2], isHighlighted ? fillAlpha : 40];
+        }
         return getBivariateColor(pBin, sBin, fillAlpha);
       }
 
-      // Single-metric mode
+      // Single-metric mode — classified
+      if (quantileBreaks && classifiedPalette) {
+        const binIdx = classifyValue(primaryVal, quantileBreaks);
+        const paletteIdx = binIdx === -1 ? 0 : binIdx;
+        const color = classifiedPalette[paletteIdx];
+        const isHighlighted = !highlightedBins || highlightedBins.size === 0 || highlightedBins.has(binIdx);
+        return [color[0], color[1], color[2], isHighlighted ? fillAlpha : 40];
+      }
+
+      // Single-metric mode — continuous (fallback)
       const range = maxVal - minVal;
       const t = range > 0 ? (primaryVal - minVal) / range : 0.5;
       const color = interpolateColor(t, metric.colorScale);
       color[3] = fillAlpha;
       return color;
     },
-    [dataByFips, metric, minVal, maxVal, isMetro, counties, fillAlpha, secondaryMetric, primaryBreaks, secondaryBreaks],
+    [dataByFips, metric, minVal, maxVal, isMetro, counties, fillAlpha, secondaryMetric, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell],
   );
 
   const getLineColor = useCallback(
@@ -147,13 +175,42 @@ export function ChoroplethMap({
       if (fips === selectedFips) {
         return isDark ? [255, 255, 255, 255] : [15, 23, 42, 255];
       }
+
+      // Highlighted bivariate cell: white/dark outline for matching features
+      if (highlightedBivariateCell && secondaryMetric && primaryBreaks && secondaryBreaks && fips) {
+        const county = dataByFips.get(fips);
+        if (county) {
+          const pVal = county[metric.key] as number | null;
+          const sVal = county[secondaryMetric.key] as number | null;
+          if (pVal !== null && Number.isFinite(pVal) && sVal !== null && Number.isFinite(sVal)) {
+            const row = Math.max(0, Math.min(2, classifyBin(pVal, primaryBreaks)));
+            const col = Math.max(0, Math.min(2, classifyBin(sVal, secondaryBreaks)));
+            if (highlightedBivariateCell.row === row && highlightedBivariateCell.col === col) {
+              return isDark ? [255, 255, 255, 200] : [15, 23, 42, 200];
+            }
+          }
+        }
+      }
+
+      // Highlighted bins: white/dark outline
+      if (highlightedBins && highlightedBins.size > 0 && quantileBreaks && fips) {
+        const county = dataByFips.get(fips);
+        if (county) {
+          const val = county[metric.key] as number | null;
+          const binIdx = classifyValue(val, quantileBreaks);
+          if (highlightedBins.has(binIdx)) {
+            return isDark ? [255, 255, 255, 200] : [15, 23, 42, 200];
+          }
+        }
+      }
+
       // Block groups: more transparent borders to reduce visual noise
       if (isBlockGroup) {
         return isDark ? [80, 80, 80, 80] : [148, 163, 184, 80];
       }
       return isDark ? [100, 100, 100, 180] : [148, 163, 184, 180];
     },
-    [selectedFips, isDark, isBlockGroup],
+    [selectedFips, isDark, isBlockGroup, highlightedBins, quantileBreaks, dataByFips, metric.key, highlightedBivariateCell, secondaryMetric, primaryBreaks, secondaryBreaks],
   );
 
   const getLineWidth = useCallback(
@@ -199,14 +256,14 @@ export function ChoroplethMap({
                 getLineWidth,
                 lineWidthUnits: "pixels" as const,
                 updateTriggers: {
-                  getFillColor: [metric.key, minVal, maxVal, secondaryMetric?.key, primaryBreaks, secondaryBreaks],
-                  getLineColor: [selectedFips, isDark],
+                  getFillColor: [metric.key, minVal, maxVal, secondaryMetric?.key, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell],
+                  getLineColor: [selectedFips, isDark, highlightedBins, quantileBreaks, highlightedBivariateCell],
                   getLineWidth: [selectedFips],
                 },
               });
             },
             updateTriggers: {
-              renderSubLayers: [metric.key, minVal, maxVal, selectedFips, isDark, secondaryMetric?.key, primaryBreaks, secondaryBreaks],
+              renderSubLayers: [metric.key, minVal, maxVal, selectedFips, isDark, secondaryMetric?.key, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell],
             },
           })
         ),
@@ -228,8 +285,8 @@ export function ChoroplethMap({
         getLineWidth,
         lineWidthUnits: "pixels",
         updateTriggers: {
-          getFillColor: [metric.key, minVal, maxVal, granularity, secondaryMetric?.key, primaryBreaks, secondaryBreaks],
-          getLineColor: [selectedFips, isDark, granularity],
+          getFillColor: [metric.key, minVal, maxVal, granularity, secondaryMetric?.key, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell],
+          getLineColor: [selectedFips, isDark, granularity, highlightedBins, quantileBreaks, highlightedBivariateCell],
           getLineWidth: [selectedFips, granularity],
         },
       }),
@@ -251,6 +308,11 @@ export function ChoroplethMap({
     primaryBreaks,
     secondaryBreaks,
     isBlockGroup,
+    quantileBreaks,
+    classifiedPalette,
+    highlightedBins,
+    bivariatePalette,
+    highlightedBivariateCell,
   ]);
 
   const handleClick = useCallback(

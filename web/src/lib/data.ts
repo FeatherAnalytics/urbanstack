@@ -942,6 +942,29 @@ export function getBivariateColor(
   return [rgb[0], rgb[1], rgb[2], alpha];
 }
 
+/** Generate a 3×3 bivariate palette by blending two metric color scales. */
+export function generateBivariatePalette(
+  primaryColorScale: [number, number, number][],
+  secondaryColorScale: [number, number, number][],
+): [number, number, number][][] {
+  const sample = (scale: [number, number, number][], t: number): [number, number, number] => {
+    const c = interpolateColor(t, scale);
+    return [c[0], c[1], c[2]];
+  };
+  const positions = [0, 0.5, 1]; // Low, Mid, High
+  return positions.map((pt) => {
+    const pColor = sample(primaryColorScale, pt);
+    return positions.map((st) => {
+      const sColor = sample(secondaryColorScale, st);
+      return [
+        Math.round((pColor[0] + sColor[0]) / 2),
+        Math.round((pColor[1] + sColor[1]) / 2),
+        Math.round((pColor[2] + sColor[2]) / 2),
+      ] as [number, number, number];
+    });
+  });
+}
+
 export interface MetricCombo {
   key: string;
   label: string;
@@ -1022,3 +1045,54 @@ export const METRIC_COMBOS: MetricCombo[] = [
     description: "UN-Habitat: denser street grids correlate with lower pedestrian fatalities. Benchmark: 259/sq mi.",
   },
 ];
+
+// ============================================================================
+// Classified (Quantile) Color Scale
+// ============================================================================
+
+export const QUANTILE_BIN_COUNT = 5;
+export const PERCENTILE_LABELS = ["N/A", "0–20%", "20–40%", "40–60%", "60–80%", "80–100%"];
+export const NO_DATA_COLOR: [number, number, number, number] = [200, 200, 200, 80];
+
+export function computeQuantileBreaks(values: number[], binCount: number): number[] {
+  if (values.length === 0) return Array(binCount - 1).fill(0);
+  const sorted = [...values].sort((a, b) => a - b);
+  const breaks: number[] = [];
+  for (let i = 1; i < binCount; i++) {
+    const percentile = i / binCount;
+    const idx = Math.floor(percentile * (sorted.length - 1));
+    breaks.push(sorted[idx]);
+  }
+  return breaks;
+}
+
+export function classifyValue(value: number | null, breaks: number[]): number {
+  if (value === null || !Number.isFinite(value) || value === 0) return -1;
+  for (let i = 0; i < breaks.length; i++) {
+    if (value <= breaks[i]) return i + 1;
+  }
+  return breaks.length + 1;
+}
+
+export function generateClassifiedPalette(
+  colorScale: [number, number, number][],
+  binCount: number,
+): [number, number, number, number][] {
+  const palette: [number, number, number, number][] = [NO_DATA_COLOR];
+  for (let i = 0; i < binCount; i++) {
+    const t = binCount === 1 ? 0.5 : i / (binCount - 1);
+    const color = interpolateColor(t, colorScale);
+    palette.push([color[0], color[1], color[2], 200]);
+  }
+  return palette;
+}
+
+export function stabilizeViewportBounds(bounds: ViewportBounds): ViewportBounds {
+  const snap = (v: number) => Math.round(v * 10) / 10;
+  return {
+    west: snap(bounds.west),
+    east: snap(bounds.east),
+    south: snap(bounds.south),
+    north: snap(bounds.north),
+  };
+}
