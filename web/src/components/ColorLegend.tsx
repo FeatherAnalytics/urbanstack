@@ -127,20 +127,10 @@ function BivariateLegend({
           aria-hidden="true"
         >↗</span>
       </div>
-      {/* Axis labels — along bottom edges, wrap to fit */}
-      <div style={{ width: diag, position: "relative", height: 28 }}>
-        <span
-          className="absolute text-[8px] leading-tight text-slate-400 dark:text-slate-500"
-          style={{ right: "53%", bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom right", maxWidth: gridSide * 0.85, textAlign: "right" }}
-        >
-          {primaryMetric.label}
-        </span>
-        <span
-          className="absolute text-[8px] leading-tight text-slate-400 dark:text-slate-500"
-          style={{ left: "53%", bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom left", maxWidth: gridSide * 0.85 }}
-        >
-          {secondaryMetric.label}
-        </span>
+      {/* Axis labels — horizontal below diamond */}
+      <div className="mt-1 flex w-full justify-between text-[9px] leading-tight text-slate-400 dark:text-slate-500" style={{ width: diag + 20, maxWidth: "100%" }}>
+        <span className="max-w-[45%] text-left">{primaryMetric.label}</span>
+        <span className="max-w-[45%] text-right">{secondaryMetric.label}</span>
       </div>
     </div>
   );
