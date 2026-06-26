@@ -254,10 +254,9 @@ def build_routes_geojson(
     if shapes_df.is_empty() or routes_df.is_empty() or trips_df.is_empty():
         return {"type": "FeatureCollection", "features": []}
 
-    best_shapes = _pick_longest_shape(shapes_df, trips_df)
-
-    # Join route metadata
-    route_shapes = best_shapes.join(routes_df, on=["agency", "route_id"], how="inner")
+    # All shapes for all routes — no picking, no filtering
+    all_route_shapes = trips_df.select(["agency", "route_id", "shape_id"]).unique()
+    route_shapes = all_route_shapes.join(routes_df, on=["agency", "route_id"], how="inner")
 
     features: list[dict] = []
     for row in route_shapes.iter_rows(named=True):
