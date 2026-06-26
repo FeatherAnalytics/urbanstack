@@ -16,6 +16,9 @@ interface ColorLegendProps {
   classifiedPalette?: [number, number, number, number][] | null;
   selectedBins?: Set<number>;
   onSelectionChange?: (newSelection: Set<number>) => void;
+  bivariatePalette?: [number, number, number][][] | null;
+  selectedBivariateCell?: { row: number; col: number } | null;
+  onBivariateCellClick?: (cell: { row: number; col: number } | null) => void;
 }
 
 function GradientLegend({ metric, minMax }: { metric: MetricConfig; minMax: { min: number; max: number } }) {
@@ -46,13 +49,23 @@ function GradientLegend({ metric, minMax }: { metric: MetricConfig; minMax: { mi
   );
 }
 
+interface BivariateLegendProps {
+  primaryMetric: MetricConfig;
+  secondaryMetric: MetricConfig;
+  palette: [number, number, number][][];
+  selectedCell: { row: number; col: number } | null;
+  onCellClick: (cell: { row: number; col: number } | null) => void;
+}
+
 function BivariateLegend({
   primaryMetric,
   secondaryMetric,
-}: {
-  primaryMetric: MetricConfig;
-  secondaryMetric: MetricConfig;
-}) {
+  palette,
+  selectedCell,
+  onCellClick,
+}: BivariateLegendProps) {
+  const hasSelection = selectedCell !== null;
+
   return (
     <>
       <div className="mb-1.5 text-[11px] text-slate-600 dark:text-slate-400">
@@ -75,15 +88,31 @@ function BivariateLegend({
               transform: "scaleY(-1)",
             }}
           >
-            {BIVARIATE_PALETTE.flatMap((row, ri) =>
-              row.map((color, ci) => (
-                <div
-                  key={`${ri}-${ci}`}
-                  className="rounded-sm"
-                  style={{ backgroundColor: `rgb(${color[0]},${color[1]},${color[2]})` }}
-                  title={`Primary: ${["Low", "Mid", "High"][ri]}, Secondary: ${["Low", "Mid", "High"][ci]}`}
-                />
-              )),
+            {palette.flatMap((row, ri) =>
+              row.map((color, ci) => {
+                const isSelected = selectedCell?.row === ri && selectedCell?.col === ci;
+                const dimmed = hasSelection && !isSelected;
+                return (
+                  <button
+                    key={`${ri}-${ci}`}
+                    type="button"
+                    className="rounded-sm border-0 p-0"
+                    style={{
+                      backgroundColor: `rgb(${color[0]},${color[1]},${color[2]})`,
+                      opacity: dimmed ? 0.4 : 1,
+                      outline: isSelected ? "2px solid white" : "none",
+                      outlineOffset: isSelected ? "-2px" : undefined,
+                      cursor: "pointer",
+                      // scaleY(-1) on parent flips visually; transform back for button semantics
+                      transform: "scaleY(-1)",
+                    }}
+                    title={`Primary: ${["Low", "Mid", "High"][ri]}, Secondary: ${["Low", "Mid", "High"][ci]}`}
+                    aria-label={`${primaryMetric.label} ${["Low", "Mid", "High"][ri]}, ${secondaryMetric.label} ${["Low", "Mid", "High"][ci]}`}
+                    aria-pressed={isSelected}
+                    onClick={() => onCellClick(isSelected ? null : { row: ri, col: ci })}
+                  />
+                );
+              }),
             )}
           </div>
           <div className="mt-0.5 text-center text-[9px] text-slate-500 dark:text-slate-500">
@@ -108,15 +137,26 @@ export function ColorLegend({
   classifiedPalette = null,
   selectedBins = new Set<number>(),
   onSelectionChange = () => {},
+  bivariatePalette = null,
+  selectedBivariateCell = null,
+  onBivariateCellClick = () => {},
 }: ColorLegendProps) {
   const isBivariate = secondaryMetric !== null && secondaryMinMax !== null;
   const isClassified = !isBivariate && quantileBreaks !== null && classifiedPalette !== null;
   const showToggle = granularity !== "metro";
 
+  const effectiveBivariatePalette = bivariatePalette ?? BIVARIATE_PALETTE;
+
   return (
     <div className="rounded-lg border border-slate-200/80 bg-white/90 p-2.5 shadow-md backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/90">
       {isBivariate ? (
-        <BivariateLegend primaryMetric={primaryMetric} secondaryMetric={secondaryMetric!} />
+        <BivariateLegend
+          primaryMetric={primaryMetric}
+          secondaryMetric={secondaryMetric!}
+          palette={effectiveBivariatePalette}
+          selectedCell={selectedBivariateCell ?? null}
+          onCellClick={onBivariateCellClick}
+        />
       ) : isClassified ? (
         <ClassifiedLegend
           metric={primaryMetric}
