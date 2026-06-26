@@ -1,5 +1,6 @@
 import csv
 import io
+import json
 import logging
 import zipfile
 from pathlib import Path
@@ -173,6 +174,7 @@ def extract_gtfs(
     all_routes: list[GtfsRoute] = []
     all_stops: list[GtfsStop] = []
     all_shapes: list[GtfsShape] = []
+    feed_manifest: dict[str, str] = {}
 
     for feed in discovered:
         url = feed.download_url or feed.stable_url
@@ -195,6 +197,7 @@ def extract_gtfs(
         all_routes.extend(_parse_routes(agency, route_rows))
         all_stops.extend(_parse_stops(agency, stop_rows))
         all_shapes.extend(_parse_shapes(agency, shape_rows))
+        feed_manifest[feed.mdb_id] = agency
 
         logger.info(
             "%s: %d routes, %d stops, %d shape points",
@@ -203,6 +206,10 @@ def extract_gtfs(
             len(stop_rows),
             len(shape_rows),
         )
+
+    manifest_path = raw_dir / "feed_manifest.json"
+    manifest_path.write_text(json.dumps(feed_manifest, indent=2))
+    logger.info("Wrote feed manifest: %d feeds", len(feed_manifest))
 
     routes_df = _records_to_df(all_routes)
     stops_df = _records_to_df(all_stops)
