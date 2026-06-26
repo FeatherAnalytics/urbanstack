@@ -281,6 +281,9 @@ export function ChoroplethMap({
     primaryBreaks,
     secondaryBreaks,
     isBlockGroup,
+    quantileBreaks,
+    classifiedPalette,
+    highlightedBins,
   ]);
 
   const handleClick = useCallback(
