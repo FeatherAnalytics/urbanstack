@@ -487,7 +487,7 @@ export default function Home() {
           <button
             onClick={() => setSidebarOpen(true)}
             aria-label="Open metrics panel"
-            className="absolute top-3 left-3 z-30 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-md backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/90 dark:text-slate-300 lg:hidden"
+            className="absolute top-3 right-3 z-40 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs font-medium text-slate-700 shadow-md backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/90 dark:text-slate-300 lg:hidden"
           >
             ☰ Metrics
           </button>
