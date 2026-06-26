@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { interpolateColor, formatValue, computeDisplayRange, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS, formatRank, computeQuantileBreaks, classifyValue, generateClassifiedPalette, stabilizeViewportBounds, QUANTILE_BIN_COUNT, NO_DATA_COLOR } from "@/lib/data";
+import { interpolateColor, formatValue, computeDisplayRange, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS, formatRank, computeQuantileBreaks, classifyValue, generateClassifiedPalette, stabilizeViewportBounds, NO_DATA_COLOR } from "@/lib/data";
 import type { CountyData } from "@/lib/data";
 
 describe("interpolateColor", () => {

@@ -161,7 +161,6 @@ export default function Home() {
       viewportTimerRef.current = setTimeout(() => {
         const vs = viewState as { longitude: number; latitude: number; zoom: number };
         const span = 360 / Math.pow(2, vs.zoom);
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setViewportBounds(stabilizeViewportBounds({
           west: vs.longitude - span / 2,
           east: vs.longitude + span / 2,
