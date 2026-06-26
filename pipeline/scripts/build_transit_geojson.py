@@ -13,6 +13,7 @@ then converts shape/route/stop data into GeoJSON files at:
 import json
 import logging
 import sys
+import zipfile
 from collections.abc import Callable
 from pathlib import Path
 
@@ -35,18 +36,39 @@ ROUTE_TYPE_LABELS: dict[int, str] = {
 WEB_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "web" / "public" / "data"
 
 
+def _match_agency(gtfs_name: str, known: set[str]) -> str:
+    """Match GTFS agency_name to known agency names from parquet."""
+    if gtfs_name in known:
+        return gtfs_name
+    lower = gtfs_name.lower()
+    for k in known:
+        if lower in k.lower() or k.lower() in lower:
+            return k
+    return ""
+
+
 def _load_trips_from_zips(raw_dir: Path, agencies: list[str]) -> pl.DataFrame:
-    """Read trips.txt from each downloaded ZIP to get shape_id -> route_id mapping."""
+    """Read trips.txt from all ZIPs in raw_dir."""
     all_rows: list[dict[str, str]] = []
-    for agency in agencies:
-        zip_name = f"{agency.lower().replace(' ', '_')}_gtfs.zip"
-        zip_path = raw_dir / zip_name
-        if not zip_path.exists():
-            logger.warning("ZIP not found for %s, skipping trips", agency)
+    agency_set = set(agencies)
+    for zip_path in sorted(raw_dir.glob("*.zip")):
+        try:
+            rows = _read_csv_from_zip(zip_path, "trips.txt")
+        except (zipfile.BadZipFile, OSError):
             continue
-        rows = _read_csv_from_zip(zip_path, "trips.txt")
+        if not rows:
+            continue
+        try:
+            agency_rows = _read_csv_from_zip(zip_path, "agency.txt")
+        except (zipfile.BadZipFile, OSError):
+            continue
+        agency_name = agency_rows[0].get("agency_name", "") if agency_rows else ""
+        if agency_name not in agency_set:
+            agency_name = _match_agency(agency_name, agency_set)
+        if not agency_name:
+            continue
         for row in rows:
-            row["agency"] = agency
+            row["agency"] = agency_name
         all_rows.extend(rows)
 
     if not all_rows:
@@ -78,10 +100,16 @@ def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict
     active_stops: set[str] = set()
     stop_modes: dict[str, set[str]] = {}
 
-    for agency in agencies:
-        zip_name = f"{agency.lower().replace(' ', '_')}_gtfs.zip"
-        zip_path = raw_dir / zip_name
-        if not zip_path.exists():
+    agency_set = set(agencies)
+    for zip_path in sorted(raw_dir.glob("*.zip")):
+        try:
+            agency_rows = _read_csv_from_zip(zip_path, "agency.txt")
+        except (zipfile.BadZipFile, OSError):
+            continue
+        agency = agency_rows[0].get("agency_name", "") if agency_rows else ""
+        if agency not in agency_set:
+            agency = _match_agency(agency, agency_set)
+        if not agency:
             continue
 
         # 1. routes.txt → route_id → route_type
