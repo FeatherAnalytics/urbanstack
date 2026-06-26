@@ -744,8 +744,14 @@ export function formatValue(value: number | null | undefined, format: MetricForm
       return `$${value.toFixed(2)}`;
     case "percent":
       return `${(value * 100).toFixed(1)}%`;
-    case "decimal":
-      return value.toFixed(1);
+    case "decimal": {
+      if (value === 0) return "0";
+      const abs = Math.abs(value);
+      if (abs >= 0.1) return value.toFixed(1);
+      // Use toPrecision to show significant digits, then strip trailing zeros
+      const str = value.toPrecision(2);
+      return parseFloat(str).toString();
+    }
     case "number":
       return value.toLocaleString("en-US", { maximumFractionDigits: 0 });
   }
@@ -800,6 +806,20 @@ export function ordinal(n: number): string {
   const s = ["th", "st", "nd", "rd"];
   const v = n % 100;
   return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
+/** Format rank with denominator: "3rd of 45" */
+export function formatRank(
+  county: CountyData,
+  metric: MetricKey,
+  allCounties: CountyData[],
+): string {
+  const valid = allCounties.filter((c) => {
+    const v = c[metric];
+    return v !== null && v !== undefined && !Number.isNaN(v as number);
+  });
+  const rank = computeRank(county, metric, allCounties);
+  return `${ordinal(rank)} of ${valid.length}`;
 }
 
 /** Group METRICS by category, preserving CATEGORIES order. */

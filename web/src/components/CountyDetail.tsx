@@ -3,8 +3,7 @@
 import {
   CATEGORIES,
   formatValue,
-  computeRank,
-  ordinal,
+  formatRank,
   groupMetricsByCategory,
   type CountyData,
   type MetricConfig,
@@ -111,34 +110,37 @@ function MetricList({
         });
         if (filteredMetrics.length === 0) return null;
         return (
-          <div key={category}>
+          <div key={category} className="[&:not(:first-child)]:border-t [&:not(:first-child)]:border-slate-100 [&:not(:first-child)]:pt-2 [&:not(:first-child)]:mt-1 dark:[&:not(:first-child)]:border-slate-700">
             <h3 className="mb-1 text-[11px] font-semibold tracking-wider text-slate-400 uppercase dark:text-slate-500">
               {category}
             </h3>
             <div className="flex flex-col gap-px">
               {filteredMetrics.map((metric) => {
                 const val = county[metric.key] as number | null;
-                const rank = computeRank(county, metric.key, allCounties);
+                const rankLabel = formatRank(county, metric.key, allCounties);
                 const isSelected = metric.key === selectedMetric.key;
 
                 return (
                   <div
                     key={metric.key}
-                    className={`flex items-baseline justify-between rounded px-2 py-0.5 text-sm ${
+                    className={`flex items-baseline justify-between rounded px-2 py-0.5 text-sm transition-colors ${
                       isSelected
-                        ? "bg-slate-100 dark:bg-slate-700"
+                        ? "bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-900/20 dark:ring-blue-800"
                         : ""
                     }`}
                   >
-                    <span className="text-slate-500 dark:text-slate-400">
+                    <span className={isSelected
+                      ? "font-medium text-slate-900 dark:text-white"
+                      : "text-slate-500 dark:text-slate-400"
+                    }>
                       {metric.label}
                     </span>
                     <span className="flex items-baseline gap-2">
                       <span className="font-mono text-slate-900 dark:text-white">
                         {formatValue(val, metric.format)}
                       </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-600">
-                        {ordinal(rank)}
+                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                        {rankLabel}
                       </span>
                     </span>
                   </div>
