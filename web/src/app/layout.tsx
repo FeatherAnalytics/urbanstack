@@ -21,7 +21,25 @@ const dmSerif = DM_Serif_Display({
 export const metadata: Metadata = {
   title: "UrbanStack — Urban Data Explorer",
   description:
-    "Interactive choropleth map of U.S. metro area urban data",
+    "Compare demographics, transit, safety, spending, and congestion across U.S. metro areas with interactive choropleth maps and bivariate analysis.",
+  authors: [{ name: "David Hardage", url: "https://featheranalytics.dev" }],
+  openGraph: {
+    title: "UrbanStack — Urban Data Explorer",
+    description:
+      "Compare demographics, transit, safety, spending, and congestion across U.S. metro areas with interactive choropleth maps and bivariate analysis.",
+    url: "https://featheranalytics.dev/urbanstack/",
+    siteName: "UrbanStack",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "UrbanStack — Urban Data Explorer",
+    description:
+      "Interactive choropleth maps comparing demographics, transit, safety, and congestion across U.S. metros.",
+  },
+  other: {
+    "linkedin:owner": "https://www.linkedin.com/in/david-hardage/",
+  },
 };
 
 /**
