@@ -57,6 +57,7 @@ export default function Home() {
   const [showTraffic, setShowTraffic] = useState(false);
   const [showRail, setShowRail] = useState(false);
   const [showBus, setShowBus] = useState(false);
+  const [showFerry, setShowFerry] = useState(false);
   const [granularity, setGranularity] = useState<Granularity>("county");
   const [overlayIndex, setOverlayIndex] = useState<OverlayIndex | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
@@ -71,11 +72,12 @@ export default function Home() {
   const { isDark, toggle } = useTheme();
 
   const transitModes = useMemo(() => {
-    const modes = new Set<"rail" | "bus">();
+    const modes = new Set<"rail" | "bus" | "ferry">();
     if (showRail) modes.add("rail");
     if (showBus) modes.add("bus");
+    if (showFerry) modes.add("ferry");
     return modes;
-  }, [showRail, showBus]);
+  }, [showRail, showBus, showFerry]);
 
   const trafficLayer = useTrafficLayer(showTraffic);
   const { layers: transitLayers, routes: transitRoutes, availableModes: transitModeAvail } = useTransitLayers(transitModes, selectedMetro);
@@ -528,9 +530,12 @@ export default function Home() {
             onToggleRail={() => setShowRail((v) => !v)}
             showBus={showBus}
             onToggleBus={() => setShowBus((v) => !v)}
+            showFerry={showFerry}
+            onToggleFerry={() => setShowFerry((v) => !v)}
             hasMetroSelected={selectedMetro !== null}
             hasRail={transitModeAvail.rail}
             hasBus={transitModeAvail.bus}
+            hasFerry={transitModeAvail.ferry}
           />
           <TransitLegend routes={transitRoutes} />
           <div className="absolute left-1 top-3 z-30 lg:left-1">

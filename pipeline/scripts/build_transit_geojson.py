@@ -31,6 +31,7 @@ ROUTE_TYPE_LABELS: dict[int, str] = {
     1: "subway",
     2: "rail",
     3: "bus",
+    4: "ferry",
 }
 
 WEB_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "web" / "public" / "data"
@@ -79,9 +80,13 @@ def _load_trips_from_zips(raw_dir: Path, agencies: list[str]) -> pl.DataFrame:
 
 
 def _classify_mode(route_type: int) -> str:
-    """Classify GTFS route_type into 'rail' or 'bus'."""
-    # 0=tram, 1=subway, 2=rail → "rail"; everything else → "bus"
-    return "rail" if route_type in (0, 1, 2) else "bus"
+    """Classify GTFS route_type into 'rail', 'ferry', or 'bus'."""
+    # 0=tram, 1=subway, 2=rail → "rail"; 4=ferry → "ferry"; everything else → "bus"
+    if route_type in (0, 1, 2):
+        return "rail"
+    if route_type == 4:
+        return "ferry"
+    return "bus"
 
 
 def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict[str, set[str]]]:
