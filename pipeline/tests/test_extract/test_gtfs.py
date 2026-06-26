@@ -9,7 +9,26 @@ import pytest
 from urbanstack.config import Settings
 from urbanstack.contracts.gtfs import GtfsRoute, GtfsShape, GtfsStop
 from urbanstack.extract.gtfs import extract_gtfs
+from urbanstack.extract.transit_discovery import DiscoveredFeed
 from urbanstack.metro import MetroConfig
+
+DART_FEED = DiscoveredFeed(
+    mdb_id="mdb-152",
+    provider="DART",
+    download_url="https://example.com/dart.zip",
+    stable_url="",
+    municipality="Dallas",
+    subdivision="Texas",
+)
+
+TRINITY_FEED = DiscoveredFeed(
+    mdb_id="mdb-885",
+    provider="Trinity Metro",
+    download_url="https://example.com/trinity.zip",
+    stable_url="",
+    municipality="Fort Worth",
+    subdivision="Texas",
+)
 
 
 def _make_gtfs_zip(
@@ -56,9 +75,12 @@ def _place_zip(settings: Settings, metro: MetroConfig, agency: str = "DART") -> 
 def test_extract_single_agency(settings: Settings, metro: MetroConfig) -> None:
     _place_zip(settings, metro, "DART")
 
-    with patch("urbanstack.extract.gtfs.requests.get") as mock_get:
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get") as mock_get,
+    ):
         mock_get.side_effect = AssertionError("Should not download")
-        result = extract_gtfs(settings, metro, agencies=["DART"])
+        result = extract_gtfs(settings, metro)
 
     assert "routes" in result
     assert "stops" in result
@@ -71,8 +93,11 @@ def test_extract_single_agency(settings: Settings, metro: MetroConfig) -> None:
 def test_route_contract(settings: Settings, metro: MetroConfig) -> None:
     _place_zip(settings, metro, "DART")
 
-    with patch("urbanstack.extract.gtfs.requests.get"):
-        result = extract_gtfs(settings, metro, agencies=["DART"])
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get"),
+    ):
+        result = extract_gtfs(settings, metro)
 
     row = result["routes"].to_dicts()[0]
     record = GtfsRoute.model_validate(row)
@@ -84,8 +109,11 @@ def test_route_contract(settings: Settings, metro: MetroConfig) -> None:
 def test_stop_contract(settings: Settings, metro: MetroConfig) -> None:
     _place_zip(settings, metro, "DART")
 
-    with patch("urbanstack.extract.gtfs.requests.get"):
-        result = extract_gtfs(settings, metro, agencies=["DART"])
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get"),
+    ):
+        result = extract_gtfs(settings, metro)
 
     row = result["stops"].to_dicts()[0]
     record = GtfsStop.model_validate(row)
@@ -98,8 +126,11 @@ def test_stop_contract(settings: Settings, metro: MetroConfig) -> None:
 def test_shape_contract(settings: Settings, metro: MetroConfig) -> None:
     _place_zip(settings, metro, "DART")
 
-    with patch("urbanstack.extract.gtfs.requests.get"):
-        result = extract_gtfs(settings, metro, agencies=["DART"])
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get"),
+    ):
+        result = extract_gtfs(settings, metro)
 
     row = result["shapes"].to_dicts()[0]
     record = GtfsShape.model_validate(row)
@@ -114,9 +145,9 @@ def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
     for name in ("gtfs_routes.parquet", "gtfs_stops.parquet", "gtfs_shapes.parquet"):
         pl.DataFrame({"agency": ["DART"]}).write_parquet(parquet_dir / name)
 
-    with patch("urbanstack.extract.gtfs.requests.get") as mock_get:
-        result = extract_gtfs(settings, metro, agencies=["DART"])
-        mock_get.assert_not_called()
+    with patch("urbanstack.extract.gtfs.discover_feeds") as mock_discover:
+        result = extract_gtfs(settings, metro)
+        mock_discover.assert_not_called()
 
     assert len(result["routes"]) == 1
 
@@ -132,8 +163,11 @@ def test_force_overwrite(settings: Settings, metro: MetroConfig) -> None:
     mock_resp.raise_for_status = MagicMock()
     mock_resp.content = _make_gtfs_zip()
 
-    with patch("urbanstack.extract.gtfs.requests.get", return_value=mock_resp):
-        result = extract_gtfs(settings, metro, agencies=["DART"], force=True)
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get", return_value=mock_resp),
+    ):
+        result = extract_gtfs(settings, metro, force=True)
 
     assert "old" not in result["routes"]["agency"].to_list()
     assert len(result["routes"]) == 2
@@ -144,17 +178,15 @@ def test_download_on_missing_zip(settings: Settings, metro: MetroConfig) -> None
     mock_resp.raise_for_status = MagicMock()
     mock_resp.content = _make_gtfs_zip()
 
-    with patch("urbanstack.extract.gtfs.requests.get", return_value=mock_resp):
-        result = extract_gtfs(settings, metro, agencies=["DART"])
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get", return_value=mock_resp),
+    ):
+        result = extract_gtfs(settings, metro)
 
     assert len(result["routes"]) == 2
     zip_path = settings.metro_raw_dir(metro.metro_id) / "gtfs" / "dart_gtfs.zip"
     assert zip_path.exists()
-
-
-def test_unknown_agency_raises(settings: Settings, metro: MetroConfig) -> None:
-    with pytest.raises(ValueError, match="Unknown agency"):
-        extract_gtfs(settings, metro, agencies=["FakeTransit"])
 
 
 def test_null_lat_lon_skipped(settings: Settings, metro: MetroConfig) -> None:
@@ -169,8 +201,11 @@ def test_null_lat_lon_skipped(settings: Settings, metro: MetroConfig) -> None:
     zip_path = raw_dir / "dart_gtfs.zip"
     zip_path.write_bytes(_make_gtfs_zip(stops=stops))
 
-    with patch("urbanstack.extract.gtfs.requests.get"):
-        result = extract_gtfs(settings, metro, agencies=["DART"])
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get"),
+    ):
+        result = extract_gtfs(settings, metro)
 
     stop_ids = result["stops"]["stop_id"].to_list()
     assert "S1" in stop_ids
@@ -181,8 +216,11 @@ def test_null_lat_lon_skipped(settings: Settings, metro: MetroConfig) -> None:
 def test_parquets_saved(settings: Settings, metro: MetroConfig) -> None:
     _place_zip(settings, metro, "DART")
 
-    with patch("urbanstack.extract.gtfs.requests.get"):
-        extract_gtfs(settings, metro, agencies=["DART"])
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get"),
+    ):
+        extract_gtfs(settings, metro)
 
     for name in ("gtfs_routes.parquet", "gtfs_stops.parquet", "gtfs_shapes.parquet"):
         assert (settings.metro_staging_dir(metro.metro_id) / "gtfs" / name).exists()
@@ -198,8 +236,11 @@ def test_multiple_agencies(settings: Settings, metro: MetroConfig) -> None:
     )
     zip_path.write_bytes(_make_gtfs_zip(routes=routes))
 
-    with patch("urbanstack.extract.gtfs.requests.get"):
-        result = extract_gtfs(settings, metro, agencies=["DART", "Trinity Metro"])
+    with (
+        patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED, TRINITY_FEED]),
+        patch("urbanstack.extract.gtfs.requests.get"),
+    ):
+        result = extract_gtfs(settings, metro)
 
     agencies = result["routes"]["agency"].unique().to_list()
     assert "DART" in agencies
