@@ -115,20 +115,44 @@ function BivariateLegend({
             }),
           )}
         </div>
-      </div>
-      {/* Axis labels — from bottom vertex outward along each diamond edge */}
-      <div style={{ width: diag, position: "relative", height: 28 }}>
+        {/* Arrows at left and right diamond vertices */}
         <span
-          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
-          style={{ right: "50%", bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom right", whiteSpace: "nowrap" }}
+          className="absolute text-[11px] text-slate-400 dark:text-slate-500"
+          style={{ left: -10, top: diag / 2 - 7 }}
+          aria-hidden="true"
+        >←</span>
+        <span
+          className="absolute text-[11px] text-slate-400 dark:text-slate-500"
+          style={{ right: -10, top: diag / 2 - 7 }}
+          aria-hidden="true"
+        >→</span>
+      </div>
+      {/* Axis labels — along bottom edges, wrapping allowed */}
+      <div style={{ width: diag, position: "relative", height: 30, marginTop: 2 }}>
+        <span
+          className="absolute text-[8px] leading-tight text-slate-400 dark:text-slate-500"
+          style={{
+            right: "52%",
+            bottom: 0,
+            transform: "rotate(45deg)",
+            transformOrigin: "bottom right",
+            maxWidth: diag * 0.55,
+            textAlign: "right",
+          }}
         >
-          ← {primaryMetric.label}
+          {primaryMetric.label}
         </span>
         <span
-          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
-          style={{ left: "50%", bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom left", whiteSpace: "nowrap" }}
+          className="absolute text-[8px] leading-tight text-slate-400 dark:text-slate-500"
+          style={{
+            left: "52%",
+            bottom: 0,
+            transform: "rotate(-45deg)",
+            transformOrigin: "bottom left",
+            maxWidth: diag * 0.55,
+          }}
         >
-          {secondaryMetric.label} →
+          {secondaryMetric.label}
         </span>
       </div>
     </div>
