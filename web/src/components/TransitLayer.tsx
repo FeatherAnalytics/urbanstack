@@ -6,7 +6,7 @@ import { BASE_PATH } from "@/lib/data";
 
 type TransitMode = "rail" | "bus";
 
-export const RAIL_TYPES = new Set(["rail", "tram", "other"]);
+export const RAIL_TYPES = new Set(["rail", "subway", "tram", "other"]);
 
 // yagni: frontend overrides until pipeline normalizes GTFS names at extract time
 const AGENCY_OVERRIDES: Record<string, string> = {
