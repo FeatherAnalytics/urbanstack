@@ -148,12 +148,12 @@ export default function Home() {
   useEffect(() => {
     const span = 360 / Math.pow(2, viewport.zoom);
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    setViewportBounds({
+    setViewportBounds(stabilizeViewportBounds({
       west: viewport.longitude - span / 2,
       east: viewport.longitude + span / 2,
       south: viewport.latitude - span / 4,
       north: viewport.latitude + span / 4,
-    });
+    }));
   }, [viewport.longitude, viewport.latitude, viewport.zoom]);
 
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
