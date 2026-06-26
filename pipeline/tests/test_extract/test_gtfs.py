@@ -64,16 +64,16 @@ def _make_gtfs_zip(
     return buf.getvalue()
 
 
-def _place_zip(settings: Settings, metro: MetroConfig, agency: str = "DART") -> Path:
+def _place_zip(settings: Settings, metro: MetroConfig, feed_id: str = "mdb-152") -> Path:
     raw_dir = settings.metro_raw_dir(metro.metro_id) / "gtfs"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = raw_dir / f"{agency.lower().replace(' ', '_')}_gtfs.zip"
+    zip_path = raw_dir / f"{feed_id}_gtfs.zip"
     zip_path.write_bytes(_make_gtfs_zip())
     return zip_path
 
 
 def test_extract_single_agency(settings: Settings, metro: MetroConfig) -> None:
-    _place_zip(settings, metro, "DART")
+    _place_zip(settings, metro, "mdb-152")
 
     with (
         patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
@@ -91,7 +91,7 @@ def test_extract_single_agency(settings: Settings, metro: MetroConfig) -> None:
 
 
 def test_route_contract(settings: Settings, metro: MetroConfig) -> None:
-    _place_zip(settings, metro, "DART")
+    _place_zip(settings, metro, "mdb-152")
 
     with (
         patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
@@ -107,7 +107,7 @@ def test_route_contract(settings: Settings, metro: MetroConfig) -> None:
 
 
 def test_stop_contract(settings: Settings, metro: MetroConfig) -> None:
-    _place_zip(settings, metro, "DART")
+    _place_zip(settings, metro, "mdb-152")
 
     with (
         patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
@@ -124,7 +124,7 @@ def test_stop_contract(settings: Settings, metro: MetroConfig) -> None:
 
 
 def test_shape_contract(settings: Settings, metro: MetroConfig) -> None:
-    _place_zip(settings, metro, "DART")
+    _place_zip(settings, metro, "mdb-152")
 
     with (
         patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
@@ -153,7 +153,7 @@ def test_idempotent_skip(settings: Settings, metro: MetroConfig) -> None:
 
 
 def test_force_overwrite(settings: Settings, metro: MetroConfig) -> None:
-    _place_zip(settings, metro, "DART")
+    _place_zip(settings, metro, "mdb-152")
     parquet_dir = settings.metro_staging_dir(metro.metro_id) / "gtfs"
     parquet_dir.mkdir(parents=True, exist_ok=True)
     for name in ("gtfs_routes.parquet", "gtfs_stops.parquet", "gtfs_shapes.parquet"):
@@ -185,7 +185,7 @@ def test_download_on_missing_zip(settings: Settings, metro: MetroConfig) -> None
         result = extract_gtfs(settings, metro)
 
     assert len(result["routes"]) == 2
-    zip_path = settings.metro_raw_dir(metro.metro_id) / "gtfs" / "dart_gtfs.zip"
+    zip_path = settings.metro_raw_dir(metro.metro_id) / "gtfs" / "mdb-152_gtfs.zip"
     assert zip_path.exists()
 
 
@@ -198,7 +198,7 @@ def test_null_lat_lon_skipped(settings: Settings, metro: MetroConfig) -> None:
     )
     raw_dir = settings.metro_raw_dir(metro.metro_id) / "gtfs"
     raw_dir.mkdir(parents=True, exist_ok=True)
-    zip_path = raw_dir / "dart_gtfs.zip"
+    zip_path = raw_dir / "mdb-152_gtfs.zip"
     zip_path.write_bytes(_make_gtfs_zip(stops=stops))
 
     with (
@@ -214,7 +214,7 @@ def test_null_lat_lon_skipped(settings: Settings, metro: MetroConfig) -> None:
 
 
 def test_parquets_saved(settings: Settings, metro: MetroConfig) -> None:
-    _place_zip(settings, metro, "DART")
+    _place_zip(settings, metro, "mdb-152")
 
     with (
         patch("urbanstack.extract.gtfs.discover_feeds", return_value=[DART_FEED]),
@@ -227,9 +227,9 @@ def test_parquets_saved(settings: Settings, metro: MetroConfig) -> None:
 
 
 def test_multiple_agencies(settings: Settings, metro: MetroConfig) -> None:
-    _place_zip(settings, metro, "DART")
+    _place_zip(settings, metro, "mdb-152")
     raw_dir = settings.metro_raw_dir(metro.metro_id) / "gtfs"
-    zip_path = raw_dir / "trinity_metro_gtfs.zip"
+    zip_path = raw_dir / "mdb-885_gtfs.zip"
     routes = (
         "route_id,route_short_name,route_long_name,route_type\n"
         "TM1,5,Fifth Ave,3\n"

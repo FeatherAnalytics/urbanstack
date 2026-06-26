@@ -16,8 +16,8 @@ from urbanstack.metro import MetroConfig
 logger = logging.getLogger(__name__)
 
 
-def _download_feed(agency: str, url: str, raw_dir: Path, *, force: bool) -> Path:
-    zip_path = raw_dir / f"{agency.lower().replace(' ', '_')}_gtfs.zip"
+def _download_feed(feed_id: str, url: str, raw_dir: Path, *, force: bool) -> Path:
+    zip_path = raw_dir / f"{feed_id}_gtfs.zip"
     if zip_path.exists() and not force:
         logger.info("GTFS zip exists, skipping download: %s", zip_path)
         return zip_path
@@ -26,7 +26,7 @@ def _download_feed(agency: str, url: str, raw_dir: Path, *, force: bool) -> Path
     resp = requests.get(url, headers=headers, timeout=120)
     resp.raise_for_status()
     zip_path.write_bytes(resp.content)
-    logger.info("Downloaded %s GTFS to %s", agency, zip_path)
+    logger.info("Downloaded %s GTFS to %s", feed_id, zip_path)
     return zip_path
 
 
@@ -183,7 +183,7 @@ def extract_gtfs(
         agency = feed.provider
 
         try:
-            zip_path = _download_feed(agency, url, raw_dir, force=force)
+            zip_path = _download_feed(feed.mdb_id, url, raw_dir, force=force)
 
             route_rows = _read_csv_from_zip(zip_path, "routes.txt")
             stop_rows = _read_csv_from_zip(zip_path, "stops.txt")
