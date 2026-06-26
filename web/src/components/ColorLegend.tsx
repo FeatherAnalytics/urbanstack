@@ -106,7 +106,6 @@ function BivariateLegend({
                     outline: isSelected ? "2px solid white" : "none",
                     outlineOffset: isSelected ? "-2px" : undefined,
                     cursor: "pointer",
-                    transform: "rotate(-45deg)",
                   }}
                   aria-label={`${primaryMetric.label} ${["Low", "Mid", "High"][ri]}, ${secondaryMetric.label} ${["Low", "Mid", "High"][ci]}`}
                   aria-pressed={isSelected}
@@ -117,10 +116,20 @@ function BivariateLegend({
           )}
         </div>
       </div>
-      {/* Axis labels */}
-      <div className="mt-1 flex w-full items-center justify-between text-[9px] text-slate-400 dark:text-slate-500">
-        <span>↙ {primaryMetric.label}</span>
-        <span>{secondaryMetric.label} ↗</span>
+      {/* Axis labels — angled along diamond edges */}
+      <div style={{ width: diag, position: "relative", height: 20 }}>
+        <span
+          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
+          style={{ left: 0, bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom left", whiteSpace: "nowrap" }}
+        >
+          ← {primaryMetric.label}
+        </span>
+        <span
+          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
+          style={{ right: 0, bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom right", whiteSpace: "nowrap" }}
+        >
+          {secondaryMetric.label} →
+        </span>
       </div>
     </div>
   );
