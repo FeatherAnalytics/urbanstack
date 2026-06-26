@@ -3,7 +3,9 @@
 import {
   formatValue,
   classifyBin,
+  classifyValue,
   getBivariateColor,
+  NO_DATA_COLOR,
   type CountyData,
   type Granularity,
   type MetricConfig,
@@ -22,6 +24,9 @@ interface ComparisonChartProps {
   primaryBreaks: number[] | null;
   secondaryBreaks: number[] | null;
   selectedMetro: string | null;
+  quantileBreaks?: number[] | null;
+  classifiedPalette?: [number, number, number, number][] | null;
+  selectedBins?: Set<number>;
 }
 
 export function ComparisonChart({
@@ -34,6 +39,9 @@ export function ComparisonChart({
   primaryBreaks,
   secondaryBreaks,
   selectedMetro,
+  quantileBreaks = null,
+  classifiedPalette = null,
+  selectedBins = new Set<number>(),
 }: ComparisonChartProps) {
   if (granularity === "metro" && counties.length <= 1) {
     return (
@@ -55,13 +63,29 @@ export function ComparisonChart({
     (a, b) => ((b[metric.key] as number) ?? 0) - ((a[metric.key] as number) ?? 0),
   );
 
-  const isBlockGroup = granularity === "block_group";
-  const displayed = isBlockGroup
-    ? [
-        ...sorted.slice(0, BLOCK_GROUP_LIMIT),
-        ...sorted.slice(-BLOCK_GROUP_LIMIT),
-      ].filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i)
+  const filteredByBucket = selectedBins.size > 0 && quantileBreaks
+    ? sorted.filter(c => {
+        const val = c[metric.key] as number | null;
+        const binIdx = classifyValue(val === null ? null : Number(val), quantileBreaks);
+        return selectedBins.has(binIdx);
+      })
     : sorted;
+
+  const isBlockGroup = granularity === "block_group";
+  const displayedPreLimit = isBlockGroup
+    ? [
+        ...filteredByBucket.slice(0, BLOCK_GROUP_LIMIT),
+        ...filteredByBucket.slice(-BLOCK_GROUP_LIMIT),
+      ].filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i)
+    : filteredByBucket;
+
+  const MAX_DISPLAY = 50;
+  const clipped = displayedPreLimit.length > MAX_DISPLAY
+    ? displayedPreLimit.slice(0, MAX_DISPLAY)
+    : displayedPreLimit;
+  const showingNote = displayedPreLimit.length > MAX_DISPLAY
+    ? `Showing ${MAX_DISPLAY} of ${displayedPreLimit.length} areas`
+    : null;
 
   let maxVal = 0;
   for (const c of sorted) {
@@ -78,9 +102,11 @@ export function ComparisonChart({
 
   const granLabel = granularity === "metro" ? "Metro Areas" : isBlockGroup ? "Block Groups" : "Counties";
 
+  const bucketLabel = selectedBins.size > 0 ? ` (${selectedBins.size} bucket${selectedBins.size > 1 ? "s" : ""} selected)` : "";
+
   const heading = isBlockGroup
-    ? `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""} — Top/Bottom ${BLOCK_GROUP_LIMIT} ${granLabel}`
-    : `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""} — ${metroLabel} ${granLabel}`;
+    ? `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""}${bucketLabel} — Top/Bottom ${BLOCK_GROUP_LIMIT} ${granLabel}`
+    : `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""}${bucketLabel} — ${metroLabel} ${granLabel}`;
 
   return (
     <div className="p-3">
@@ -88,17 +114,24 @@ export function ComparisonChart({
         {heading}
       </h3>
       <div className="flex flex-col gap-1">
-        {displayed.map((county) => {
+        {clipped.map((county) => {
           const val = (county[metric.key] as number) ?? 0;
           const pct = maxVal > 0 ? (val / maxVal) * 100 : 0;
           const isSelected = county.county_fips === selectedFips;
 
           const secVal = isBivariate ? (county[secondaryMetric!.key] as number | null) : null;
-          let barR = defaultR, barG = defaultG, barB = defaultB;
+          let barR: number, barG: number, barB: number;
           if (isBivariate) {
             const pBin = classifyBin(val, primaryBreaks!);
             const sBin = secVal !== null && !Number.isNaN(secVal) ? classifyBin(secVal, secondaryBreaks!) : 0;
             [barR, barG, barB] = getBivariateColor(pBin, sBin, 255);
+          } else if (quantileBreaks && classifiedPalette) {
+            const binIdx = classifyValue(val, quantileBreaks);
+            const paletteIdx = binIdx === -1 ? 0 : binIdx;
+            const color = classifiedPalette[paletteIdx] ?? NO_DATA_COLOR;
+            [barR, barG, barB] = [color[0], color[1], color[2]];
+          } else {
+            [barR, barG, barB] = [defaultR, defaultG, defaultB];
           }
 
           const barOpacity = isSelected ? 1 : 0.6;
@@ -126,7 +159,7 @@ export function ComparisonChart({
               }`}
             >
               <span
-                className={`${isBlockGroup ? "w-28" : "w-20"} shrink-0 text-right text-xs ${
+                className={`${isBlockGroup ? "w-28" : "w-20"} shrink-0 text-left text-xs ${
                   isSelected
                     ? "font-semibold text-slate-900 dark:text-white"
                     : "text-slate-700 dark:text-slate-400"
@@ -151,6 +184,11 @@ export function ComparisonChart({
           );
         })}
       </div>
+      {showingNote && (
+        <p className="mt-1 text-center text-[10px] text-slate-400 dark:text-slate-500">
+          {showingNote}
+        </p>
+      )}
     </div>
   );
 }
