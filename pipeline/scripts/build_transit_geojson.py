@@ -14,7 +14,6 @@ import json
 import logging
 import sys
 import zipfile
-from collections.abc import Callable
 from pathlib import Path
 
 import polars as pl
@@ -144,6 +143,43 @@ def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict
     return active_stops, stop_modes
 
 
+def _stops_for_routes(
+    raw_dir: Path,
+    agencies: list[str],
+    rendered_routes: set[tuple[str, str]],
+) -> set[str]:
+    """Find stop keys served by a specific set of (agency, route_id) pairs."""
+    manifest = _load_feed_manifest(raw_dir)
+    agency_set = set(agencies)
+    stop_keys: set[str] = set()
+
+    for zip_path in sorted(raw_dir.glob("*.zip")):
+        feed_id = zip_path.stem.replace("_gtfs", "")
+        agency = manifest.get(feed_id, "")
+        if not agency or agency not in agency_set:
+            continue
+
+        try:
+            trip_rows = _read_csv_from_zip(zip_path, "trips.txt")
+            st_rows = _read_csv_from_zip(zip_path, "stop_times.txt")
+        except (zipfile.BadZipFile, OSError):
+            continue
+
+        route_trips: set[str] = set()
+        for row in trip_rows:
+            rid = row.get("route_id", "")
+            if (agency, rid) in rendered_routes:
+                route_trips.add(row.get("trip_id", ""))
+
+        for row in st_rows:
+            if row.get("trip_id", "") in route_trips:
+                sid = row.get("stop_id", "")
+                if sid:
+                    stop_keys.add(f"{agency}::{sid}")
+
+    return stop_keys
+
+
 def _pick_longest_shape(
     shapes_df: pl.DataFrame, trips_df: pl.DataFrame
 ) -> pl.DataFrame:
@@ -231,6 +267,7 @@ def build_routes_geojson(
             "type": "Feature",
             "properties": {
                 "agency": agency,
+                "route_id": row["route_id"],
                 "route_name": display_name,
                 "route_type": route_type_label,
                 "route_type_code": route_type,
@@ -247,14 +284,10 @@ def build_stops_geojson(
     stops_df: pl.DataFrame,
     active_stop_keys: set[str],
     stop_modes: dict[str, set[str]],
-    route_agencies: set[str] | None = None,
-    spatial_filter: "Callable[[str, float, float], bool] | None" = None,
 ) -> dict:
     """Build GeoJSON FeatureCollection for transit stops.
 
-    Filters to only stops appearing in stop_times.txt (active stops).
-    If route_agencies provided, excludes stops from agencies with no routes.
-    If spatial_filter provided, excludes stops outside their agency's route extent.
+    Only includes stops present in active_stop_keys (matched to rendered routes).
     """
     if stops_df.is_empty():
         return {"type": "FeatureCollection", "features": []}
@@ -265,14 +298,7 @@ def build_stops_geojson(
         stop_id = row["stop_id"]
         key = f"{agency}::{stop_id}"
 
-        if route_agencies and agency not in route_agencies:
-            continue
-
-        # Filter to active stops if we have the data
-        if active_stop_keys and key not in active_stop_keys:
-            continue
-
-        if spatial_filter and not spatial_filter(agency, row["latitude"], row["longitude"]):
+        if key not in active_stop_keys:
             continue
 
         modes = sorted(stop_modes.get(key, {"bus"}))
@@ -391,27 +417,18 @@ def main() -> int:
     logger.info("Routes: %d total", route_count)
     _count_by_agency(routes_geojson["features"], "routes")
 
-    # Step 5: Build stops GeoJSON — only include stops near actual route geometry.
-    # Compute per-agency bounding box from route coordinates, then filter stops to match.
-    agency_bounds: dict[str, tuple[float, float, float, float]] = {}
-    route_pad = 0.05  # ~5.5km padding around route extent
+    # Step 5: Build stops GeoJSON — only stops served by routes in the GeoJSON.
+    # Collect (agency, route_id) pairs from route features, then use trips to
+    # find which stops serve those routes. Ensures route-stop consistency.
+    rendered_routes: set[tuple[str, str]] = set()
     for feat in routes_geojson["features"]:
-        ag = feat["properties"]["agency"]
-        for lon, lat in feat["geometry"]["coordinates"]:
-            if ag not in agency_bounds:
-                agency_bounds[ag] = (lat, lat, lon, lon)
-            else:
-                b = agency_bounds[ag]
-                agency_bounds[ag] = (min(b[0], lat), max(b[1], lat), min(b[2], lon), max(b[3], lon))
+        p = feat["properties"]
+        rendered_routes.add((p["agency"], p.get("route_id", "")))
 
-    def _stop_near_routes(agency: str, lat: float, lon: float) -> bool:
-        if agency not in agency_bounds:
-            return False
-        b = agency_bounds[agency]
-        return (b[0] - route_pad <= lat <= b[1] + route_pad and
-                b[2] - route_pad <= lon <= b[3] + route_pad)
+    rendered_stop_keys = _stops_for_routes(raw_dir, agencies, rendered_routes)
+    logger.info("Stops matched to rendered routes: %d", len(rendered_stop_keys))
 
-    stops_geojson = build_stops_geojson(all_stops, active_stops, stop_modes, set(agency_bounds.keys()), _stop_near_routes)
+    stops_geojson = build_stops_geojson(all_stops, rendered_stop_keys, stop_modes)
     stop_count = len(stops_geojson["features"])
     logger.info("Stops: %d total", stop_count)
     _count_by_agency(stops_geojson["features"], "stops")
