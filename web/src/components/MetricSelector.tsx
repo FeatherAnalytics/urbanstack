@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import {
   CATEGORIES,
   METRIC_COMBOS,
@@ -40,27 +41,29 @@ function computeTooltipPosition(
 ): { top: number; left: number; width: number; above: boolean } {
   const navRect = nav.getBoundingClientRect();
   const btnRect = btn.getBoundingClientRect();
-  const spaceBelow = window.innerHeight - btnRect.bottom;
-  const above = spaceBelow < 100;
-  const top = above ? btnRect.top - 4 : btnRect.bottom + 4;
-  return { top, left: navRect.left, width: navRect.width, above };
+  const top = Math.max(btnRect.top, 0);
+  const tooltipWidth = 240;
+  const rightEdge = navRect.right + 8 + tooltipWidth;
+  const left = rightEdge > window.innerWidth
+    ? navRect.left - tooltipWidth - 8
+    : navRect.right + 8;
+  return { top, left, width: tooltipWidth, above: false };
 }
 
 function TooltipPopup({ state }: { state: TooltipState | null }) {
   if (!state) return null;
-  return (
+  return createPortal(
     <div
-      className={`pointer-events-none fixed z-[9999] rounded border border-slate-200 bg-white p-2 text-xs shadow-lg dark:border-slate-600 dark:bg-slate-800 ${
-        state.above ? "-translate-y-full" : ""
-      }`}
-      style={{ top: state.top, left: state.left + 4, width: state.width - 8 }}
+      className="pointer-events-none fixed z-[9999] rounded border border-slate-200 bg-white p-2 text-xs shadow-lg dark:border-slate-600 dark:bg-slate-800"
+      style={{ top: state.top, left: state.left, width: state.width }}
     >
       <p className="text-slate-700 dark:text-slate-300">{state.metric.description}</p>
       <p className="mt-1 text-slate-400 dark:text-slate-500">
         Source: {state.metric.source}
         {state.metric.dateRange && ` · ${state.metric.dateRange}`}
       </p>
-    </div>
+    </div>,
+    document.body,
   );
 }
 

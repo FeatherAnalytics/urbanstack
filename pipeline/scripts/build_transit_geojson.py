@@ -2,23 +2,24 @@
 """Download GTFS feeds and convert to GeoJSON for the web app.
 
 USAGE:
-    cd pipeline && uv run python scripts/build_transit_geojson.py
+    cd pipeline && uv run python scripts/build_transit_geojson.py [--metro METRO_ID] [--force]
 
-Runs the GTFS extractor to download real feeds from DART, Trinity Metro, DCTA,
+Runs the GTFS extractor to download real feeds using transit discovery,
 then converts shape/route/stop data into GeoJSON files at:
-    web/public/data/transit_routes.geojson
-    web/public/data/transit_stops.geojson
+    web/public/data/{metro_id}/transit_routes.geojson
+    web/public/data/{metro_id}/transit_stops.geojson
 """
 
 import json
 import logging
 import sys
+import zipfile
 from pathlib import Path
 
 import polars as pl
 
 from urbanstack.config import load_settings
-from urbanstack.extract.gtfs import GTFS_FEEDS, _read_csv_from_zip, extract_gtfs
+from urbanstack.extract.gtfs import _read_csv_from_zip, extract_gtfs
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -29,23 +30,42 @@ ROUTE_TYPE_LABELS: dict[int, str] = {
     1: "subway",
     2: "rail",
     3: "bus",
+    4: "ferry",
 }
 
 WEB_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "web" / "public" / "data"
 
 
+def _load_feed_manifest(raw_dir: Path) -> dict[str, str]:
+    """Load mdb_id → provider name mapping from feed_manifest.json."""
+    manifest_path = raw_dir / "feed_manifest.json"
+    if not manifest_path.exists():
+        logger.warning("No feed_manifest.json at %s — run extract with --force to regenerate", raw_dir)
+        return {}
+    return json.loads(manifest_path.read_text())
+
+
 def _load_trips_from_zips(raw_dir: Path, agencies: list[str]) -> pl.DataFrame:
-    """Read trips.txt from each downloaded ZIP to get shape_id -> route_id mapping."""
+    """Read trips.txt from all ZIPs using feed manifest for agency mapping."""
+    manifest = _load_feed_manifest(raw_dir)
+    agency_set = set(agencies)
+
     all_rows: list[dict[str, str]] = []
-    for agency in agencies:
-        zip_name = f"{agency.lower().replace(' ', '_')}_gtfs.zip"
-        zip_path = raw_dir / zip_name
-        if not zip_path.exists():
-            logger.warning("ZIP not found for %s, skipping trips", agency)
+    for zip_path in sorted(raw_dir.glob("*.zip")):
+        feed_id = zip_path.stem.replace("_gtfs", "")
+        agency_name = manifest.get(feed_id, "")
+        if not agency_name or agency_name not in agency_set:
             continue
-        rows = _read_csv_from_zip(zip_path, "trips.txt")
+        try:
+            rows = _read_csv_from_zip(zip_path, "trips.txt")
+        except (zipfile.BadZipFile, OSError):
+            continue
+        if not rows:
+            continue
         for row in rows:
-            row["agency"] = agency
+            row["agency"] = agency_name
+            row["route_id"] = f"{feed_id}:{row.get('route_id', '')}"
+            row["shape_id"] = f"{feed_id}:{row.get('shape_id', '')}"
         all_rows.extend(rows)
 
     if not all_rows:
@@ -62,9 +82,13 @@ def _load_trips_from_zips(raw_dir: Path, agencies: list[str]) -> pl.DataFrame:
 
 
 def _classify_mode(route_type: int) -> str:
-    """Classify GTFS route_type into 'rail' or 'bus'."""
-    # 0=tram, 1=subway, 2=rail → "rail"; everything else → "bus"
-    return "rail" if route_type in (0, 1, 2) else "bus"
+    """Classify GTFS route_type into 'rail', 'ferry', or 'bus'."""
+    # 0=tram, 1=subway, 2=rail → "rail"; 4=ferry → "ferry"; everything else → "bus"
+    if route_type in (0, 1, 2):
+        return "rail"
+    if route_type == 4:
+        return "ferry"
+    return "bus"
 
 
 def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict[str, set[str]]]:
@@ -77,10 +101,12 @@ def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict
     active_stops: set[str] = set()
     stop_modes: dict[str, set[str]] = {}
 
-    for agency in agencies:
-        zip_name = f"{agency.lower().replace(' ', '_')}_gtfs.zip"
-        zip_path = raw_dir / zip_name
-        if not zip_path.exists():
+    manifest = _load_feed_manifest(raw_dir)
+    agency_set = set(agencies)
+    for zip_path in sorted(raw_dir.glob("*.zip")):
+        feed_id = zip_path.stem.replace("_gtfs", "")
+        agency = manifest.get(feed_id, "")
+        if not agency or agency not in agency_set:
             continue
 
         # 1. routes.txt → route_id → route_type
@@ -108,7 +134,7 @@ def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict
             tid = row.get("trip_id", "")
             if not sid:
                 continue
-            key = f"{agency}::{sid}"
+            key = f"{agency}::{feed_id}:{sid}"
             active_stops.add(key)
 
             rid = trip_route_map.get(tid, "")
@@ -118,6 +144,43 @@ def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict
                 stop_modes.setdefault(key, set()).add(mode)
 
     return active_stops, stop_modes
+
+
+def _stops_for_routes(
+    raw_dir: Path,
+    agencies: list[str],
+    rendered_routes: set[tuple[str, str]],
+) -> set[str]:
+    """Find stop keys served by a specific set of (agency, route_id) pairs."""
+    manifest = _load_feed_manifest(raw_dir)
+    agency_set = set(agencies)
+    stop_keys: set[str] = set()
+
+    for zip_path in sorted(raw_dir.glob("*.zip")):
+        feed_id = zip_path.stem.replace("_gtfs", "")
+        agency = manifest.get(feed_id, "")
+        if not agency or agency not in agency_set:
+            continue
+
+        try:
+            trip_rows = _read_csv_from_zip(zip_path, "trips.txt")
+            st_rows = _read_csv_from_zip(zip_path, "stop_times.txt")
+        except (zipfile.BadZipFile, OSError):
+            continue
+
+        route_trips: set[str] = set()
+        for row in trip_rows:
+            rid = f"{feed_id}:{row.get('route_id', '')}"
+            if (agency, rid) in rendered_routes:
+                route_trips.add(row.get("trip_id", ""))
+
+        for row in st_rows:
+            if row.get("trip_id", "") in route_trips:
+                sid = row.get("stop_id", "")
+                if sid:
+                    stop_keys.add(f"{agency}::{feed_id}:{sid}")
+
+    return stop_keys
 
 
 def _pick_longest_shape(
@@ -147,19 +210,68 @@ def _build_linestring(points: list[tuple[float, float]]) -> dict:
     return {"type": "LineString", "coordinates": [[lon, lat] for lon, lat in points]}
 
 
+def _clip_linestring(
+    coords: list[tuple[float, float]],
+    min_lon: float, max_lon: float, min_lat: float, max_lat: float,
+) -> list[list[tuple[float, float]]]:
+    """Clip a LineString to a bounding box, returning multiple segments.
+
+    When a route exits and re-enters the bbox, produces separate segments
+    instead of drawing across the gap.
+    """
+    def _in_bbox(lon: float, lat: float) -> bool:
+        return min_lon <= lon <= max_lon and min_lat <= lat <= max_lat
+
+    def _intersect(p1: tuple[float, float], p2: tuple[float, float]) -> tuple[float, float]:
+        x1, y1 = p1
+        x2, y2 = p2
+        dx, dy = x2 - x1, y2 - y1
+        t = 1.0
+        if dx != 0:
+            if x2 > max_lon: t = min(t, (max_lon - x1) / dx)
+            elif x2 < min_lon: t = min(t, (min_lon - x1) / dx)
+        if dy != 0:
+            if y2 > max_lat: t = min(t, (max_lat - y1) / dy)
+            elif y2 < min_lat: t = min(t, (min_lat - y1) / dy)
+        return (x1 + dx * max(0, t), y1 + dy * max(0, t))
+
+    segments: list[list[tuple[float, float]]] = []
+    current: list[tuple[float, float]] = []
+    prev_in = False
+
+    for i, (lon, lat) in enumerate(coords):
+        now_in = _in_bbox(lon, lat)
+        if now_in:
+            if not prev_in and i > 0:
+                edge = _intersect(coords[i - 1], (lon, lat))
+                current.append(edge)
+            current.append((lon, lat))
+        else:
+            if prev_in and current:
+                edge = _intersect(coords[i - 1], (lon, lat))
+                current.append(edge)
+                segments.append(current)
+                current = []
+        prev_in = now_in
+
+    if current:
+        segments.append(current)
+    return segments
+
+
 def build_routes_geojson(
     shapes_df: pl.DataFrame,
     routes_df: pl.DataFrame,
     trips_df: pl.DataFrame,
+    clip_bounds: tuple[float, float, float, float] | None = None,
 ) -> dict:
     """Build GeoJSON FeatureCollection for transit routes."""
     if shapes_df.is_empty() or routes_df.is_empty() or trips_df.is_empty():
         return {"type": "FeatureCollection", "features": []}
 
-    best_shapes = _pick_longest_shape(shapes_df, trips_df)
-
-    # Join route metadata
-    route_shapes = best_shapes.join(routes_df, on=["agency", "route_id"], how="inner")
+    # All shapes for all routes — no picking, no filtering
+    all_route_shapes = trips_df.select(["agency", "route_id", "shape_id"]).unique()
+    route_shapes = all_route_shapes.join(routes_df, on=["agency", "route_id"], how="inner")
 
     features: list[dict] = []
     for row in route_shapes.iter_rows(named=True):
@@ -169,26 +281,31 @@ def build_routes_geojson(
         route_long = row.get("route_long_name") or ""
         route_type = row.get("route_type", 3)
 
-        # Get shape points sorted by sequence
+        # Get shape points sorted by sequence, deduplicated
+        # Some feeds (e.g. NJ Transit) reuse sequence numbers for both directions
         shape_points = (
             shapes_df.filter(
                 (pl.col("agency") == agency) & (pl.col("shape_id") == shape_id)
             )
+            .unique(subset=["sequence"], keep="first")
             .sort("sequence")
         )
 
         if shape_points.is_empty():
             continue
 
-        coords = list(
+        raw_coords = list(
             zip(
                 shape_points["longitude"].to_list(),
                 shape_points["latitude"].to_list(),
             )
         )
 
-        if len(coords) < 2:
-            continue
+        if clip_bounds:
+            min_lat, max_lat, min_lon, max_lon = clip_bounds
+            coord_segments = _clip_linestring(raw_coords, min_lon, max_lon, min_lat, max_lat)
+        else:
+            coord_segments = [raw_coords]
 
         # Build display name
         display_name = route_name
@@ -198,19 +315,25 @@ def build_routes_geojson(
         route_type_label = ROUTE_TYPE_LABELS.get(route_type, "other")
         raw_color = row.get("route_color", "")
         color = f"#{raw_color}" if raw_color and not raw_color.startswith("#") else raw_color
+        if not color:
+            color = "#4A90D9" if route_type in (0, 1, 2) else "#6B7280"
 
-        feature = {
-            "type": "Feature",
-            "properties": {
-                "agency": agency,
-                "route_name": display_name,
-                "route_type": route_type_label,
-                "route_type_code": route_type,
-                "color": color or "",
-            },
-            "geometry": _build_linestring(coords),
-        }
-        features.append(feature)
+        for coords in coord_segments:
+            if len(coords) < 2:
+                continue
+            feature = {
+                "type": "Feature",
+                "properties": {
+                    "agency": agency,
+                    "route_id": row["route_id"],
+                    "route_name": display_name,
+                    "route_type": route_type_label,
+                    "route_type_code": route_type,
+                    "color": color or "",
+                },
+                "geometry": _build_linestring(coords),
+            }
+            features.append(feature)
 
     return {"type": "FeatureCollection", "features": features}
 
@@ -222,9 +345,7 @@ def build_stops_geojson(
 ) -> dict:
     """Build GeoJSON FeatureCollection for transit stops.
 
-    Filters to only stops appearing in stop_times.txt (active stops).
-    If active_stop_keys is empty, includes all stops.
-    Each stop gets a ``modes`` property: ["rail"], ["bus"], or ["rail", "bus"].
+    Only includes stops present in active_stop_keys (matched to rendered routes).
     """
     if stops_df.is_empty():
         return {"type": "FeatureCollection", "features": []}
@@ -235,8 +356,7 @@ def build_stops_geojson(
         stop_id = row["stop_id"]
         key = f"{agency}::{stop_id}"
 
-        # Filter to active stops if we have the data
-        if active_stop_keys and key not in active_stop_keys:
+        if key not in active_stop_keys:
             continue
 
         modes = sorted(stop_modes.get(key, {"bus"}))
@@ -280,73 +400,83 @@ def _count_by_mode(features: list[dict]) -> None:
 
 
 def main() -> int:
+    import argparse as ap
+
+    from urbanstack.metro import get_metro
+
+    parser = ap.ArgumentParser(description="Build transit GeoJSON from GTFS feeds")
+    parser.add_argument("--metro", default="dfw", help="Metro ID (dfw, chicago, nyc)")
+    parser.add_argument("--force", action="store_true", help="Force re-download")
+    args = parser.parse_args()
+
     settings = load_settings()
     settings.ensure_dirs()
+    metro = get_metro(args.metro)
 
-    # Step 1: Download and extract GTFS feeds
-    logger.info("Extracting GTFS feeds...")
-    succeeded_agencies: list[str] = []
-    failed_agencies: list[str] = []
+    # Step 1: Extract GTFS (uses transit discovery internally)
+    logger.info("Extracting GTFS feeds for %s...", metro.metro_id)
+    result = extract_gtfs(settings, metro, force=args.force)
+    all_routes = result["routes"]
+    all_stops = result["stops"]
+    all_shapes = result["shapes"]
 
-    # Try each agency individually so failures don't block others
-    all_routes = pl.DataFrame()
-    all_stops = pl.DataFrame()
-    all_shapes = pl.DataFrame()
-
-    for agency in GTFS_FEEDS:
-        try:
-            result = extract_gtfs(settings, agencies=[agency], force=True)
-            r, s, sh = result["routes"], result["stops"], result["shapes"]
-            if not r.is_empty():
-                all_routes = pl.concat([all_routes, r]) if not all_routes.is_empty() else r
-            if not s.is_empty():
-                all_stops = pl.concat([all_stops, s]) if not all_stops.is_empty() else s
-            if not sh.is_empty():
-                all_shapes = pl.concat([all_shapes, sh]) if not all_shapes.is_empty() else sh
-            succeeded_agencies.append(agency)
-            logger.info("OK: %s", agency)
-        except Exception:
-            logger.exception("FAILED: %s — skipping", agency)
-            failed_agencies.append(agency)
-
-    if not succeeded_agencies:
-        logger.error("All agencies failed. No GeoJSON generated.")
+    if all_routes.is_empty():
+        logger.error("No routes extracted. No GeoJSON generated.")
         return 1
 
-    if failed_agencies:
-        logger.warning("Skipped agencies: %s", ", ".join(failed_agencies))
+    # Get list of agencies that were extracted
+    agencies = all_routes["agency"].unique().to_list()
+    logger.info("Extracted %d agencies: %s", len(agencies), ", ".join(agencies))
 
-    # Step 2: Load trips.txt for shape_id -> route_id mapping
-    logger.info("Loading trips.txt from ZIPs...")
-    raw_dir = settings.raw_dir / "gtfs"
-    trips_df = _load_trips_from_zips(raw_dir, succeeded_agencies)
+    # Step 2: Load trips.txt for shape->route mapping
+    raw_dir = settings.metro_raw_dir(metro.metro_id) / "gtfs"
+    trips_df = _load_trips_from_zips(raw_dir, agencies)
     logger.info("Trips: %d unique (agency, route_id, shape_id) rows", len(trips_df))
 
-    # Step 3: Load active stop IDs and mode classification from GTFS
-    logger.info("Loading stop_times/trips/routes for stop modes...")
-    active_stops, stop_modes = _load_stop_modes(raw_dir, succeeded_agencies)
+    # Step 3: Load stop modes
+    active_stops, stop_modes = _load_stop_modes(raw_dir, agencies)
     logger.info("Active stop keys: %d", len(active_stops))
 
-    # Step 4: Build routes GeoJSON
-    logger.info("Building routes GeoJSON...")
-    routes_geojson = build_routes_geojson(all_shapes, all_routes, trips_df)
+    # Clip display to metro bounds (with padding for edge routes).
+    # Data stays complete in parquet — only the GeoJSON output is clipped.
+    pad = 0.3
+    clip = (metro.bounds[0] - pad, metro.bounds[1] + pad, metro.bounds[2] - pad, metro.bounds[3] + pad)
+
+    # Step 4: Build routes GeoJSON — clip LineStrings to metro bounds
+    routes_geojson = build_routes_geojson(all_shapes, all_routes, trips_df, clip_bounds=clip)
     route_count = len(routes_geojson["features"])
     logger.info("Routes: %d total", route_count)
     _count_by_agency(routes_geojson["features"], "routes")
 
-    # Step 5: Build stops GeoJSON
-    logger.info("Building stops GeoJSON...")
-    stops_geojson = build_stops_geojson(all_stops, active_stops, stop_modes)
+    # Step 5: Build stops — only stops that serve rendered routes AND are within metro bounds
+    rendered_routes: set[tuple[str, str]] = set()
+    for feat in routes_geojson["features"]:
+        p = feat["properties"]
+        rendered_routes.add((p["agency"], p.get("route_id", "")))
+
+    if not rendered_routes:
+        logger.warning("No routes survived clipping — all routes outside metro bounds")
+
+    rendered_stop_keys = _stops_for_routes(raw_dir, agencies, rendered_routes)
+    logger.info("Stops matched to rendered routes: %d", len(rendered_stop_keys))
+
+    all_stops = all_stops.filter(
+        (pl.col("latitude") >= clip[0]) & (pl.col("latitude") <= clip[1])
+        & (pl.col("longitude") >= clip[2]) & (pl.col("longitude") <= clip[3])
+    )
+
+    stops_geojson = build_stops_geojson(all_stops, rendered_stop_keys, stop_modes)
     stop_count = len(stops_geojson["features"])
     logger.info("Stops: %d total", stop_count)
     _count_by_agency(stops_geojson["features"], "stops")
     _count_by_mode(stops_geojson["features"])
 
-    # Step 6: Write output
-    WEB_DATA_DIR.mkdir(parents=True, exist_ok=True)
+    # Step 6: Write to metro-specific directory
+    out_dir = WEB_DATA_DIR / metro.metro_id
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-    routes_path = WEB_DATA_DIR / "transit_routes.geojson"
-    stops_path = WEB_DATA_DIR / "transit_stops.geojson"
+    routes_path = out_dir / "transit_routes.geojson"
+    stops_path = out_dir / "transit_stops.geojson"
 
     routes_path.write_text(json.dumps(routes_geojson))
     stops_path.write_text(json.dumps(stops_geojson))
