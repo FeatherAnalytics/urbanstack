@@ -2,7 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import { ClassifiedLegend } from "@/components/ClassifiedLegend";
-import { METRICS, NO_DATA_COLOR, generateClassifiedPalette } from "@/lib/data";
+import { METRICS, generateClassifiedPalette } from "@/lib/data";
 
 const palette = generateClassifiedPalette(METRICS[0].colorScale, 5);
 const breaks = [100, 200, 300, 400];
@@ -18,7 +18,7 @@ describe("ClassifiedLegend", () => {
         onSelectionChange={() => {}}
       />,
     );
-    const swatches = screen.getAllByRole("button", { name: /bin/i });
+    const swatches = screen.getAllByRole("button", { name: /N\/A|≤|–|>/ });
     expect(swatches.length).toBe(6);
   });
 
@@ -33,7 +33,7 @@ describe("ClassifiedLegend", () => {
         onSelectionChange={onChange}
       />,
     );
-    const swatches = screen.getAllByRole("button", { name: /bin/i });
+    const swatches = screen.getAllByRole("button", { name: /N\/A|≤|–|>/ });
     fireEvent.click(swatches[1]); // click bin 1
     expect(onChange).toHaveBeenCalledWith(new Set([1]));
   });

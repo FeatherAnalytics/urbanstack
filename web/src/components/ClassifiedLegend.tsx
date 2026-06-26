@@ -51,7 +51,7 @@ export function ClassifiedLegend({
           return (
             <button
               key={binIdx}
-              aria-label={`bin ${binIdx}`}
+              aria-label={rangeLabel(paletteIdx, breaks, metric.format)}
               onClick={() => handleClick(binIdx)}
               className="flex flex-col items-center gap-0.5"
             >
@@ -71,6 +71,7 @@ export function ClassifiedLegend({
       {selectedBins.size > 0 && (
         <button
           onClick={handleClear}
+          aria-label="Clear bin selection"
           className="mt-1 text-[10px] text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-300"
         >
           Clear
