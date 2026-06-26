@@ -1,6 +1,6 @@
-from urbanstack.metro import CHICAGO, DFW, FIPS_TO_ABBR, get_metro
-
 import pytest
+
+from urbanstack.metro import CHICAGO, DFW, FIPS_TO_ABBR, NYC, get_metro
 
 
 def test_dfw_single_state() -> None:
@@ -47,3 +47,26 @@ def test_get_metro_valid() -> None:
 def test_get_metro_invalid() -> None:
     with pytest.raises(KeyError, match="Unknown metro"):
         get_metro("bogus")
+
+
+def test_dfw_bounds() -> None:
+    assert len(DFW.bounds) == 4
+    min_lat, max_lat, min_lon, max_lon = DFW.bounds
+    assert min_lat < max_lat
+    assert min_lon < max_lon
+    assert min_lat < 32.78 < max_lat
+    assert min_lon < -96.85 < max_lon
+
+
+def test_chicago_bounds() -> None:
+    assert len(CHICAGO.bounds) == 4
+    min_lat, max_lat, min_lon, max_lon = CHICAGO.bounds
+    assert min_lat < 41.88 < max_lat
+    assert min_lon < -87.63 < max_lon
+
+
+def test_nyc_bounds() -> None:
+    assert len(NYC.bounds) == 4
+    min_lat, max_lat, min_lon, max_lon = NYC.bounds
+    assert min_lat < 40.71 < max_lat
+    assert min_lon < -74.00 < max_lon

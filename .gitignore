@@ -48,6 +48,9 @@ pipeline/exports/
 # Reference assets (PDFs, proprietary docs)
 assets/
 
+# Screenshots (debug/validation artifacts)
+web/screenshots/
+
 # Misc
 *.log
 .superpowers/
