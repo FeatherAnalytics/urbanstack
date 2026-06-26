@@ -581,6 +581,7 @@ export default function Home() {
           classifiedPalette={classifiedPalette}
           selectedBins={selectedBins}
           bivariatePalette={bivariatePalette}
+          selectedBivariateCell={selectedBivariateCell}
         />
       </div>
     </div>

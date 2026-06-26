@@ -50,6 +50,7 @@ interface ComparisonChartProps {
   classifiedPalette?: [number, number, number, number][] | null;
   selectedBins?: Set<number>;
   bivariatePalette?: [number, number, number][][] | null;
+  selectedBivariateCell?: { row: number; col: number } | null;
 }
 
 export function ComparisonChart({
@@ -66,6 +67,7 @@ export function ComparisonChart({
   classifiedPalette = null,
   selectedBins = new Set<number>(),
   bivariatePalette = null,
+  selectedBivariateCell = null,
 }: ComparisonChartProps) {
   if (granularity === "metro" && counties.length <= 1) {
     return (
@@ -174,6 +176,57 @@ export function ComparisonChart({
     ];
     allRows.sort((a, b) => b.sortVal - a.sortVal);
     rows = allRows;
+  } else if (selectedBivariateCell && isBivariate) {
+    // Bivariate cell selected — aggregate non-selected cells, expand selected
+    const cellGroups = new Map<string, CountyData[]>();
+    for (const c of sorted) {
+      const pVal = (c[metric.key] as number) ?? 0;
+      const sVal = c[secondaryMetric!.key] as number | null;
+      const pBin = classifyBin(pVal, primaryBreaks!);
+      const sBin = sVal !== null && !Number.isNaN(sVal) ? classifyBin(sVal, secondaryBreaks!) : 0;
+      const row = Math.max(0, Math.min(2, pBin));
+      const col = Math.max(0, Math.min(2, sBin));
+      const key = `${row}-${col}`;
+      const group = cellGroups.get(key) ?? [];
+      group.push(c);
+      cellGroups.set(key, group);
+    }
+
+    const aggregates: RowItem[] = [];
+    const individuals: RowItem[] = [];
+    for (let ri = 0; ri < 3; ri++) {
+      for (let ci = 0; ci < 3; ci++) {
+        const key = `${ri}-${ci}`;
+        const group = cellGroups.get(key) ?? [];
+        if (group.length === 0) continue;
+        const sum = group.reduce((acc, c) => acc + ((c[metric.key] as number) ?? 0), 0);
+        const avg = group.length > 0 ? sum / group.length : 0;
+        const isSelected = ri === selectedBivariateCell.row && ci === selectedBivariateCell.col;
+        if (isSelected) {
+          const displayed = isBlockGroup
+            ? [...group.slice(0, BLOCK_GROUP_LIMIT), ...group.slice(-BLOCK_GROUP_LIMIT)]
+                .filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i)
+            : group;
+          for (const c of displayed) {
+            individuals.push({ type: "area", county: c, val: (c[metric.key] as number) ?? 0, binIdx: ri * 3 + ci });
+          }
+        } else {
+          aggregates.push({
+            type: "aggregate",
+            binIdx: ri * 3 + ci,
+            count: group.length,
+            avg,
+          });
+        }
+      }
+    }
+
+    const allRows: (RowItem & { sortVal: number })[] = [
+      ...aggregates.map(r => ({ ...r, sortVal: r.type === "aggregate" ? r.avg : 0 })),
+      ...individuals.map(r => ({ ...r, sortVal: r.type === "area" ? r.val : 0 })),
+    ];
+    allRows.sort((a, b) => b.sortVal - a.sortVal);
+    rows = allRows;
   } else {
     // Default: all areas as individual rows
     const displayedPreLimit = isBlockGroup
@@ -204,14 +257,28 @@ export function ComparisonChart({
       <div className="flex flex-col gap-0.5">
         {rows.map((row, idx) => {
           if (row.type === "aggregate") {
-            const paletteIdx = row.binIdx === -1 ? 0 : row.binIdx;
-            const color = classifiedPalette![paletteIdx];
-            const [r, g, b] = [color[0], color[1], color[2]];
+            let r: number, g: number, b: number;
+            let label: string;
+            const cellLabels = ["Low", "Mid", "High"];
+            if (isBivariate && row.binIdx >= 0) {
+              const ri = Math.floor(row.binIdx / 3);
+              const ci = row.binIdx % 3;
+              [r, g, b] = activePalette[ri]?.[ci] ?? [150, 150, 150];
+              label = `${cellLabels[ri]}×${cellLabels[ci]}`;
+            } else if (classifiedPalette) {
+              const paletteIdx = row.binIdx === -1 ? 0 : row.binIdx;
+              const color = classifiedPalette[paletteIdx];
+              [r, g, b] = [color[0], color[1], color[2]];
+              label = percentileLabel(row.binIdx);
+            } else {
+              [r, g, b] = [150, 150, 150];
+              label = `Bin ${row.binIdx}`;
+            }
             const avgPct = maxVal > 0 ? (row.avg / maxVal) * 100 : 0;
             return (
               <div key={`agg-${row.binIdx}`} className="flex items-center gap-2 rounded px-1 py-0.5">
                 <span className="w-20 shrink-0 text-left text-xs text-slate-500 dark:text-slate-400">
-                  {percentileLabel(row.binIdx)} ({row.count})
+                  {label} ({row.count})
                 </span>
                 <div className="relative h-3 flex-1">
                   <div
