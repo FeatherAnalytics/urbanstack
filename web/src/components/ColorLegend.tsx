@@ -71,9 +71,9 @@ function BivariateLegend({
   const diag = Math.round(gridSide * Math.SQRT2);
 
   return (
-    <div className="flex flex-col items-center">
+    <div className="flex flex-col items-center" style={{ position: "relative", minWidth: diag + 60, minHeight: diag + 10 }}>
       {/* Diamond grid — rotated 45° so (min,min) is bottom, (max,max) is top */}
-      <div style={{ width: diag, height: diag, position: "relative" }}>
+      <div style={{ width: diag, height: diag, position: "relative", margin: "0 auto" }}>
         <div
           data-testid="bivariate-grid"
           className="grid"
@@ -116,21 +116,31 @@ function BivariateLegend({
           )}
         </div>
       </div>
-      {/* Axis labels — angled along diamond edges */}
-      <div style={{ width: diag, position: "relative", height: 20 }}>
-        <span
-          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
-          style={{ left: 0, bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom left", whiteSpace: "nowrap" }}
-        >
-          ← {primaryMetric.label}
-        </span>
-        <span
-          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
-          style={{ right: 0, bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom right", whiteSpace: "nowrap" }}
-        >
-          {secondaryMetric.label} →
-        </span>
-      </div>
+      {/* Axis labels — along left and right diamond edges */}
+      <span
+        className="absolute text-[8px] text-slate-400 dark:text-slate-500"
+        style={{
+          left: -2,
+          top: diag / 2,
+          transform: "rotate(-45deg)",
+          transformOrigin: "center center",
+          whiteSpace: "nowrap",
+        }}
+      >
+        ↑ {primaryMetric.label}
+      </span>
+      <span
+        className="absolute text-[8px] text-slate-400 dark:text-slate-500"
+        style={{
+          right: -2,
+          top: diag / 2,
+          transform: "rotate(45deg)",
+          transformOrigin: "center center",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {secondaryMetric.label} ↑
+      </span>
     </div>
   );
 }
