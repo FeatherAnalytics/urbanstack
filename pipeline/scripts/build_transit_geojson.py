@@ -200,6 +200,8 @@ def build_routes_geojson(
         route_type_label = ROUTE_TYPE_LABELS.get(route_type, "other")
         raw_color = row.get("route_color", "")
         color = f"#{raw_color}" if raw_color and not raw_color.startswith("#") else raw_color
+        if not color:
+            color = "#4A90D9" if route_type in (0, 1, 2) else "#6B7280"
 
         feature = {
             "type": "Feature",
@@ -221,11 +223,13 @@ def build_stops_geojson(
     stops_df: pl.DataFrame,
     active_stop_keys: set[str],
     stop_modes: dict[str, set[str]],
+    route_agencies: set[str] | None = None,
 ) -> dict:
     """Build GeoJSON FeatureCollection for transit stops.
 
     Filters to only stops appearing in stop_times.txt (active stops).
     If active_stop_keys is empty, includes all stops.
+    If route_agencies provided, excludes stops from agencies with no routes.
     Each stop gets a ``modes`` property: ["rail"], ["bus"], or ["rail", "bus"].
     """
     if stops_df.is_empty():
@@ -236,6 +240,9 @@ def build_stops_geojson(
         agency = row["agency"]
         stop_id = row["stop_id"]
         key = f"{agency}::{stop_id}"
+
+        if route_agencies and agency not in route_agencies:
+            continue
 
         # Filter to active stops if we have the data
         if active_stop_keys and key not in active_stop_keys:
@@ -357,8 +364,9 @@ def main() -> int:
     logger.info("Routes: %d total", route_count)
     _count_by_agency(routes_geojson["features"], "routes")
 
-    # Step 5: Build stops GeoJSON
-    stops_geojson = build_stops_geojson(all_stops, active_stops, stop_modes)
+    # Step 5: Build stops GeoJSON (only agencies that produced routes)
+    route_agency_set = {f["properties"]["agency"] for f in routes_geojson["features"]}
+    stops_geojson = build_stops_geojson(all_stops, active_stops, stop_modes, route_agency_set)
     stop_count = len(stops_geojson["features"])
     logger.info("Stops: %d total", stop_count)
     _count_by_agency(stops_geojson["features"], "stops")
