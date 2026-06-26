@@ -41,9 +41,9 @@ export function TransitLegend({ routes }: TransitLegendProps) {
                 {agency}
               </div>
               <div className="mt-0.5 space-y-px">
-                {agencyRoutes.map((r) => (
+                {agencyRoutes.map((r, i) => (
                   <div
-                    key={`${r.agency}-${r.name}-${r.type}-${r.color}`}
+                    key={`${r.agency}-${r.name}-${r.type}-${r.color}-${i}`}
                     className="flex items-center gap-1.5 text-[10px] text-slate-600 dark:text-slate-300"
                   >
                     <span
