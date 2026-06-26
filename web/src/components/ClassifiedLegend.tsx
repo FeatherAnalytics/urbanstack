@@ -1,6 +1,6 @@
 "use client";
 
-import { formatValue, type MetricConfig } from "@/lib/data";
+import { formatValue, PERCENTILE_LABELS, type MetricConfig } from "@/lib/data";
 
 interface ClassifiedLegendProps {
   metric: MetricConfig;
@@ -9,8 +9,6 @@ interface ClassifiedLegendProps {
   selectedBins: Set<number>;
   onSelectionChange: (newSelection: Set<number>) => void;
 }
-
-const PERCENTILE_LABELS = ["N/A", "0–20%", "20–40%", "40–60%", "60–80%", "80–100%"];
 
 function selectedRangeLabel(
   selectedBins: Set<number>,

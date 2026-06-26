@@ -6,6 +6,7 @@ import {
   classifyValue,
   BIVARIATE_PALETTE,
   QUANTILE_BIN_COUNT,
+  PERCENTILE_LABELS,
   type CountyData,
   type Granularity,
   type MetricConfig,
@@ -13,16 +14,6 @@ import {
 import { METROS } from "@/lib/metro";
 
 const BLOCK_GROUP_LIMIT = 20;
-
-function percentileLabel(binIdx: number): string {
-  if (binIdx === -1) return "N/A";
-  if (binIdx >= 1 && binIdx <= QUANTILE_BIN_COUNT) {
-    const lo = (binIdx - 1) * 20;
-    const hi = binIdx * 20;
-    return `${lo}–${hi}%`;
-  }
-  return `Bin ${binIdx}`;
-}
 
 type RowItem = {
   type: "area";
@@ -35,6 +26,20 @@ type RowItem = {
   count: number;
   avg: number;
 };
+
+function limitBlockGroups(items: CountyData[]): CountyData[] {
+  if (items.length <= BLOCK_GROUP_LIMIT * 2) return items;
+  return [...items.slice(0, BLOCK_GROUP_LIMIT), ...items.slice(-BLOCK_GROUP_LIMIT)]
+    .filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i);
+}
+
+function sortRows(aggregates: RowItem[], individuals: RowItem[]): RowItem[] {
+  return [...aggregates, ...individuals].sort((a, b) => {
+    const aVal = a.type === "aggregate" ? a.avg : a.val;
+    const bVal = b.type === "aggregate" ? b.avg : b.val;
+    return bVal - aVal;
+  });
+}
 
 interface ComparisonChartProps {
   counties: CountyData[];
@@ -87,10 +92,7 @@ export function ComparisonChart({
 
   const isBlockGroup = granularity === "block_group";
   const isBivariate = secondaryMetric !== null && primaryBreaks !== null && secondaryBreaks !== null;
-  const [defaultR, defaultG, defaultB] = metric.colorScale[metric.colorScale.length - 1];
   const activePalette = bivariatePalette ?? BIVARIATE_PALETTE;
-
-  // maxVal computed after rows are built
 
   const metroLabel = selectedMetro && granularity === "county"
     ? METROS[selectedMetro]?.metro_name.split(" MSA")[0] ?? "Selected Metro"
@@ -126,10 +128,10 @@ export function ComparisonChart({
       const color = classifiedPalette[paletteIdx];
       return [color[0], color[1], color[2]];
     }
-    return [defaultR, defaultG, defaultB];
+    return metric.colorScale[metric.colorScale.length - 1];
   };
 
-  // Build row list — interleaved aggregate + individual when bucket selected
+  // Build row list
   const useBucketMode = selectedBins.size > 0 && quantileBreaks !== null && classifiedPalette !== null;
 
   let rows: RowItem[];
@@ -149,12 +151,9 @@ export function ComparisonChart({
       const group = binGroups.get(bi) ?? [];
       if (group.length === 0) continue;
       const sum = group.reduce((acc, c) => acc + ((c[metric.key] as number) ?? 0), 0);
-      const avg = group.length > 0 ? sum / group.length : 0;
+      const avg = sum / group.length;
       if (selectedBins.has(bi)) {
-        const displayed = isBlockGroup
-          ? [...group.slice(0, BLOCK_GROUP_LIMIT), ...group.slice(-BLOCK_GROUP_LIMIT)]
-              .filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i)
-          : group;
+        const displayed = isBlockGroup ? limitBlockGroups(group) : group;
         for (const c of displayed) {
           individuals.push({ type: "area", county: c, val: (c[metric.key] as number) ?? 0, binIdx: bi });
         }
@@ -162,22 +161,13 @@ export function ComparisonChart({
         aggregates.push({ type: "aggregate", binIdx: bi, count: group.length, avg });
       }
     }
-    // N/A bin as aggregate if exists and not selected
     const naGroup = binGroups.get(-1) ?? [];
     if (naGroup.length > 0 && !selectedBins.has(-1)) {
       const naSum = naGroup.reduce((acc, c) => acc + ((c[metric.key] as number) ?? 0), 0);
-      aggregates.push({ type: "aggregate", binIdx: -1, count: naGroup.length, avg: naGroup.length > 0 ? naSum / naGroup.length : 0 });
+      aggregates.push({ type: "aggregate", binIdx: -1, count: naGroup.length, avg: naSum / naGroup.length });
     }
-
-    // Merge and sort all by value (descending)
-    const allRows: (RowItem & { sortVal: number })[] = [
-      ...aggregates.map(r => ({ ...r, sortVal: r.type === "aggregate" ? r.avg : 0 })),
-      ...individuals.map(r => ({ ...r, sortVal: r.type === "area" ? r.val : 0 })),
-    ];
-    allRows.sort((a, b) => b.sortVal - a.sortVal);
-    rows = allRows;
+    rows = sortRows(aggregates, individuals);
   } else if (selectedBivariateCell && isBivariate) {
-    // Bivariate cell selected — aggregate non-selected cells, expand selected
     const cellGroups = new Map<string, CountyData[]>();
     for (const c of sorted) {
       const pVal = (c[metric.key] as number) ?? 0;
@@ -186,57 +176,36 @@ export function ComparisonChart({
       const sBin = sVal !== null && !Number.isNaN(sVal) ? classifyBin(sVal, secondaryBreaks!) : 0;
       const row = Math.max(0, Math.min(2, pBin));
       const col = Math.max(0, Math.min(2, sBin));
-      const key = `${row}-${col}`;
-      const group = cellGroups.get(key) ?? [];
+      const group = cellGroups.get(`${row}-${col}`) ?? [];
       group.push(c);
-      cellGroups.set(key, group);
+      cellGroups.set(`${row}-${col}`, group);
     }
 
     const aggregates: RowItem[] = [];
     const individuals: RowItem[] = [];
     for (let ri = 0; ri < 3; ri++) {
       for (let ci = 0; ci < 3; ci++) {
-        const key = `${ri}-${ci}`;
-        const group = cellGroups.get(key) ?? [];
+        const group = cellGroups.get(`${ri}-${ci}`) ?? [];
         if (group.length === 0) continue;
         const sum = group.reduce((acc, c) => acc + ((c[metric.key] as number) ?? 0), 0);
-        const avg = group.length > 0 ? sum / group.length : 0;
-        const isSelected = ri === selectedBivariateCell.row && ci === selectedBivariateCell.col;
-        if (isSelected) {
-          const displayed = isBlockGroup
-            ? [...group.slice(0, BLOCK_GROUP_LIMIT), ...group.slice(-BLOCK_GROUP_LIMIT)]
-                .filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i)
-            : group;
+        const avg = sum / group.length;
+        if (ri === selectedBivariateCell.row && ci === selectedBivariateCell.col) {
+          const displayed = isBlockGroup ? limitBlockGroups(group) : group;
           for (const c of displayed) {
             individuals.push({ type: "area", county: c, val: (c[metric.key] as number) ?? 0, binIdx: ri * 3 + ci });
           }
         } else {
-          aggregates.push({
-            type: "aggregate",
-            binIdx: ri * 3 + ci,
-            count: group.length,
-            avg,
-          });
+          aggregates.push({ type: "aggregate", binIdx: ri * 3 + ci, count: group.length, avg });
         }
       }
     }
-
-    const allRows: (RowItem & { sortVal: number })[] = [
-      ...aggregates.map(r => ({ ...r, sortVal: r.type === "aggregate" ? r.avg : 0 })),
-      ...individuals.map(r => ({ ...r, sortVal: r.type === "area" ? r.val : 0 })),
-    ];
-    allRows.sort((a, b) => b.sortVal - a.sortVal);
-    rows = allRows;
+    rows = sortRows(aggregates, individuals);
   } else {
-    // Default: all areas as individual rows
-    const displayedPreLimit = isBlockGroup
-      ? [...sorted.slice(0, BLOCK_GROUP_LIMIT), ...sorted.slice(-BLOCK_GROUP_LIMIT)]
-          .filter((v, i, arr) => arr.findIndex((c) => c.county_fips === v.county_fips) === i)
-      : sorted;
+    const limited = isBlockGroup ? limitBlockGroups(sorted) : sorted;
     const MAX_DISPLAY = 50;
-    const clipped = displayedPreLimit.length > MAX_DISPLAY ? displayedPreLimit.slice(0, MAX_DISPLAY) : displayedPreLimit;
+    const clipped = limited.length > MAX_DISPLAY ? limited.slice(0, MAX_DISPLAY) : limited;
     rows = clipped.map(c => ({
-      type: "area" as const,
+      type: "area",
       county: c,
       val: (c[metric.key] as number) ?? 0,
       binIdx: quantileBreaks ? classifyValue((c[metric.key] as number) ?? 0, quantileBreaks) : 0,
@@ -269,7 +238,7 @@ export function ComparisonChart({
               const paletteIdx = row.binIdx === -1 ? 0 : row.binIdx;
               const color = classifiedPalette[paletteIdx];
               [r, g, b] = [color[0], color[1], color[2]];
-              label = percentileLabel(row.binIdx);
+              label = PERCENTILE_LABELS[row.binIdx + 1] ?? `Bin ${row.binIdx}`;
             } else {
               [r, g, b] = [150, 150, 150];
               label = `Bin ${row.binIdx}`;
@@ -308,7 +277,7 @@ export function ComparisonChart({
               }`}
             >
               <span
-                className={`${isBlockGroup ? "w-28" : "w-28"} shrink-0 truncate whitespace-nowrap text-left text-xs ${
+                className={`w-28 shrink-0 truncate whitespace-nowrap text-left text-xs ${
                   isSelected ? "font-semibold text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-400"
                 }`}
               >

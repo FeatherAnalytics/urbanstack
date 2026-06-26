@@ -1051,6 +1051,7 @@ export const METRIC_COMBOS: MetricCombo[] = [
 // ============================================================================
 
 export const QUANTILE_BIN_COUNT = 5;
+export const PERCENTILE_LABELS = ["N/A", "0–20%", "20–40%", "40–60%", "60–80%", "80–100%"];
 export const NO_DATA_COLOR: [number, number, number, number] = [200, 200, 200, 80];
 
 export function computeQuantileBreaks(values: number[], binCount: number): number[] {
