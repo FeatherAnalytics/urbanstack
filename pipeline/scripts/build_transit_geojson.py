@@ -63,6 +63,8 @@ def _load_trips_from_zips(raw_dir: Path, agencies: list[str]) -> pl.DataFrame:
             continue
         for row in rows:
             row["agency"] = agency_name
+            row["route_id"] = f"{feed_id}:{row.get('route_id', '')}"
+            row["shape_id"] = f"{feed_id}:{row.get('shape_id', '')}"
         all_rows.extend(rows)
 
     if not all_rows:
@@ -131,7 +133,7 @@ def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict
             tid = row.get("trip_id", "")
             if not sid:
                 continue
-            key = f"{agency}::{sid}"
+            key = f"{agency}::{feed_id}:{sid}"
             active_stops.add(key)
 
             rid = trip_route_map.get(tid, "")
@@ -167,7 +169,7 @@ def _stops_for_routes(
 
         route_trips: set[str] = set()
         for row in trip_rows:
-            rid = row.get("route_id", "")
+            rid = f"{feed_id}:{row.get('route_id', '')}"
             if (agency, rid) in rendered_routes:
                 route_trips.add(row.get("trip_id", ""))
 
@@ -175,7 +177,7 @@ def _stops_for_routes(
             if row.get("trip_id", "") in route_trips:
                 sid = row.get("stop_id", "")
                 if sid:
-                    stop_keys.add(f"{agency}::{sid}")
+                    stop_keys.add(f"{agency}::{feed_id}:{sid}")
 
     return stop_keys
 

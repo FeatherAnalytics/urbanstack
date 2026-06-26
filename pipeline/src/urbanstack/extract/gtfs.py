@@ -52,7 +52,7 @@ def _read_csv_from_zip(zip_path: Path, filename: str) -> list[dict[str, str]]:
             return list(reader)
 
 
-def _parse_routes(agency: str, rows: list[dict[str, str]]) -> list[GtfsRoute]:
+def _parse_routes(agency: str, rows: list[dict[str, str]], prefix: str = "") -> list[GtfsRoute]:
     records: list[GtfsRoute] = []
     for row in rows:
         route_type_raw = row.get("route_type", "3")
@@ -65,7 +65,7 @@ def _parse_routes(agency: str, rows: list[dict[str, str]]) -> list[GtfsRoute]:
                 GtfsRoute.model_validate(
                     {
                         "agency": agency,
-                        "route_id": row["route_id"],
+                        "route_id": f"{prefix}:{row['route_id']}" if prefix else row["route_id"],
                         "route_short_name": row.get("route_short_name", ""),
                         "route_long_name": row.get("route_long_name", ""),
                         "route_type": route_type,
@@ -78,7 +78,7 @@ def _parse_routes(agency: str, rows: list[dict[str, str]]) -> list[GtfsRoute]:
     return records
 
 
-def _parse_stops(agency: str, rows: list[dict[str, str]]) -> list[GtfsStop]:
+def _parse_stops(agency: str, rows: list[dict[str, str]], prefix: str = "") -> list[GtfsStop]:
     records: list[GtfsStop] = []
     for row in rows:
         lat = row.get("stop_lat")
@@ -97,7 +97,7 @@ def _parse_stops(agency: str, rows: list[dict[str, str]]) -> list[GtfsStop]:
                 GtfsStop.model_validate(
                     {
                         "agency": agency,
-                        "stop_id": row["stop_id"],
+                        "stop_id": f"{prefix}:{row['stop_id']}" if prefix else row["stop_id"],
                         "stop_name": row.get("stop_name", ""),
                         "latitude": lat_f,
                         "longitude": lon_f,
@@ -109,7 +109,7 @@ def _parse_stops(agency: str, rows: list[dict[str, str]]) -> list[GtfsStop]:
     return records
 
 
-def _parse_shapes(agency: str, rows: list[dict[str, str]]) -> list[GtfsShape]:
+def _parse_shapes(agency: str, rows: list[dict[str, str]], prefix: str = "") -> list[GtfsShape]:
     records: list[GtfsShape] = []
     for row in rows:
         lat = row.get("shape_pt_lat")
@@ -128,7 +128,7 @@ def _parse_shapes(agency: str, rows: list[dict[str, str]]) -> list[GtfsShape]:
                 GtfsShape.model_validate(
                     {
                         "agency": agency,
-                        "shape_id": row["shape_id"],
+                        "shape_id": f"{prefix}:{row['shape_id']}" if prefix else row["shape_id"],
                         "latitude": lat_f,
                         "longitude": lon_f,
                         "sequence": seq_i,
@@ -194,9 +194,10 @@ def extract_gtfs(
             logger.warning("Skipping %s: %s", agency, exc)
             continue
 
-        all_routes.extend(_parse_routes(agency, route_rows))
-        all_stops.extend(_parse_stops(agency, stop_rows))
-        all_shapes.extend(_parse_shapes(agency, shape_rows))
+        prefix = feed.mdb_id
+        all_routes.extend(_parse_routes(agency, route_rows, prefix))
+        all_stops.extend(_parse_stops(agency, stop_rows, prefix))
+        all_shapes.extend(_parse_shapes(agency, shape_rows, prefix))
         feed_manifest[feed.mdb_id] = agency
 
         logger.info(
