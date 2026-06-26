@@ -9,6 +9,7 @@ import requests
 
 from urbanstack.config import Settings
 from urbanstack.contracts.gtfs import GtfsRoute, GtfsShape, GtfsStop
+from urbanstack.extract.transit_discovery import discover_feeds
 from urbanstack.metro import MetroConfig
 
 logger = logging.getLogger(__name__)
@@ -137,14 +138,10 @@ def _records_to_df(records: list) -> pl.DataFrame:
 def extract_gtfs(
     settings: Settings,
     metro: MetroConfig,
-    agencies: list[str] | None = None,
     *,
     force: bool = False,
 ) -> dict[str, pl.DataFrame]:
-    """Extract GTFS data for a metro's transit agencies.
-
-    Returns dict with keys: "routes", "stops", "shapes" -- each a polars DataFrame.
-    """
+    """Extract GTFS data for a metro's transit agencies via auto-discovery."""
     parquet_dir = settings.metro_staging_dir(metro.metro_id) / "gtfs"
     routes_path = parquet_dir / "gtfs_routes.parquet"
     stops_path = parquet_dir / "gtfs_stops.parquet"
@@ -161,18 +158,19 @@ def extract_gtfs(
     raw_dir = settings.metro_raw_dir(metro.metro_id) / "gtfs"
     raw_dir.mkdir(parents=True, exist_ok=True)
 
-    feed_list = agencies or list(metro.gtfs_feeds.keys())
+    discovered = discover_feeds(settings, metro, force=force)
 
     all_routes: list[GtfsRoute] = []
     all_stops: list[GtfsStop] = []
     all_shapes: list[GtfsShape] = []
 
-    for agency in feed_list:
-        url = metro.gtfs_feeds.get(agency)
-        if url is None:
-            raise ValueError(
-                f"Unknown agency '{agency}'. Available: {list(metro.gtfs_feeds.keys())}"
-            )
+    for feed in discovered:
+        url = feed.download_url or feed.stable_url
+        if not url:
+            logger.warning("No download URL for %s (%s), skipping", feed.provider, feed.mdb_id)
+            continue
+
+        agency = feed.provider
 
         try:
             zip_path = _download_feed(agency, url, raw_dir, force=force)
