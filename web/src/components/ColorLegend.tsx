@@ -1,6 +1,7 @@
 "use client";
 
 import { BIVARIATE_PALETTE, formatValue, type ColorScaleMode, type Granularity, type MetricConfig } from "@/lib/data";
+import { ClassifiedLegend } from "./ClassifiedLegend";
 
 interface ColorLegendProps {
   primaryMetric: MetricConfig;
@@ -11,6 +12,10 @@ interface ColorLegendProps {
   onToggleMode: () => void;
   onExitCompare?: () => void;
   granularity: Granularity;
+  quantileBreaks?: number[] | null;
+  classifiedPalette?: [number, number, number, number][] | null;
+  selectedBins?: Set<number>;
+  onSelectionChange?: (newSelection: Set<number>) => void;
 }
 
 function GradientLegend({ metric, minMax }: { metric: MetricConfig; minMax: { min: number; max: number } }) {
@@ -99,14 +104,27 @@ export function ColorLegend({
   onToggleMode,
   onExitCompare,
   granularity,
+  quantileBreaks = null,
+  classifiedPalette = null,
+  selectedBins = new Set<number>(),
+  onSelectionChange = () => {},
 }: ColorLegendProps) {
   const isBivariate = secondaryMetric !== null && secondaryMinMax !== null;
+  const isClassified = !isBivariate && quantileBreaks !== null && classifiedPalette !== null;
   const showToggle = granularity !== "metro";
 
   return (
     <div className="rounded-lg border border-slate-200/80 bg-white/90 p-2.5 shadow-md backdrop-blur-sm dark:border-slate-600/80 dark:bg-slate-800/90">
       {isBivariate ? (
         <BivariateLegend primaryMetric={primaryMetric} secondaryMetric={secondaryMetric!} />
+      ) : isClassified ? (
+        <ClassifiedLegend
+          metric={primaryMetric}
+          palette={classifiedPalette!}
+          breaks={quantileBreaks!}
+          selectedBins={selectedBins}
+          onSelectionChange={onSelectionChange}
+        />
       ) : (
         <GradientLegend metric={primaryMetric} minMax={primaryMinMax} />
       )}
