@@ -169,11 +169,13 @@ def build_routes_geojson(
         route_long = row.get("route_long_name") or ""
         route_type = row.get("route_type", 3)
 
-        # Get shape points sorted by sequence
+        # Get shape points sorted by sequence, deduplicated
+        # Some feeds (e.g. NJ Transit) reuse sequence numbers for both directions
         shape_points = (
             shapes_df.filter(
                 (pl.col("agency") == agency) & (pl.col("shape_id") == shape_id)
             )
+            .unique(subset=["sequence"], keep="first")
             .sort("sequence")
         )
 
