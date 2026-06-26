@@ -15,10 +15,9 @@ function rangeLabel(index: number, breaks: number[], format: MetricConfig["forma
   const binIdx = index - 1; // palette index → break index
   const lo = binIdx === 0 ? null : breaks[binIdx - 1];
   const hi = binIdx < breaks.length ? breaks[binIdx] : null;
-  if (lo === null && hi !== null) return `≤${formatValue(hi, format)}`;
-  if (lo !== null && hi === null) return `>${formatValue(lo, format)}`;
-  if (lo !== null && hi !== null) return `${formatValue(lo, format)}–${formatValue(hi, format)}`;
-  return "";
+  if (lo === null) return `≤${formatValue(hi!, format)}`;
+  if (hi === null) return `>${formatValue(lo, format)}`;
+  return `${formatValue(lo, format)}–${formatValue(hi, format)}`;
 }
 
 export function ClassifiedLegend({

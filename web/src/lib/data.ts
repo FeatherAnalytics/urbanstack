@@ -1043,7 +1043,7 @@ export function computeQuantileBreaks(values: number[], binCount: number): numbe
 }
 
 export function classifyValue(value: number | null, breaks: number[]): number {
-  if (value === null || value === undefined || !Number.isFinite(value) || value === 0) return -1;
+  if (value === null || !Number.isFinite(value) || value === 0) return -1;
   for (let i = 0; i < breaks.length; i++) {
     if (value <= breaks[i]) return i + 1;
   }
