@@ -88,11 +88,7 @@ export function ComparisonChart({
   const [defaultR, defaultG, defaultB] = metric.colorScale[metric.colorScale.length - 1];
   const activePalette = bivariatePalette ?? BIVARIATE_PALETTE;
 
-  let maxVal = 0;
-  for (const c of sorted) {
-    const v = (c[metric.key] as number) ?? 0;
-    if (v > maxVal) maxVal = v;
-  }
+  // maxVal computed after rows are built
 
   const metroLabel = selectedMetro && granularity === "county"
     ? METROS[selectedMetro]?.metro_name.split(" MSA")[0] ?? "Selected Metro"
@@ -192,6 +188,12 @@ export function ComparisonChart({
       val: (c[metric.key] as number) ?? 0,
       binIdx: quantileBreaks ? classifyValue((c[metric.key] as number) ?? 0, quantileBreaks) : 0,
     }));
+  }
+
+  let maxVal = 0;
+  for (const r of rows) {
+    const v = r.type === "area" ? r.val : r.avg;
+    if (v > maxVal) maxVal = v;
   }
 
   return (

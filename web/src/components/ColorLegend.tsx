@@ -65,62 +65,64 @@ function BivariateLegend({
   onCellClick,
 }: BivariateLegendProps) {
   const hasSelection = selectedCell !== null;
+  const cellSize = 22;
+  const gap = 2;
+  const gridSide = cellSize * 3 + gap * 2;
+  const diag = Math.round(gridSide * Math.SQRT2);
 
   return (
-    <>
-      <div className="mb-1.5 text-[11px] text-slate-600 dark:text-slate-400">
-        {primaryMetric.label} &times; {secondaryMetric.label}
-      </div>
-      <div className="flex items-end gap-1">
+    <div className="flex flex-col items-center">
+      {/* Diamond grid — rotated 45° so (min,min) is bottom, (max,max) is top */}
+      <div style={{ width: diag, height: diag, position: "relative" }}>
         <div
-          className="text-[9px] text-slate-500 dark:text-slate-500"
-          style={{ writingMode: "vertical-lr", transform: "rotate(180deg)", height: 72 }}
+          data-testid="bivariate-grid"
+          className="grid"
+          style={{
+            gridTemplateColumns: `repeat(3, ${cellSize}px)`,
+            gridTemplateRows: `repeat(3, ${cellSize}px)`,
+            gap: `${gap}px`,
+            position: "absolute",
+            left: "50%",
+            top: "50%",
+            transform: "translate(-50%, -50%) rotate(45deg)",
+          }}
         >
-          {primaryMetric.label} &rarr;
-        </div>
-        <div>
-          <div
-            data-testid="bivariate-grid"
-            className="grid gap-px"
-            style={{
-              gridTemplateColumns: "repeat(3, 22px)",
-              gridTemplateRows: "repeat(3, 22px)",
-              transform: "scaleY(-1)",
-            }}
-          >
-            {palette.flatMap((row, ri) =>
-              row.map((color, ci) => {
-                const isSelected = selectedCell?.row === ri && selectedCell?.col === ci;
-                const dimmed = hasSelection && !isSelected;
-                return (
-                  <button
-                    key={`${ri}-${ci}`}
-                    type="button"
-                    className="rounded-sm border-0 p-0"
-                    style={{
-                      backgroundColor: `rgb(${color[0]},${color[1]},${color[2]})`,
-                      opacity: dimmed ? 0.4 : 1,
-                      outline: isSelected ? "2px solid white" : "none",
-                      outlineOffset: isSelected ? "-2px" : undefined,
-                      cursor: "pointer",
-                      // scaleY(-1) on parent flips visually; transform back for button semantics
-                      transform: "scaleY(-1)",
-                    }}
-                    title={`Primary: ${["Low", "Mid", "High"][ri]}, Secondary: ${["Low", "Mid", "High"][ci]}`}
-                    aria-label={`${primaryMetric.label} ${["Low", "Mid", "High"][ri]}, ${secondaryMetric.label} ${["Low", "Mid", "High"][ci]}`}
-                    aria-pressed={isSelected}
-                    onClick={() => onCellClick(isSelected ? null : { row: ri, col: ci })}
-                  />
-                );
-              }),
-            )}
-          </div>
-          <div className="mt-0.5 text-center text-[9px] text-slate-500 dark:text-slate-500">
-            {secondaryMetric.label} &rarr;
-          </div>
+          {/* Render rows top-to-bottom = high primary → low primary */}
+          {[2, 1, 0].map((ri) =>
+            [0, 1, 2].map((ci) => {
+              const color = palette[ri][ci];
+              const isSelected = selectedCell?.row === ri && selectedCell?.col === ci;
+              const dimmed = hasSelection && !isSelected;
+              return (
+                <button
+                  key={`${ri}-${ci}`}
+                  type="button"
+                  className="rounded-sm border-0 p-0"
+                  style={{
+                    width: cellSize,
+                    height: cellSize,
+                    backgroundColor: `rgb(${color[0]},${color[1]},${color[2]})`,
+                    opacity: dimmed ? 0.4 : 1,
+                    outline: isSelected ? "2px solid white" : "none",
+                    outlineOffset: isSelected ? "-2px" : undefined,
+                    cursor: "pointer",
+                    transform: "rotate(-45deg)",
+                  }}
+                  aria-label={`${primaryMetric.label} ${["Low", "Mid", "High"][ri]}, ${secondaryMetric.label} ${["Low", "Mid", "High"][ci]}`}
+                  aria-pressed={isSelected}
+                  onClick={() => onCellClick(isSelected ? null : { row: ri, col: ci })}
+                />
+              );
+            }),
+          )}
         </div>
       </div>
-    </>
+      {/* Axis labels */}
+      <div className="mt-1 flex w-full items-center justify-between text-[9px] text-slate-400 dark:text-slate-500">
+        <span>↙ {primaryMetric.label}</span>
+        <span>{secondaryMetric.label} ↗</span>
+      </div>
+    </div>
   );
 }
 
