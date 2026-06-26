@@ -126,7 +126,7 @@ export function ComparisonChart({
               }`}
             >
               <span
-                className={`${isBlockGroup ? "w-32" : "w-24"} shrink-0 text-right text-xs ${
+                className={`${isBlockGroup ? "w-28" : "w-20"} shrink-0 text-right text-xs ${
                   isSelected
                     ? "font-semibold text-slate-900 dark:text-white"
                     : "text-slate-700 dark:text-slate-400"
