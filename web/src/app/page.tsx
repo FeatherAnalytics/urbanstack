@@ -8,6 +8,10 @@ import {
   computeDisplayRange,
   getVisibleGeoIds,
   computeQuantileBins,
+  computeQuantileBreaks,
+  generateClassifiedPalette,
+  stabilizeViewportBounds,
+  QUANTILE_BIN_COUNT,
   loadData,
   loadGeoJSON,
   loadAllData,
@@ -58,6 +62,7 @@ export default function Home() {
   const [baseCounties, setBaseCounties] = useState<CountyData[]>([]);
   const [countyToMetro, setCountyToMetro] = useState<Record<string, string>>({});
   const [colorScaleMode, setColorScaleMode] = useState<ColorScaleMode>("viewport");
+  const [selectedBins, setSelectedBins] = useState<Set<number>>(new Set());
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
 
   const yearRef = useRef<number | null>(null);
@@ -156,13 +161,14 @@ export default function Home() {
       viewportTimerRef.current = setTimeout(() => {
         const vs = viewState as { longitude: number; latitude: number; zoom: number };
         const span = 360 / Math.pow(2, vs.zoom);
-        setViewportBounds({
+        // eslint-disable-next-line react-hooks/set-state-in-effect
+        setViewportBounds(stabilizeViewportBounds({
           west: vs.longitude - span / 2,
           east: vs.longitude + span / 2,
           south: vs.latitude - span / 4,
           north: vs.latitude + span / 4,
-        });
-      }, 300);
+        }));
+      }, 600);
     },
     [],
   );
@@ -198,6 +204,32 @@ export default function Home() {
       .filter((v): v is number => v !== null && !Number.isNaN(v));
     return computeQuantileBins(values, 3);
   }, [counties, secondaryMetric]);
+
+  const quantileBreaks = useMemo(() => {
+    if (secondaryMetric) return null;
+    const source = (colorScaleMode === "viewport" && visibleIds)
+      ? counties.filter(c => visibleIds.has(c.county_fips))
+      : counties;
+    const values = source
+      .map(c => c[selectedMetric.key] as number | null)
+      .filter((v): v is number => v !== null && v !== 0 && Number.isFinite(v));
+    return computeQuantileBreaks(values, QUANTILE_BIN_COUNT);
+  }, [counties, colorScaleMode, visibleIds, selectedMetric.key, secondaryMetric]);
+
+  const classifiedPalette = useMemo(() => {
+    if (secondaryMetric) return null;
+    return generateClassifiedPalette(selectedMetric.colorScale, QUANTILE_BIN_COUNT);
+  }, [selectedMetric.colorScale, secondaryMetric]);
+
+  const displayCounties = useMemo(() => {
+    if (colorScaleMode === "viewport" && visibleIds) {
+      return counties.filter(c => visibleIds.has(c.county_fips));
+    }
+    if (selectedMetro) {
+      return counties.filter(c => c.metro_id === selectedMetro);
+    }
+    return counties;
+  }, [counties, colorScaleMode, visibleIds, selectedMetro]);
 
   const overlayLayers = useMemo(() => {
     const out = [];
@@ -350,6 +382,7 @@ export default function Home() {
               const v = e.target.value || null;
               if (v) flyToMetro(v);
               else setSelectedMetro(null);
+              setSelectedBins(new Set());
             }}
             className="rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 lg:px-2 lg:text-xs"
           >
@@ -427,10 +460,10 @@ export default function Home() {
           <h2 className="sr-only">Metric Selection</h2>
           <MetricSelector
             selected={selectedMetric}
-            onSelect={(m) => { setSelectedMetric(m); setSecondaryMetric(null); setSidebarOpen(false); }}
+            onSelect={(m) => { setSelectedMetric(m); setSecondaryMetric(null); setSelectedBins(new Set()); setSidebarOpen(false); }}
             counties={counties}
             secondaryMetric={secondaryMetric}
-            onSelectSecondary={setSecondaryMetric}
+            onSelectSecondary={(m) => { setSecondaryMetric(m); setSelectedBins(new Set()); }}
           />
         </aside>
 
@@ -470,6 +503,9 @@ export default function Home() {
             secondaryMetric={secondaryMetric}
             primaryBreaks={primaryBreaks}
             secondaryBreaks={secondaryBreaks}
+            quantileBreaks={quantileBreaks}
+            classifiedPalette={classifiedPalette}
+            highlightedBins={selectedBins.size > 0 ? selectedBins : null}
           />
           <MapTooltip
             county={hoverCounty}
@@ -501,6 +537,10 @@ export default function Home() {
               onToggleMode={() => setColorScaleMode((m) => (m === "global" ? "viewport" : "global"))}
               onExitCompare={() => setSecondaryMetric(null)}
               granularity={granularity}
+              quantileBreaks={quantileBreaks}
+              classifiedPalette={classifiedPalette}
+              selectedBins={selectedBins}
+              onSelectionChange={setSelectedBins}
             />
           </div>
           <CountyDetailPopup
@@ -516,7 +556,7 @@ export default function Home() {
       <div className="shrink-0 overflow-y-auto border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
         <h2 className="sr-only">Data Comparison</h2>
         <ComparisonChart
-          counties={counties}
+          counties={displayCounties}
           metric={selectedMetric}
           selectedFips={selectedFips}
           onSelect={setSelectedFips}
@@ -525,6 +565,9 @@ export default function Home() {
           primaryBreaks={primaryBreaks}
           secondaryBreaks={secondaryBreaks}
           selectedMetro={selectedMetro}
+          quantileBreaks={quantileBreaks}
+          classifiedPalette={classifiedPalette}
+          selectedBins={selectedBins}
         />
       </div>
     </div>
