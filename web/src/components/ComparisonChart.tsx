@@ -277,7 +277,7 @@ export function ComparisonChart({
             const avgPct = maxVal > 0 ? (row.avg / maxVal) * 100 : 0;
             return (
               <div key={`agg-${row.binIdx}`} className="flex items-center gap-2 rounded px-1 py-0.5">
-                <span className="w-20 shrink-0 text-left text-xs text-slate-500 dark:text-slate-400">
+                <span className="w-28 shrink-0 truncate whitespace-nowrap text-left text-xs text-slate-500 dark:text-slate-400">
                   {label} ({row.count})
                 </span>
                 <div className="relative h-3 flex-1">
@@ -286,7 +286,7 @@ export function ComparisonChart({
                     style={{ width: `${avgPct}%`, backgroundColor: `rgba(${r},${g},${b},0.7)` }}
                   />
                 </div>
-                <span className="w-18 shrink-0 text-right font-mono text-xs text-slate-400 dark:text-slate-500">
+                <span className="w-24 shrink-0 whitespace-nowrap text-right font-mono text-xs text-slate-400 dark:text-slate-500">
                   {formatValue(row.avg, metric.format)} avg
                 </span>
               </div>
@@ -308,7 +308,7 @@ export function ComparisonChart({
               }`}
             >
               <span
-                className={`${isBlockGroup ? "w-28" : "w-20"} shrink-0 text-left text-xs ${
+                className={`${isBlockGroup ? "w-28" : "w-28"} shrink-0 truncate whitespace-nowrap text-left text-xs ${
                   isSelected ? "font-semibold text-slate-900 dark:text-white" : "text-slate-700 dark:text-slate-400"
                 }`}
               >
@@ -320,7 +320,7 @@ export function ComparisonChart({
                   style={{ width: `${pct}%`, backgroundColor: `rgba(${barR}, ${barG}, ${barB}, ${isSelected ? 1 : 0.85})` }}
                 />
               </div>
-              <span className="w-18 shrink-0 text-right font-mono text-xs text-slate-700 dark:text-slate-400">
+              <span className="w-24 shrink-0 whitespace-nowrap text-right font-mono text-xs text-slate-700 dark:text-slate-400">
                 {formatValue(val, metric.format)}
                 {isBivariate && secVal !== null && ` / ${formatValue(secVal, secondaryMetric!.format)}`}
               </span>
