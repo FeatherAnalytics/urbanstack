@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, DM_Serif_Display } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -12,10 +12,34 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const dmSerif = DM_Serif_Display({
+  weight: "400",
+  variable: "--font-display",
+  subsets: ["latin"],
+});
+
 export const metadata: Metadata = {
   title: "UrbanStack — Urban Data Explorer",
   description:
-    "Interactive choropleth map of U.S. metro area urban data",
+    "Compare demographics, transit, safety, spending, and congestion across U.S. metro areas with interactive choropleth maps and bivariate analysis.",
+  authors: [{ name: "David Hardage", url: "https://featheranalytics.dev" }],
+  openGraph: {
+    title: "UrbanStack — Urban Data Explorer",
+    description:
+      "Compare demographics, transit, safety, spending, and congestion across U.S. metro areas with interactive choropleth maps and bivariate analysis.",
+    url: "https://featheranalytics.dev/urbanstack/",
+    siteName: "UrbanStack",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "UrbanStack — Urban Data Explorer",
+    description:
+      "Interactive choropleth maps comparing demographics, transit, safety, and congestion across U.S. metros.",
+  },
+  other: {
+    "linkedin:owner": "https://www.linkedin.com/in/david-hardage/",
+  },
 };
 
 /**
@@ -44,7 +68,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${geistSans.variable} ${geistMono.variable} ${dmSerif.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <head>

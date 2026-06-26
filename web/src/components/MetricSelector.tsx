@@ -121,7 +121,7 @@ function MetricList({
                 >
                   <span>{metric.label}</span>
                   {metric.dateRange && (
-                    <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-600">
+                    <span className="ml-1 text-[10px] text-slate-400 dark:text-slate-500">
                       {metric.dateRange}
                     </span>
                   )}
@@ -183,20 +183,10 @@ export function MetricSelector({
       <div className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-500">
         Metric
       </div>
-      <MetricList
-        grouped={grouped}
-        visibleCategories={visibleCategories}
-        selected={activeComboKey ? null : selected}
-        onSelect={onSelect}
-        counties={counties}
-        exclude={secondaryMetric?.key ?? null}
-        navRef={navRef}
-      />
 
-      {/* yagni: custom secondary selection disabled until UX improved — combos only for now */}
-
+      {/* Quick Combos — elevated position for discoverability */}
       {availableCombos.length > 0 && (
-        <div className="border-t border-slate-200 pt-2 dark:border-slate-700">
+        <div className="rounded-md bg-slate-50 p-2 dark:bg-slate-800/50">
           <h3 className="mb-1 text-[11px] font-semibold tracking-wider text-slate-600 uppercase dark:text-slate-500">
             Quick Combos
           </h3>
@@ -226,6 +216,17 @@ export function MetricSelector({
           </div>
         </div>
       )}
+
+      {/* Individual metrics by category */}
+      <MetricList
+        grouped={grouped}
+        visibleCategories={visibleCategories}
+        selected={activeComboKey ? null : selected}
+        onSelect={onSelect}
+        counties={counties}
+        exclude={secondaryMetric?.key ?? null}
+        navRef={navRef}
+      />
 
       <TooltipPopup state={comboTooltip} />
     </nav>

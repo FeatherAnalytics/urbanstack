@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { interpolateColor, formatValue, computeDisplayRange, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS } from "@/lib/data";
+import { interpolateColor, formatValue, computeDisplayRange, getVisibleGeoIds, computeQuantileBins, getBivariateColor, BIVARIATE_PALETTE, METRIC_COMBOS, formatRank } from "@/lib/data";
 import type { CountyData } from "@/lib/data";
 
 describe("interpolateColor", () => {
@@ -27,6 +27,19 @@ describe("formatValue", () => {
 
   it("returns N/A for null", () => {
     expect(formatValue(null, "number")).toBe("N/A");
+  });
+
+  it("shows significant digits for very small decimals", () => {
+    expect(formatValue(0.0009, "decimal")).toBe("0.0009");
+    expect(formatValue(0.045, "decimal")).toBe("0.045");
+    expect(formatValue(0.005, "decimal")).toBe("0.005");
+  });
+
+  it("keeps toFixed(1) for normal decimals", () => {
+    expect(formatValue(11.9, "decimal")).toBe("11.9");
+    expect(formatValue(2.3, "decimal")).toBe("2.3");
+    expect(formatValue(0.7, "decimal")).toBe("0.7");
+    expect(formatValue(0.1, "decimal")).toBe("0.1");
   });
 });
 
@@ -138,5 +151,22 @@ describe("METRIC_COMBOS", () => {
       expect(combo.key).toBeTruthy();
       expect(combo.primary).not.toBe(combo.secondary);
     }
+  });
+});
+
+describe("formatRank", () => {
+  const counties = [
+    { county_fips: "001", county_name: "A", population: 5000 },
+    { county_fips: "002", county_name: "B", population: 3000 },
+    { county_fips: "003", county_name: "C", population: 1000 },
+    { county_fips: "004", county_name: "D", population: null },
+  ] as CountyData[];
+
+  it("formats rank with total count", () => {
+    expect(formatRank(counties[0], "population", counties)).toBe("1st of 3");
+  });
+
+  it("excludes null values from count", () => {
+    expect(formatRank(counties[2], "population", counties)).toBe("3rd of 3");
   });
 });

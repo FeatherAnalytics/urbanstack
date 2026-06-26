@@ -8,6 +8,7 @@ import {
   type Granularity,
   type MetricConfig,
 } from "@/lib/data";
+import { METROS } from "@/lib/metro";
 
 const BLOCK_GROUP_LIMIT = 20;
 
@@ -20,6 +21,7 @@ interface ComparisonChartProps {
   secondaryMetric: MetricConfig | null;
   primaryBreaks: number[] | null;
   secondaryBreaks: number[] | null;
+  selectedMetro: string | null;
 }
 
 export function ComparisonChart({
@@ -31,6 +33,7 @@ export function ComparisonChart({
   secondaryMetric,
   primaryBreaks,
   secondaryBreaks,
+  selectedMetro,
 }: ComparisonChartProps) {
   if (granularity === "metro" && counties.length <= 1) {
     return (
@@ -40,7 +43,11 @@ export function ComparisonChart({
     );
   }
 
-  const withData = counties.filter((c) => {
+  const filteredCounties = selectedMetro && granularity === "county"
+    ? counties.filter((c) => c.metro_id === selectedMetro)
+    : counties;
+
+  const withData = filteredCounties.filter((c) => {
     const v = c[metric.key];
     return v !== null && v !== undefined && !Number.isNaN(v as number);
   });
@@ -65,9 +72,15 @@ export function ComparisonChart({
   const isBivariate = secondaryMetric !== null && primaryBreaks !== null && secondaryBreaks !== null;
   const [defaultR, defaultG, defaultB] = metric.colorScale[metric.colorScale.length - 1];
 
+  const metroLabel = selectedMetro && granularity === "county"
+    ? METROS[selectedMetro]?.metro_name.split(" MSA")[0] ?? "Selected Metro"
+    : "All";
+
+  const granLabel = granularity === "metro" ? "Metro Areas" : isBlockGroup ? "Block Groups" : "Counties";
+
   const heading = isBlockGroup
-    ? `${metric.label} — Top/Bottom ${BLOCK_GROUP_LIMIT} Block Groups`
-    : `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""} — All Counties`;
+    ? `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""} — Top/Bottom ${BLOCK_GROUP_LIMIT} ${granLabel}`
+    : `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""} — ${metroLabel} ${granLabel}`;
 
   return (
     <div className="p-3">
@@ -89,9 +102,18 @@ export function ComparisonChart({
           }
 
           const barOpacity = isSelected ? 1 : 0.6;
-          const nameShort = isBlockGroup
-            ? county.county_fips
-            : county.county_name.replace(/ County,.*$/, "");
+          let nameShort: string;
+          if (isBlockGroup) {
+            // county_name format: "Block Group 1; Census Tract 301.01; Collin County; Texas"
+            const parts = county.county_name.split(";");
+            const countyPart = parts.length >= 3
+              ? parts[2].trim().replace(/ County$/, "")
+              : "";
+            const fipsSuffix = county.county_fips.slice(-4);
+            nameShort = countyPart ? `${countyPart} ${fipsSuffix}` : county.county_fips;
+          } else {
+            nameShort = county.county_name.replace(/ County,.*$/, "");
+          }
 
           return (
             <button
@@ -104,7 +126,7 @@ export function ComparisonChart({
               }`}
             >
               <span
-                className={`${isBlockGroup ? "w-28" : "w-24"} shrink-0 text-right text-xs ${
+                className={`${isBlockGroup ? "w-28" : "w-20"} shrink-0 text-right text-xs ${
                   isSelected
                     ? "font-semibold text-slate-900 dark:text-white"
                     : "text-slate-700 dark:text-slate-400"
