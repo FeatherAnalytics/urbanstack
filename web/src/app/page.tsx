@@ -565,7 +565,7 @@ export default function Home() {
       </div>
 
       {/* Bottom comparison chart */}
-      <div className="shrink-0 overflow-y-auto border-t border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
+      <div className="shrink-0 overflow-y-auto border-t border-slate-200 bg-white max-h-48 dark:border-slate-700 dark:bg-slate-900 lg:max-h-72">
         <h2 className="sr-only">Data Comparison</h2>
         <ComparisonChart
           counties={displayCounties}
