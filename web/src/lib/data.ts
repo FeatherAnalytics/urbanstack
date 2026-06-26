@@ -942,6 +942,29 @@ export function getBivariateColor(
   return [rgb[0], rgb[1], rgb[2], alpha];
 }
 
+/** Generate a 3×3 bivariate palette by blending two metric color scales. */
+export function generateBivariatePalette(
+  primaryColorScale: [number, number, number][],
+  secondaryColorScale: [number, number, number][],
+): [number, number, number][][] {
+  const sample = (scale: [number, number, number][], t: number): [number, number, number] => {
+    const c = interpolateColor(t, scale);
+    return [c[0], c[1], c[2]];
+  };
+  const positions = [0, 0.5, 1]; // Low, Mid, High
+  return positions.map((pt) => {
+    const pColor = sample(primaryColorScale, pt);
+    return positions.map((st) => {
+      const sColor = sample(secondaryColorScale, st);
+      return [
+        Math.round((pColor[0] + sColor[0]) / 2),
+        Math.round((pColor[1] + sColor[1]) / 2),
+        Math.round((pColor[2] + sColor[2]) / 2),
+      ] as [number, number, number];
+    });
+  });
+}
+
 export interface MetricCombo {
   key: string;
   label: string;
