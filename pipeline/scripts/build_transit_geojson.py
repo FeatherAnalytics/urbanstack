@@ -13,6 +13,7 @@ then converts shape/route/stop data into GeoJSON files at:
 import json
 import logging
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 import polars as pl
@@ -224,13 +225,13 @@ def build_stops_geojson(
     active_stop_keys: set[str],
     stop_modes: dict[str, set[str]],
     route_agencies: set[str] | None = None,
+    spatial_filter: "Callable[[str, float, float], bool] | None" = None,
 ) -> dict:
     """Build GeoJSON FeatureCollection for transit stops.
 
     Filters to only stops appearing in stop_times.txt (active stops).
-    If active_stop_keys is empty, includes all stops.
     If route_agencies provided, excludes stops from agencies with no routes.
-    Each stop gets a ``modes`` property: ["rail"], ["bus"], or ["rail", "bus"].
+    If spatial_filter provided, excludes stops outside their agency's route extent.
     """
     if stops_df.is_empty():
         return {"type": "FeatureCollection", "features": []}
@@ -246,6 +247,9 @@ def build_stops_geojson(
 
         # Filter to active stops if we have the data
         if active_stop_keys and key not in active_stop_keys:
+            continue
+
+        if spatial_filter and not spatial_filter(agency, row["latitude"], row["longitude"]):
             continue
 
         modes = sorted(stop_modes.get(key, {"bus"}))
@@ -364,9 +368,27 @@ def main() -> int:
     logger.info("Routes: %d total", route_count)
     _count_by_agency(routes_geojson["features"], "routes")
 
-    # Step 5: Build stops GeoJSON (only agencies that produced routes)
-    route_agency_set = {f["properties"]["agency"] for f in routes_geojson["features"]}
-    stops_geojson = build_stops_geojson(all_stops, active_stops, stop_modes, route_agency_set)
+    # Step 5: Build stops GeoJSON — only include stops near actual route geometry.
+    # Compute per-agency bounding box from route coordinates, then filter stops to match.
+    agency_bounds: dict[str, tuple[float, float, float, float]] = {}
+    route_pad = 0.05  # ~5.5km padding around route extent
+    for feat in routes_geojson["features"]:
+        ag = feat["properties"]["agency"]
+        for lon, lat in feat["geometry"]["coordinates"]:
+            if ag not in agency_bounds:
+                agency_bounds[ag] = (lat, lat, lon, lon)
+            else:
+                b = agency_bounds[ag]
+                agency_bounds[ag] = (min(b[0], lat), max(b[1], lat), min(b[2], lon), max(b[3], lon))
+
+    def _stop_near_routes(agency: str, lat: float, lon: float) -> bool:
+        if agency not in agency_bounds:
+            return False
+        b = agency_bounds[agency]
+        return (b[0] - route_pad <= lat <= b[1] + route_pad and
+                b[2] - route_pad <= lon <= b[3] + route_pad)
+
+    stops_geojson = build_stops_geojson(all_stops, active_stops, stop_modes, set(agency_bounds.keys()), _stop_near_routes)
     stop_count = len(stops_geojson["features"])
     logger.info("Stops: %d total", stop_count)
     _count_by_agency(stops_geojson["features"], "stops")
