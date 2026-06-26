@@ -25,7 +25,6 @@ class MetroConfig:
     zoom: int
     bounds: tuple[float, float, float, float]  # (min_lat, max_lat, min_lon, max_lon)
     transit_agencies: dict[str, str]
-    gtfs_feeds: dict[str, str]
     umr_names: list[str] = field(default_factory=list)
 
     @property
@@ -73,11 +72,6 @@ DFW = MetroConfig(
         "60007": "Fort Worth Transportation Authority",
         "60101": "Denton County Transportation Authority",
     },
-    gtfs_feeds={
-        "DART": "https://www.dart.org/transitdata/latest/google_transit.zip",
-        "Trinity Metro": "http://sched.ridetm.org/gtfs/fwtatransitdata.zip",
-        "DCTA": "https://gtfs.remix.com/dcta_denton_tx_us.zip",
-    },
     umr_names=[
         "Dallas-Fort Worth-Arlington",
         "Dallas-Fort Worth-Arlington TX",
@@ -118,11 +112,6 @@ CHICAGO = MetroConfig(
         "50066": "Chicago Transit Authority",
         "50064": "Metra",
         "50065": "Pace",
-    },
-    gtfs_feeds={
-        "CTA": "https://www.transitchicago.com/downloads/sch_data/google_transit.zip",
-        "Metra": "https://schedule.metrarail.com/gtfs/schedule/feed.zip",
-        "Pace": "https://www.pacebus.com/sites/default/files/GTFS/google_transit.zip",
     },
     umr_names=[
         "Chicago IL-IN",
@@ -177,9 +166,6 @@ NYC = MetroConfig(
         "20008": "MTA New York City Transit",
         "20188": "NJ Transit",
         "20171": "Port Authority Trans-Hudson",
-    },
-    gtfs_feeds={
-        "MTA": "http://web.mta.info/developers/data/nyct/subway/google_transit.zip",
     },
     umr_names=[
         "New York-Newark NY-NJ-CT",
