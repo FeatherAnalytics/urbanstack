@@ -119,8 +119,9 @@ class MetroConfig:
     counties: dict[str, str]             # county name → 3-digit FIPS
     center: tuple[float, float]          # (lat, lon) for map viewport
     zoom: int                            # default zoom level
+    bounds: tuple[float, float, float, float]  # (min_lat, max_lat, min_lon, max_lon)
     transit_agencies: dict[str, str]     # NTD ID → agency name
-    gtfs_feeds: dict[str, str]           # agency name → GTFS URL
+    # GTFS feeds auto-discovered via transit_discovery module (Mobility Database CSV catalog)
     umr_names: list[str]                 # metro name variations for UMR filtering
 
     @property

@@ -48,6 +48,13 @@ pipeline/exports/
 # Reference assets (PDFs, proprietary docs)
 assets/
 
+# Transit GeoJSON (large, regenerable via build_transit_geojson.py)
+web/public/data/*/transit_routes.geojson
+web/public/data/*/transit_stops.geojson
+
+# Screenshots (debug/validation artifacts)
+web/screenshots/
+
 # Misc
 *.log
 .superpowers/
