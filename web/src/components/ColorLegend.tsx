@@ -71,7 +71,7 @@ function BivariateLegend({
   const diag = Math.round(gridSide * Math.SQRT2);
 
   return (
-    <div style={{ position: "relative", width: diag, margin: "0 auto" }}>
+    <div className="flex flex-col items-center">
       {/* Diamond grid — rotated 45° so (min,min) is bottom, (max,max) is top */}
       <div style={{ width: diag, height: diag, position: "relative" }}>
         <div
@@ -116,37 +116,21 @@ function BivariateLegend({
           )}
         </div>
       </div>
-      {/* Axis labels — in the empty left and right corners of the bounding box */}
-      <span
-        className="absolute text-[8px] leading-none text-slate-400 dark:text-slate-500"
-        style={{
-          left: 2,
-          top: diag / 2 + 2,
-          transform: "rotate(-45deg)",
-          transformOrigin: "top left",
-          whiteSpace: "nowrap",
-          maxWidth: diag / 2 - 4,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        ↑ {primaryMetric.label}
-      </span>
-      <span
-        className="absolute text-[8px] leading-none text-slate-400 dark:text-slate-500"
-        style={{
-          right: 2,
-          top: diag / 2 + 2,
-          transform: "rotate(45deg)",
-          transformOrigin: "top right",
-          whiteSpace: "nowrap",
-          maxWidth: diag / 2 - 4,
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-        }}
-      >
-        {secondaryMetric.label} ↑
-      </span>
+      {/* Axis labels — below diamond, angled along edges, arrows pointing up/outward */}
+      <div style={{ width: diag, position: "relative", height: 24, marginTop: 2 }}>
+        <span
+          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
+          style={{ right: "50%", bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom right", whiteSpace: "nowrap" }}
+        >
+          {primaryMetric.label} ↗
+        </span>
+        <span
+          className="absolute text-[9px] text-slate-400 dark:text-slate-500"
+          style={{ left: "50%", bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom left", whiteSpace: "nowrap" }}
+        >
+          ↖ {secondaryMetric.label}
+        </span>
+      </div>
     </div>
   );
 }
