@@ -304,6 +304,28 @@ def main() -> int:
         logger.error("No routes extracted. No GeoJSON generated.")
         return 1
 
+    # Filter to metro bounding box with padding to avoid clipping edge routes
+    pad = 0.5  # degrees (~55km)
+    min_lat, max_lat, min_lon, max_lon = metro.bounds
+    before_stops = len(all_stops)
+    all_stops = all_stops.filter(
+        (pl.col("latitude") >= min_lat - pad)
+        & (pl.col("latitude") <= max_lat + pad)
+        & (pl.col("longitude") >= min_lon - pad)
+        & (pl.col("longitude") <= max_lon + pad)
+    )
+    logger.info("Filtered stops to metro bounds: %d → %d", before_stops, len(all_stops))
+
+    # Filter shapes to metro bounds, then keep only routes that have shapes in bounds
+    before_shapes = len(all_shapes)
+    all_shapes = all_shapes.filter(
+        (pl.col("latitude") >= min_lat - pad)
+        & (pl.col("latitude") <= max_lat + pad)
+        & (pl.col("longitude") >= min_lon - pad)
+        & (pl.col("longitude") <= max_lon + pad)
+    )
+    logger.info("Filtered shapes to metro bounds: %d → %d", before_shapes, len(all_shapes))
+
     # Get list of agencies that were extracted
     agencies = all_routes["agency"].unique().to_list()
     logger.info("Extracted %d agencies: %s", len(agencies), ", ".join(agencies))
