@@ -42,8 +42,10 @@ function computeTooltipPosition(
   const btnRect = btn.getBoundingClientRect();
   const spaceBelow = window.innerHeight - btnRect.bottom;
   const above = spaceBelow < 100;
-  const top = above ? btnRect.top - 4 : btnRect.bottom + 4;
-  return { top, left: navRect.left, width: navRect.width, above };
+  const top = above
+    ? Math.max(btnRect.top - 4, 0)
+    : Math.min(btnRect.bottom + 4, window.innerHeight - 80);
+  return { top, left: navRect.right + 4, width: Math.min(navRect.width, 260), above };
 }
 
 function TooltipPopup({ state }: { state: TooltipState | null }) {
