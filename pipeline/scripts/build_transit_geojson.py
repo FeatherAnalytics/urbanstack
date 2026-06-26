@@ -40,6 +40,7 @@ def _load_feed_manifest(raw_dir: Path) -> dict[str, str]:
     """Load mdb_id → provider name mapping from feed_manifest.json."""
     manifest_path = raw_dir / "feed_manifest.json"
     if not manifest_path.exists():
+        logger.warning("No feed_manifest.json at %s — run extract with --force to regenerate", raw_dir)
         return {}
     return json.loads(manifest_path.read_text())
 
@@ -212,8 +213,12 @@ def _build_linestring(points: list[tuple[float, float]]) -> dict:
 def _clip_linestring(
     coords: list[tuple[float, float]],
     min_lon: float, max_lon: float, min_lat: float, max_lat: float,
-) -> list[tuple[float, float]]:
-    """Clip a LineString to a bounding box, interpolating at boundary crossings."""
+) -> list[list[tuple[float, float]]]:
+    """Clip a LineString to a bounding box, returning multiple segments.
+
+    When a route exits and re-enters the bbox, produces separate segments
+    instead of drawing across the gap.
+    """
     def _in_bbox(lon: float, lat: float) -> bool:
         return min_lon <= lon <= max_lon and min_lat <= lat <= max_lat
 
@@ -230,20 +235,28 @@ def _clip_linestring(
             elif y2 < min_lat: t = min(t, (min_lat - y1) / dy)
         return (x1 + dx * max(0, t), y1 + dy * max(0, t))
 
-    clipped: list[tuple[float, float]] = []
+    segments: list[list[tuple[float, float]]] = []
+    current: list[tuple[float, float]] = []
+    prev_in = False
+
     for i, (lon, lat) in enumerate(coords):
-        if _in_bbox(lon, lat):
-            if clipped or i == 0:
-                clipped.append((lon, lat))
-            else:
+        now_in = _in_bbox(lon, lat)
+        if now_in:
+            if not prev_in and i > 0:
                 edge = _intersect(coords[i - 1], (lon, lat))
-                clipped.append(edge)
-                clipped.append((lon, lat))
+                current.append(edge)
+            current.append((lon, lat))
         else:
-            if clipped and i > 0 and _in_bbox(*coords[i - 1]):
+            if prev_in and current:
                 edge = _intersect(coords[i - 1], (lon, lat))
-                clipped.append(edge)
-    return clipped
+                current.append(edge)
+                segments.append(current)
+                current = []
+        prev_in = now_in
+
+    if current:
+        segments.append(current)
+    return segments
 
 
 def build_routes_geojson(
@@ -281,7 +294,7 @@ def build_routes_geojson(
         if shape_points.is_empty():
             continue
 
-        coords = list(
+        raw_coords = list(
             zip(
                 shape_points["longitude"].to_list(),
                 shape_points["latitude"].to_list(),
@@ -290,10 +303,9 @@ def build_routes_geojson(
 
         if clip_bounds:
             min_lat, max_lat, min_lon, max_lon = clip_bounds
-            coords = _clip_linestring(coords, min_lon, max_lon, min_lat, max_lat)
-
-        if len(coords) < 2:
-            continue
+            coord_segments = _clip_linestring(raw_coords, min_lon, max_lon, min_lat, max_lat)
+        else:
+            coord_segments = [raw_coords]
 
         # Build display name
         display_name = route_name
@@ -306,19 +318,22 @@ def build_routes_geojson(
         if not color:
             color = "#4A90D9" if route_type in (0, 1, 2) else "#6B7280"
 
-        feature = {
-            "type": "Feature",
-            "properties": {
-                "agency": agency,
-                "route_id": row["route_id"],
-                "route_name": display_name,
-                "route_type": route_type_label,
-                "route_type_code": route_type,
-                "color": color or "",
-            },
-            "geometry": _build_linestring(coords),
-        }
-        features.append(feature)
+        for coords in coord_segments:
+            if len(coords) < 2:
+                continue
+            feature = {
+                "type": "Feature",
+                "properties": {
+                    "agency": agency,
+                    "route_id": row["route_id"],
+                    "route_name": display_name,
+                    "route_type": route_type_label,
+                    "route_type_code": route_type,
+                    "color": color or "",
+                },
+                "geometry": _build_linestring(coords),
+            }
+            features.append(feature)
 
     return {"type": "FeatureCollection", "features": features}
 
@@ -438,6 +453,9 @@ def main() -> int:
     for feat in routes_geojson["features"]:
         p = feat["properties"]
         rendered_routes.add((p["agency"], p.get("route_id", "")))
+
+    if not rendered_routes:
+        logger.warning("No routes survived clipping — all routes outside metro bounds")
 
     rendered_stop_keys = _stops_for_routes(raw_dir, agencies, rendered_routes)
     logger.info("Stops matched to rendered routes: %d", len(rendered_stop_keys))

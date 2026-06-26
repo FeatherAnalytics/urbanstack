@@ -65,7 +65,7 @@ def _parse_routes(agency: str, rows: list[dict[str, str]], prefix: str = "") -> 
                 GtfsRoute.model_validate(
                     {
                         "agency": agency,
-                        "route_id": f"{prefix}:{row['route_id']}" if prefix else row["route_id"],
+                        "route_id": f"{prefix}:{row.get('route_id', '')}" if prefix else row.get("route_id", ""),
                         "route_short_name": row.get("route_short_name", ""),
                         "route_long_name": row.get("route_long_name", ""),
                         "route_type": route_type,
@@ -97,7 +97,7 @@ def _parse_stops(agency: str, rows: list[dict[str, str]], prefix: str = "") -> l
                 GtfsStop.model_validate(
                     {
                         "agency": agency,
-                        "stop_id": f"{prefix}:{row['stop_id']}" if prefix else row["stop_id"],
+                        "stop_id": f"{prefix}:{row.get('stop_id', '')}" if prefix else row.get("stop_id", ""),
                         "stop_name": row.get("stop_name", ""),
                         "latitude": lat_f,
                         "longitude": lon_f,
@@ -128,7 +128,7 @@ def _parse_shapes(agency: str, rows: list[dict[str, str]], prefix: str = "") -> 
                 GtfsShape.model_validate(
                     {
                         "agency": agency,
-                        "shape_id": f"{prefix}:{row['shape_id']}" if prefix else row["shape_id"],
+                        "shape_id": f"{prefix}:{row.get('shape_id', '')}" if prefix else row.get("shape_id", ""),
                         "latitude": lat_f,
                         "longitude": lon_f,
                         "sequence": seq_i,
