@@ -71,9 +71,9 @@ function BivariateLegend({
   const diag = Math.round(gridSide * Math.SQRT2);
 
   return (
-    <div className="flex flex-col items-center" style={{ position: "relative", minWidth: diag + 60, minHeight: diag + 10 }}>
+    <div style={{ position: "relative", width: diag, margin: "0 auto" }}>
       {/* Diamond grid — rotated 45° so (min,min) is bottom, (max,max) is top */}
-      <div style={{ width: diag, height: diag, position: "relative", margin: "0 auto" }}>
+      <div style={{ width: diag, height: diag, position: "relative" }}>
         <div
           data-testid="bivariate-grid"
           className="grid"
@@ -116,27 +116,33 @@ function BivariateLegend({
           )}
         </div>
       </div>
-      {/* Axis labels — along left and right diamond edges */}
+      {/* Axis labels — in the empty left and right corners of the bounding box */}
       <span
-        className="absolute text-[8px] text-slate-400 dark:text-slate-500"
+        className="absolute text-[8px] leading-none text-slate-400 dark:text-slate-500"
         style={{
-          left: -2,
-          top: diag / 2,
+          left: 2,
+          top: diag / 2 + 2,
           transform: "rotate(-45deg)",
-          transformOrigin: "center center",
+          transformOrigin: "top left",
           whiteSpace: "nowrap",
+          maxWidth: diag / 2 - 4,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       >
         ↑ {primaryMetric.label}
       </span>
       <span
-        className="absolute text-[8px] text-slate-400 dark:text-slate-500"
+        className="absolute text-[8px] leading-none text-slate-400 dark:text-slate-500"
         style={{
-          right: -2,
-          top: diag / 2,
+          right: 2,
+          top: diag / 2 + 2,
           transform: "rotate(45deg)",
-          transformOrigin: "center center",
+          transformOrigin: "top right",
           whiteSpace: "nowrap",
+          maxWidth: diag / 2 - 4,
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}
       >
         {secondaryMetric.label} ↑
