@@ -238,7 +238,7 @@ export function ComparisonChart({
               const paletteIdx = row.binIdx === -1 ? 0 : row.binIdx;
               const color = classifiedPalette[paletteIdx];
               [r, g, b] = [color[0], color[1], color[2]];
-              label = PERCENTILE_LABELS[row.binIdx + 1] ?? `Bin ${row.binIdx}`;
+              label = PERCENTILE_LABELS[row.binIdx === -1 ? 0 : row.binIdx] ?? `Bin ${row.binIdx}`;
             } else {
               [r, g, b] = [150, 150, 150];
               label = `Bin ${row.binIdx}`;
