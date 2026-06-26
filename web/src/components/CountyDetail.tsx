@@ -120,29 +120,49 @@ function MetricList({
                 const rankLabel = formatRank(county, metric.key, allCounties);
                 const isSelected = metric.key === selectedMetric.key;
 
+                // Position in distribution: 0 (lowest) to 1 (highest)
+                const allVals = allCounties
+                  .map(c => c[metric.key] as number | null)
+                  .filter((v): v is number => v !== null && Number.isFinite(v));
+                allVals.sort((a, b) => a - b);
+                const rank = val !== null ? allVals.findIndex(v => v >= val) : -1;
+                const pctPosition = allVals.length > 1 && rank >= 0 ? (rank / (allVals.length - 1)) * 100 : 50;
+
                 return (
                   <div
                     key={metric.key}
-                    className={`flex items-baseline justify-between rounded px-2 py-0.5 text-sm transition-colors ${
+                    className={`relative overflow-hidden rounded px-2 py-0.5 text-sm transition-colors ${
                       isSelected
                         ? "bg-blue-50 ring-1 ring-blue-200 dark:bg-blue-900/20 dark:ring-blue-800"
                         : ""
                     }`}
                   >
-                    <span className={isSelected
-                      ? "font-medium text-slate-900 dark:text-white"
-                      : "text-slate-500 dark:text-slate-400"
-                    }>
-                      {metric.label}
-                    </span>
-                    <span className="flex items-baseline gap-2">
-                      <span className="font-mono text-slate-900 dark:text-white">
-                        {formatValue(val, metric.format)}
+                    {/* Distribution position track */}
+                    {val !== null && (
+                      <div className="absolute inset-x-2 bottom-0 h-[2px]">
+                        <div className="h-full w-full rounded-full bg-slate-200/40 dark:bg-slate-600/30" />
+                        <div
+                          className="absolute top-[-1px] h-[4px] w-[4px] rounded-full bg-slate-400 dark:bg-slate-400"
+                          style={{ left: `${pctPosition}%`, transform: "translateX(-50%)" }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex items-baseline justify-between">
+                      <span className={isSelected
+                        ? "font-medium text-slate-900 dark:text-white"
+                        : "text-slate-500 dark:text-slate-400"
+                      }>
+                        {metric.label}
                       </span>
-                      <span className="text-[10px] text-slate-400 dark:text-slate-500">
-                        {rankLabel}
+                      <span className="flex items-baseline gap-2">
+                        <span className="font-mono text-slate-900 dark:text-white">
+                          {formatValue(val, metric.format)}
+                        </span>
+                        <span className="text-[10px] text-slate-400 dark:text-slate-500">
+                          {rankLabel}
+                        </span>
                       </span>
-                    </span>
+                    </div>
                   </div>
                 );
               })}
