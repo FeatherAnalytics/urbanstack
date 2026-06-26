@@ -138,6 +138,100 @@ Sidebar feature: small range chart showing data coverage per source. Data source
 - Calculation formula tooltip on hover for derived metrics
 - Stronger visual distinction between estimated vs measured metrics
 
+### Classified Color Scale (Quantile Buckets)
+
+Replace the current continuous gradient choropleth with a **classified (stepped) color scale** using quantile bins. This is the standard in cartography for thematic maps — it makes patterns more readable than continuous interpolation.
+
+**Design:**
+- **5 quantile bins** — each represents 20% of data points (quintiles). Equal-count bins ensure each color has a meaningful number of areas, unlike equal-interval which can leave most areas in one bin.
+- **2 additional colors** — for edge cases where numerator = 0 (e.g., zero fatalities) or denominator = 0 (e.g., zero population → undefined rate). These get distinct neutral colors (light gray for zero-numerator, crosshatch/pattern for zero-denominator) so users understand the data gap.
+- **7 total colors** in the legend. Each color swatch is a clickable button.
+
+**Interactive bucket selection:**
+- **Click a color swatch in the legend** → highlights all areas on the map that fall in that quantile. "Highlight" means the same white outline + slight brightness boost used for area selection today, but applied to ALL areas in the bucket simultaneously.
+- **Instead of the county detail panel**, the highlight shows a **distribution chart** — a small histogram or violin plot showing the distribution of the metric values across the highlighted areas, with the selected bucket marked.
+- **Multiple buckets selectable** — click a second bucket to add to the selection. Click again to deselect. This lets users compare, e.g., "top 20% vs bottom 20%" on the map.
+
+**Distribution chart on highlight:**
+The chart appears in the same position as the county detail panel (floating card on desktop, bottom sheet on mobile). It shows:
+1. **Histogram of the metric** across all visible areas (viewport or global depending on scale mode), with the selected bucket(s) colored and the rest grayed out.
+2. **Summary stats** for the selected bucket: count of areas, min/max/median of the metric, and the geographic names of the areas in the bucket.
+3. **If a combo (bivariate) is active**, show a **scatter plot** with the two metrics as axes, colored by bivariate bucket. Clicking a bucket in either axis legend highlights the corresponding row or column in the scatter and on the map.
+
+**Success criteria:**
+- [ ] Color scale shows 7 discrete swatches (5 quantile + 2 edge states) instead of a continuous gradient
+- [ ] Clicking a swatch highlights all matching areas on the map with the selection outline style
+- [ ] Distribution chart appears on highlight with histogram + summary stats
+- [ ] Multiple buckets can be selected/deselected
+- [ ] Bivariate mode shows scatter plot with cross-highlighting
+- [ ] Legend label shows the value range for each bucket (e.g., "0–23K", "23K–87K")
+- [ ] Zero-numerator and zero-denominator areas are visually distinct from low-value areas
+
+**Implementation approach:**
+1. Add `computeQuantileBreaks(values, 5)` to `data.ts` — returns 4 breakpoints that divide sorted values into 5 equal-count bins. (Already have `computeQuantileBins` for bivariate 3-class; extend to N-class.)
+2. Replace `interpolateColor` in ChoroplethMap with `classifyAndColor` — map each value to a bin index, return the corresponding palette color.
+3. New `ClassifiedLegend` component replaces `GradientLegend` — renders 7 clickable swatches with value range labels. Manages `selectedBuckets: Set<number>` state.
+4. New `BucketDistributionChart` component — receives the filtered data for highlighted buckets, renders histogram using SVG (no charting library needed for a simple histogram).
+5. ChoroplethMap receives `highlightedFips: Set<string>` — applies the selection outline style to all matching features.
+
+**When to build:** This is a significant UX overhaul of the core visualization. Plan as a dedicated feature branch with ~5 tasks.
+
+### Metric Sidebar Redesign
+
+The current metric sidebar is a flat list of 40+ buttons grouped by category. While functional, it has UX issues:
+- No visual hierarchy beyond small uppercase headings
+- All metrics look identical (same button style)
+- Hard to scan for specific metrics
+- Categories don't collapse, making the list very long
+- Active metric isn't visible when scrolled past it
+
+**Design ideas:**
+
+1. **Collapsible category accordions** — each category heading toggles its metric list open/closed. Show the active metric's category expanded, others collapsed by default. Reduces the visible list from 40+ to just category headings + the active category's metrics.
+
+2. **Search/filter input** — a small text input at the top of the sidebar that filters metrics as you type. "fat" → shows "Fatalities Per Capita", "Fatal Crashes Per Capita", etc. Useful when users know what they're looking for.
+
+3. **Metric cards with mini-sparkline** — instead of plain text buttons, each metric shows a tiny sparkline (inline SVG, 40×12px) showing the distribution shape across the visible areas. Users can see at a glance which metrics have interesting variation vs. which are uniform.
+
+4. **"Pinned" metrics** — let users star/pin frequently used metrics to the top. Stored in localStorage. Useful for analysts who repeatedly compare the same few metrics.
+
+5. **Category color coding** — each category gets a subtle left-border color (blue for Transportation, red for Safety, etc.) matching the choropleth palette. Creates visual chunking even when scrolling.
+
+**Success criteria:**
+- [ ] Categories collapse/expand; only active category open by default
+- [ ] Total visible items reduced from 40+ to ~15 on initial load
+- [ ] Active metric always visible (scroll-into-view on selection)
+- [ ] Search input filters metrics across all categories
+
+**When to build:** After classified color scale — the sidebar and legend changes interact and should be designed together.
+
+### Comprehensive Transit Data Coverage
+
+Currently, transit data (GTFS routes, stops, ridership) comes from a limited set of agencies per metro. For NYC, this means no NJ Transit, no LIRR, no Metro-North — only agencies whose GTFS feeds were explicitly configured. This creates misleading gaps where counties in New Jersey or Long Island show no public transit despite having significant rail and bus service.
+
+**Problem:** The current GTFS extract module loads feeds from a hardcoded list of agency IDs. Any county or block group represented on the map should have its relevant transit data if it exists.
+
+**Solution approach:**
+1. **Use the Mobility Database** (formerly TransitLand) — an open catalog of 2,000+ GTFS feeds worldwide. Query by bounding box or county to discover ALL agencies serving a metro area, not just the primary ones.
+2. **For each metro's county set**, query the Mobility Database API for all GTFS feeds with stops inside those county boundaries.
+3. **Auto-discover and download** feeds for agencies like NJ Transit, LIRR, Metro-North, Metra, BNSF, Trinity Railway Express, etc.
+4. **Ridership allocation** — NTD ridership data is per-agency. With more agencies per metro, ridership_per_capita becomes more accurate.
+
+**Specific gaps to fill:**
+| Metro | Missing agencies | Impact |
+|-------|-----------------|--------|
+| NYC | NJ Transit, LIRR, Metro-North, PATH, NY Waterway | NJ counties show zero transit |
+| Chicago | Metra, South Shore Line, Pace suburban bus | Suburban counties undercount |
+| DFW | DCTA (Denton), Trinity Metro (Tarrant) may be partial | Outer counties undercount |
+
+**Success criteria:**
+- [ ] Every county with >1% transit commute share in ACS data also shows transit routes/stops on the map
+- [ ] GTFS extract discovers agencies automatically from Mobility Database by metro bounding box
+- [ ] NJ counties in NYC metro show NJ Transit rail + bus routes
+- [ ] Ridership per capita includes all agencies serving the area, not just the primary transit authority
+
+**When to build:** Next pipeline enhancement sprint. This is a data completeness issue that directly affects credibility for the Urban Planner and Data Journalist personas.
+
 ### Regional Granularity (Multi-Metro Regions)
 
 Currently the hierarchy is: All US → Metro → County → Block Group. A natural next step is grouping metros into **regions** for higher-level comparison.
