@@ -305,7 +305,7 @@ def main() -> int:
         return 1
 
     # Filter to metro bounding box with padding to avoid clipping edge routes
-    pad = 0.5  # degrees (~55km)
+    pad = 0.3  # degrees (~33km)
     min_lat, max_lat, min_lon, max_lon = metro.bounds
     before_stops = len(all_stops)
     all_stops = all_stops.filter(
@@ -330,7 +330,7 @@ def main() -> int:
     ).agg(
         (pl.col("_in").sum() / pl.len()).alias("pct_in_bounds")
     )
-    local_shapes = shape_pcts.filter(pl.col("pct_in_bounds") >= 0.5)
+    local_shapes = shape_pcts.filter(pl.col("pct_in_bounds") >= 0.8)
     all_shapes = all_shapes.join(
         local_shapes.select(["agency", "shape_id"]), on=["agency", "shape_id"], how="inner"
     )
