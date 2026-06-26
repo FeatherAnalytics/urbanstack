@@ -316,13 +316,23 @@ def main() -> int:
     )
     logger.info("Filtered stops to metro bounds: %d → %d", before_stops, len(all_stops))
 
-    # Filter shapes to metro bounds, then keep only routes that have shapes in bounds
+    # Filter shapes at the shape level (not point level) to preserve linestring geometry.
+    # A shape qualifies if ≥50% of its points are within padded metro bounds.
     before_shapes = len(all_shapes)
-    all_shapes = all_shapes.filter(
+    in_bounds = (
         (pl.col("latitude") >= min_lat - pad)
         & (pl.col("latitude") <= max_lat + pad)
         & (pl.col("longitude") >= min_lon - pad)
         & (pl.col("longitude") <= max_lon + pad)
+    )
+    shape_pcts = all_shapes.with_columns(in_bounds.cast(pl.Int8).alias("_in")).group_by(
+        ["agency", "shape_id"]
+    ).agg(
+        (pl.col("_in").sum() / pl.len()).alias("pct_in_bounds")
+    )
+    local_shapes = shape_pcts.filter(pl.col("pct_in_bounds") >= 0.5)
+    all_shapes = all_shapes.join(
+        local_shapes.select(["agency", "shape_id"]), on=["agency", "shape_id"], how="inner"
     )
     logger.info("Filtered shapes to metro bounds: %d → %d", before_shapes, len(all_shapes))
 
