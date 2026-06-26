@@ -207,10 +207,48 @@ def _build_linestring(points: list[tuple[float, float]]) -> dict:
     return {"type": "LineString", "coordinates": [[lon, lat] for lon, lat in points]}
 
 
+def _clip_linestring(
+    coords: list[tuple[float, float]],
+    min_lon: float, max_lon: float, min_lat: float, max_lat: float,
+) -> list[tuple[float, float]]:
+    """Clip a LineString to a bounding box, interpolating at boundary crossings."""
+    def _in_bbox(lon: float, lat: float) -> bool:
+        return min_lon <= lon <= max_lon and min_lat <= lat <= max_lat
+
+    def _intersect(p1: tuple[float, float], p2: tuple[float, float]) -> tuple[float, float]:
+        x1, y1 = p1
+        x2, y2 = p2
+        dx, dy = x2 - x1, y2 - y1
+        t = 1.0
+        if dx != 0:
+            if x2 > max_lon: t = min(t, (max_lon - x1) / dx)
+            elif x2 < min_lon: t = min(t, (min_lon - x1) / dx)
+        if dy != 0:
+            if y2 > max_lat: t = min(t, (max_lat - y1) / dy)
+            elif y2 < min_lat: t = min(t, (min_lat - y1) / dy)
+        return (x1 + dx * max(0, t), y1 + dy * max(0, t))
+
+    clipped: list[tuple[float, float]] = []
+    for i, (lon, lat) in enumerate(coords):
+        if _in_bbox(lon, lat):
+            if clipped or i == 0:
+                clipped.append((lon, lat))
+            else:
+                edge = _intersect(coords[i - 1], (lon, lat))
+                clipped.append(edge)
+                clipped.append((lon, lat))
+        else:
+            if clipped and i > 0 and _in_bbox(*coords[i - 1]):
+                edge = _intersect(coords[i - 1], (lon, lat))
+                clipped.append(edge)
+    return clipped
+
+
 def build_routes_geojson(
     shapes_df: pl.DataFrame,
     routes_df: pl.DataFrame,
     trips_df: pl.DataFrame,
+    clip_bounds: tuple[float, float, float, float] | None = None,
 ) -> dict:
     """Build GeoJSON FeatureCollection for transit routes."""
     if shapes_df.is_empty() or routes_df.is_empty() or trips_df.is_empty():
@@ -248,6 +286,10 @@ def build_routes_geojson(
                 shape_points["latitude"].to_list(),
             )
         )
+
+        if clip_bounds:
+            min_lat, max_lat, min_lon, max_lon = clip_bounds
+            coords = _clip_linestring(coords, min_lon, max_lon, min_lat, max_lat)
 
         if len(coords) < 2:
             continue
@@ -379,13 +421,18 @@ def main() -> int:
     active_stops, stop_modes = _load_stop_modes(raw_dir, agencies)
     logger.info("Active stop keys: %d", len(active_stops))
 
-    # Step 4: Build routes GeoJSON — no filtering, show all data
-    routes_geojson = build_routes_geojson(all_shapes, all_routes, trips_df)
+    # Clip display to metro bounds (with padding for edge routes).
+    # Data stays complete in parquet — only the GeoJSON output is clipped.
+    pad = 0.3
+    clip = (metro.bounds[0] - pad, metro.bounds[1] + pad, metro.bounds[2] - pad, metro.bounds[3] + pad)
+
+    # Step 4: Build routes GeoJSON — clip LineStrings to metro bounds
+    routes_geojson = build_routes_geojson(all_shapes, all_routes, trips_df, clip_bounds=clip)
     route_count = len(routes_geojson["features"])
     logger.info("Routes: %d total", route_count)
     _count_by_agency(routes_geojson["features"], "routes")
 
-    # Step 5: Build stops — only stops served by routes that have shapes.
+    # Step 5: Build stops — only stops that serve rendered routes AND are within metro bounds
     rendered_routes: set[tuple[str, str]] = set()
     for feat in routes_geojson["features"]:
         p = feat["properties"]
@@ -393,6 +440,11 @@ def main() -> int:
 
     rendered_stop_keys = _stops_for_routes(raw_dir, agencies, rendered_routes)
     logger.info("Stops matched to rendered routes: %d", len(rendered_stop_keys))
+
+    all_stops = all_stops.filter(
+        (pl.col("latitude") >= clip[0]) & (pl.col("latitude") <= clip[1])
+        & (pl.col("longitude") >= clip[2]) & (pl.col("longitude") <= clip[3])
+    )
 
     stops_geojson = build_stops_geojson(all_stops, rendered_stop_keys, stop_modes)
     stop_count = len(stops_geojson["features"])
