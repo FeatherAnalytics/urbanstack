@@ -131,13 +131,13 @@ function BivariateLegend({
       <div style={{ width: diag, position: "relative", height: 28 }}>
         <span
           className="absolute text-[8px] leading-tight text-slate-400 dark:text-slate-500"
-          style={{ right: "55%", bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom right", maxWidth: gridSide * 0.65, textAlign: "right" }}
+          style={{ right: "53%", bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom right", maxWidth: gridSide * 0.85, textAlign: "right" }}
         >
           {primaryMetric.label}
         </span>
         <span
           className="absolute text-[8px] leading-tight text-slate-400 dark:text-slate-500"
-          style={{ left: "55%", bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom left", maxWidth: gridSide * 0.65 }}
+          style={{ left: "53%", bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom left", maxWidth: gridSide * 0.85 }}
         >
           {secondaryMetric.label}
         </span>
