@@ -116,19 +116,19 @@ function BivariateLegend({
           )}
         </div>
       </div>
-      {/* Axis labels — below diamond, angled along edges, arrows pointing up/outward */}
-      <div style={{ width: diag, position: "relative", height: 24, marginTop: 2 }}>
+      {/* Axis labels — along bottom edges of diamond, arrows pointing outward */}
+      <div style={{ width: diag, position: "relative", height: 20 }}>
         <span
           className="absolute text-[9px] text-slate-400 dark:text-slate-500"
-          style={{ right: "50%", bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom right", whiteSpace: "nowrap" }}
+          style={{ left: 0, bottom: 0, transform: "rotate(-45deg)", transformOrigin: "bottom left", whiteSpace: "nowrap" }}
         >
-          {primaryMetric.label} ↗
+          {primaryMetric.label} →
         </span>
         <span
           className="absolute text-[9px] text-slate-400 dark:text-slate-500"
-          style={{ left: "50%", bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom left", whiteSpace: "nowrap" }}
+          style={{ right: 0, bottom: 0, transform: "rotate(45deg)", transformOrigin: "bottom right", whiteSpace: "nowrap" }}
         >
-          ↖ {secondaryMetric.label}
+          ← {secondaryMetric.label}
         </span>
       </div>
     </div>
