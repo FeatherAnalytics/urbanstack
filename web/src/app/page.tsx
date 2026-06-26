@@ -533,7 +533,7 @@ export default function Home() {
               primaryMinMax={effectiveMinMax}
               secondaryMinMax={secondaryMinMax}
               colorScaleMode={colorScaleMode}
-              onToggleMode={() => setColorScaleMode((m) => (m === "global" ? "viewport" : "global"))}
+              onToggleMode={() => { setColorScaleMode((m) => (m === "global" ? "viewport" : "global")); setSelectedBins(new Set()); }}
               onExitCompare={() => setSecondaryMetric(null)}
               granularity={granularity}
               quantileBreaks={quantileBreaks}

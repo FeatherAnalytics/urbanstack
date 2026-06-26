@@ -16,7 +16,6 @@ import {
   classifyBin,
   getBivariateColor,
   classifyValue,
-  NO_DATA_COLOR,
   R2_BASE_URL,
   type CountyData,
   type Granularity,
@@ -142,7 +141,7 @@ export function ChoroplethMap({
       if (quantileBreaks && classifiedPalette) {
         const binIdx = classifyValue(primaryVal, quantileBreaks);
         const paletteIdx = binIdx === -1 ? 0 : binIdx;
-        const color = classifiedPalette[paletteIdx] ?? NO_DATA_COLOR;
+        const color = classifiedPalette[paletteIdx];
         const isHighlighted = !highlightedBins || highlightedBins.size === 0 || highlightedBins.has(binIdx);
         return [color[0], color[1], color[2], isHighlighted ? fillAlpha : 40];
       }
@@ -170,7 +169,7 @@ export function ChoroplethMap({
         const county = dataByFips.get(fips);
         if (county) {
           const val = county[metric.key] as number | null;
-          const binIdx = classifyValue(val === null ? null : Number(val), quantileBreaks);
+          const binIdx = classifyValue(val, quantileBreaks);
           if (highlightedBins.has(binIdx)) {
             return isDark ? [255, 255, 255, 200] : [15, 23, 42, 200];
           }

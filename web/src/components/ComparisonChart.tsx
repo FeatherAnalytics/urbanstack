@@ -5,7 +5,6 @@ import {
   classifyBin,
   classifyValue,
   getBivariateColor,
-  NO_DATA_COLOR,
   type CountyData,
   type Granularity,
   type MetricConfig,
@@ -51,11 +50,7 @@ export function ComparisonChart({
     );
   }
 
-  const filteredCounties = selectedMetro && granularity === "county"
-    ? counties.filter((c) => c.metro_id === selectedMetro)
-    : counties;
-
-  const withData = filteredCounties.filter((c) => {
+  const withData = counties.filter((c) => {
     const v = c[metric.key];
     return v !== null && v !== undefined && !Number.isNaN(v as number);
   });
@@ -66,7 +61,7 @@ export function ComparisonChart({
   const filteredByBucket = selectedBins.size > 0 && quantileBreaks
     ? sorted.filter(c => {
         const val = c[metric.key] as number | null;
-        const binIdx = classifyValue(val === null ? null : Number(val), quantileBreaks);
+        const binIdx = classifyValue(val, quantileBreaks);
         return selectedBins.has(binIdx);
       })
     : sorted;
@@ -128,7 +123,7 @@ export function ComparisonChart({
           } else if (quantileBreaks && classifiedPalette) {
             const binIdx = classifyValue(val, quantileBreaks);
             const paletteIdx = binIdx === -1 ? 0 : binIdx;
-            const color = classifiedPalette[paletteIdx] ?? NO_DATA_COLOR;
+            const color = classifiedPalette[paletteIdx];
             [barR, barG, barB] = [color[0], color[1], color[2]];
           } else {
             [barR, barG, barB] = [defaultR, defaultG, defaultB];
