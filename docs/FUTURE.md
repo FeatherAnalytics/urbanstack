@@ -123,33 +123,130 @@ Sidebar feature: small range chart showing data coverage per source. Data source
 - Better architecture for multi-metro, multi-source UI
 
 ### Mobile-Friendly Responsive Design
-Current layout is desktop-first: sidebar + full-screen map + bottom chart. Needs a complete mobile experience for portfolio credibility and real-world usability.
+**Status:** V1 shipped (slide-out sidebar overlay, compact header selects, full-width map). See `feature/ux-polish` branch.
 
-**Layout approach:**
-- **Mobile (< 768px):** Full-screen map with bottom sheet drawer (pull-up panel). Metric selector in collapsible bottom sheet. Comparison chart slides up on demand. No sidebar — everything lives in drawers/sheets over the map.
-- **Tablet (768–1024px):** Collapsible sidebar (toggle button). Bottom chart remains but reduced height.
-- **Desktop (> 1024px):** Current layout unchanged.
-
-**Key changes:**
-- Bottom sheet component for metric selector, county detail, and comparison chart
-- Touch-friendly map controls (larger tap targets for zoom, overlay toggles)
-- Swipe gestures for bottom sheet (drag up to expand, down to collapse)
-- Map viewport adapts — tighter initial zoom on mobile to show local area
-- Font sizes and spacing scale for touch (minimum 44px tap targets per WCAG)
+**Remaining work for V2:**
+- Bottom sheet drawer with swipe gestures (pull-up panel) for metric selector and county detail
+- Touch-friendly map controls (larger tap targets, minimum 44px per WCAG)
+- Map viewport adapts — tighter initial zoom on mobile
 - Test on iOS Safari and Chrome Android — deck.gl WebGL has mobile-specific quirks
-
-**Performance considerations:**
-- PMTiles already helps — streaming tiles means less memory pressure on mobile
-- Lazy-load comparison chart (heavy DOM) until user requests it
-- Reduce initial block group detail level on mobile (lower maxZoom for PMTiles)
-
-**When to build:** After Phase 2 ships (done). This is a high-impact UX improvement for portfolio presentation.
+- Lazy-load comparison chart until user requests it
 
 ### Frontend UX Improvements
 - Collapsible metric category sections in sidebar
 - Color scale legend on map
 - Calculation formula tooltip on hover for derived metrics
 - Stronger visual distinction between estimated vs measured metrics
+
+### Regional Granularity (Multi-Metro Regions)
+
+Currently the hierarchy is: All US → Metro → County → Block Group. A natural next step is grouping metros into **regions** for higher-level comparison.
+
+**Example regions:**
+- **Texas Triangle:** DFW + Houston + San Antonio + Austin
+- **Northeast Corridor:** NYC + Boston + Philadelphia + Washington DC
+- **Great Lakes:** Chicago + Minneapolis + Detroit + Milwaukee
+- **California Megaregion:** SF + LA + San Diego + Sacramento
+
+**Implementation approach:**
+1. Add `RegionConfig` to `lib/metro.ts` — a region is a named collection of metro IDs with a viewport (center + zoom for the combined area)
+2. Add `"region"` to the `Granularity` type — slots between "All US" and "Metro Area" in the scale selector
+3. Region-level data = aggregation of constituent metro summaries. Pipeline computes `region_summary.json` by summing/averaging metro-level values (population-weighted for rates)
+4. Region GeoJSON = merged boundaries of constituent metros (convex hull or union)
+5. ComparisonChart shows metros within the selected region, or regions in the "All US" view
+
+**Key questions to resolve:**
+- Which region definitions to use? BEA Economic Areas, Census Combined Statistical Areas (CSAs), or custom groupings?
+- CSAs are official (NYC-Newark CSA, DFW-Texoma CSA) but some are very large. Custom groupings allow thematic comparisons (Sun Belt vs Rust Belt, car-dependent vs transit-rich)
+- Should regions be user-definable? Interesting for exploration but complex UI
+- How to handle metros that belong to multiple regions? (e.g., DC is both Northeast Corridor and Mid-Atlantic)
+
+**When to build:** After 6+ metros are in the system. With only 3 metros, regions are trivial. At 8-10 metros, regional patterns become analytically meaningful.
+
+### Share URL Tracking
+
+Shareable URLs were added in the `feature/ux-polish` branch (`?metro=dfw&metric=pct_transit`). Tracking which URLs are shared and viewed enables a "what's interesting" heatmap.
+
+**Architecture options:**
+
+1. **Lightweight: UTM parameters + static analytics**
+   - Append UTM params when generating share links: `?metro=dfw&metric=pct_transit&utm_source=share&utm_medium=link`
+   - Use Plausible, Fathom, or Umami (privacy-respecting, no cookies) to track page views with query params
+   - Dashboard shows which metros, metrics, and combos are most shared/viewed
+   - **Pros:** Zero backend, privacy-friendly, works with static hosting
+   - **Cons:** No unique share tracking, just aggregate views
+
+2. **Medium: Cloudflare Workers + KV**
+   - Share button generates a short ID via Cloudflare Worker → stores `{id, metro, metric, granularity, timestamp}` in KV
+   - Short URL: `featheranalytics.dev/s/abc123` → Worker redirects to full URL, increments view count
+   - Worker logs: `{share_id, viewer_ip_hash, timestamp, referer}` → KV or D1 (SQLite)
+   - **Pros:** Per-share tracking, view counts, referrer data. D1 is free tier. Already using Cloudflare (R2)
+   - **Cons:** Requires Worker deployment, maintains state
+
+3. **Full: Share + heatmap visualization**
+   - Build on option 2. Store geographic context (which county/metro was centered) with each share
+   - Aggregate shares into H3 hexagons or county FIPS counts
+   - New "Shares" layer toggle on the map — heatmap of what areas people find interesting
+   - Could weight by views (viral shares vs one-off)
+   - **Pros:** Compelling meta-visualization ("what do people care about?")
+   - **Cons:** Needs meaningful volume to be interesting. Privacy considerations (don't expose individual shares)
+
+**Recommended path:** Start with option 1 (Plausible/Umami analytics — one `<script>` tag). Upgrade to option 2 when share volume justifies it. Option 3 is a compelling portfolio feature but needs volume.
+
+**Data to capture per share event:**
+- `metro`, `metric`, `granularity`, `year` from URL params
+- Timestamp, referrer, approximate geo (from analytics)
+- View count per unique share URL
+- Optional: user-provided title/annotation ("Check out DFW's pedestrian fatality rate")
+
+### CI / CD Pipeline
+
+Currently deployment is a single GitHub Action (`deploy.yml`) that builds the pipeline, exports data, builds the frontend, and deploys to GitHub Pages. No CI validation on feature branches.
+
+**Recommended CI setup:**
+
+1. **On every push to feature branches:**
+   - `npm run lint` — catch lint errors before merge
+   - `npx vitest run` — run all tests
+   - `npm run build` — verify production build succeeds (catches TypeScript errors, missing imports)
+   - Lighthouse CI (`@lhci/cli`) — track accessibility score ≥ 92, flag regressions
+
+2. **On PR to main:**
+   - All of the above plus:
+   - Preview deployment to Cloudflare Pages (or Vercel preview) — reviewers can see the actual site
+   - Bundle size check — flag if JS bundle grows > 10%
+
+3. **On merge to main:**
+   - Existing deploy.yml handles data export + GitHub Pages deployment
+   - Add deployment verification: curl the live URL, check for 200 status
+
+**GitHub Action for feature branches:**
+
+```yaml
+name: CI
+on:
+  push:
+    branches-ignore: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+```
+
+**When to add:** Now — this is low effort, high value. The lint + test + build check prevents broken merges.
 
 ### Derived Metric Ideas (Future)
 - Transit access score (EPA SLD walkability + transit frequency + ridership)
