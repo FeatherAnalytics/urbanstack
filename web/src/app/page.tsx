@@ -580,6 +580,7 @@ export default function Home() {
           quantileBreaks={quantileBreaks}
           classifiedPalette={classifiedPalette}
           selectedBins={selectedBins}
+          bivariatePalette={bivariatePalette}
         />
       </div>
     </div>

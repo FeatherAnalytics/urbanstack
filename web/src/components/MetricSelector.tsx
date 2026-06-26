@@ -184,11 +184,11 @@ export function MetricSelector({
         Metric
       </div>
 
-      {/* Quick Combos — elevated position for discoverability */}
+      {/* Derived metrics — elevated position for discoverability */}
       {availableCombos.length > 0 && (
         <div className="rounded-md bg-slate-50 p-2 dark:bg-slate-800/50">
           <h3 className="mb-1 text-[11px] font-semibold tracking-wider text-slate-600 uppercase dark:text-slate-500">
-            Quick Combos
+            Derived
           </h3>
           <div className="flex flex-col gap-0.5">
             {availableCombos.map((combo) => (
