@@ -36,36 +36,30 @@ ROUTE_TYPE_LABELS: dict[int, str] = {
 WEB_DATA_DIR = Path(__file__).resolve().parent.parent.parent / "web" / "public" / "data"
 
 
-def _match_agency(gtfs_name: str, known: set[str]) -> str:
-    """Match GTFS agency_name to known agency names from parquet."""
-    if gtfs_name in known:
-        return gtfs_name
-    lower = gtfs_name.lower()
-    for k in known:
-        if lower in k.lower() or k.lower() in lower:
-            return k
-    return ""
+def _load_feed_manifest(raw_dir: Path) -> dict[str, str]:
+    """Load mdb_id → provider name mapping from feed_manifest.json."""
+    manifest_path = raw_dir / "feed_manifest.json"
+    if not manifest_path.exists():
+        return {}
+    return json.loads(manifest_path.read_text())
 
 
 def _load_trips_from_zips(raw_dir: Path, agencies: list[str]) -> pl.DataFrame:
-    """Read trips.txt from all ZIPs in raw_dir."""
-    all_rows: list[dict[str, str]] = []
+    """Read trips.txt from all ZIPs using feed manifest for agency mapping."""
+    manifest = _load_feed_manifest(raw_dir)
     agency_set = set(agencies)
+
+    all_rows: list[dict[str, str]] = []
     for zip_path in sorted(raw_dir.glob("*.zip")):
+        feed_id = zip_path.stem.replace("_gtfs", "")
+        agency_name = manifest.get(feed_id, "")
+        if not agency_name or agency_name not in agency_set:
+            continue
         try:
             rows = _read_csv_from_zip(zip_path, "trips.txt")
         except (zipfile.BadZipFile, OSError):
             continue
         if not rows:
-            continue
-        try:
-            agency_rows = _read_csv_from_zip(zip_path, "agency.txt")
-        except (zipfile.BadZipFile, OSError):
-            continue
-        agency_name = agency_rows[0].get("agency_name", "") if agency_rows else ""
-        if agency_name not in agency_set:
-            agency_name = _match_agency(agency_name, agency_set)
-        if not agency_name:
             continue
         for row in rows:
             row["agency"] = agency_name
@@ -100,16 +94,12 @@ def _load_stop_modes(raw_dir: Path, agencies: list[str]) -> tuple[set[str], dict
     active_stops: set[str] = set()
     stop_modes: dict[str, set[str]] = {}
 
+    manifest = _load_feed_manifest(raw_dir)
     agency_set = set(agencies)
     for zip_path in sorted(raw_dir.glob("*.zip")):
-        try:
-            agency_rows = _read_csv_from_zip(zip_path, "agency.txt")
-        except (zipfile.BadZipFile, OSError):
-            continue
-        agency = agency_rows[0].get("agency_name", "") if agency_rows else ""
-        if agency not in agency_set:
-            agency = _match_agency(agency, agency_set)
-        if not agency:
+        feed_id = zip_path.stem.replace("_gtfs", "")
+        agency = manifest.get(feed_id, "")
+        if not agency or agency not in agency_set:
             continue
 
         # 1. routes.txt → route_id → route_type
