@@ -102,7 +102,7 @@ def test_route_contract(settings: Settings, metro: MetroConfig) -> None:
     row = result["routes"].to_dicts()[0]
     record = GtfsRoute.model_validate(row)
     assert record.agency == "DART"
-    assert record.route_id == "R1"
+    assert record.route_id == f"{DART_FEED.mdb_id}:R1"
     assert record.route_type == 3
 
 
@@ -118,7 +118,7 @@ def test_stop_contract(settings: Settings, metro: MetroConfig) -> None:
     row = result["stops"].to_dicts()[0]
     record = GtfsStop.model_validate(row)
     assert record.agency == "DART"
-    assert record.stop_id == "S1"
+    assert record.stop_id == f"{DART_FEED.mdb_id}:S1"
     assert record.latitude == pytest.approx(32.7767)
     assert record.longitude == pytest.approx(-96.7970)
 
@@ -135,7 +135,7 @@ def test_shape_contract(settings: Settings, metro: MetroConfig) -> None:
     row = result["shapes"].to_dicts()[0]
     record = GtfsShape.model_validate(row)
     assert record.agency == "DART"
-    assert record.shape_id == "SH1"
+    assert record.shape_id == f"{DART_FEED.mdb_id}:SH1"
     assert record.sequence == 1
 
 
@@ -208,9 +208,9 @@ def test_null_lat_lon_skipped(settings: Settings, metro: MetroConfig) -> None:
         result = extract_gtfs(settings, metro)
 
     stop_ids = result["stops"]["stop_id"].to_list()
-    assert "S1" in stop_ids
-    assert "S2" not in stop_ids
-    assert "S3" not in stop_ids
+    assert f"{DART_FEED.mdb_id}:S1" in stop_ids
+    assert f"{DART_FEED.mdb_id}:S2" not in stop_ids
+    assert f"{DART_FEED.mdb_id}:S3" not in stop_ids
 
 
 def test_parquets_saved(settings: Settings, metro: MetroConfig) -> None:
