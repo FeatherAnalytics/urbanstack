@@ -57,7 +57,7 @@ export default function Home() {
   const [selectedYear, setSelectedYear] = useState<number | null>(null);
   const [baseCounties, setBaseCounties] = useState<CountyData[]>([]);
   const [countyToMetro, setCountyToMetro] = useState<Record<string, string>>({});
-  const [colorScaleMode, setColorScaleMode] = useState<ColorScaleMode>("global");
+  const [colorScaleMode, setColorScaleMode] = useState<ColorScaleMode>("viewport");
   const [viewportBounds, setViewportBounds] = useState<ViewportBounds | null>(null);
 
   const yearRef = useRef<number | null>(null);
@@ -136,6 +136,18 @@ export default function Home() {
     const url = qs ? `${window.location.pathname}?${qs}` : window.location.pathname;
     window.history.replaceState(null, "", url);
   }, [selectedMetro, selectedMetric.key, granularity, selectedYear]);
+
+  // Seed initial viewport bounds from starting viewport
+  useEffect(() => {
+    const span = 360 / Math.pow(2, viewport.zoom);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setViewportBounds({
+      west: viewport.longitude - span / 2,
+      east: viewport.longitude + span / 2,
+      south: viewport.latitude - span / 4,
+      north: viewport.latitude + span / 4,
+    });
+  }, [viewport.longitude, viewport.latitude, viewport.zoom]);
 
   const viewportTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const handleViewStateChange = useCallback(
@@ -452,7 +464,7 @@ export default function Home() {
             viewport={viewport}
             minVal={effectiveMinMax.min}
             maxVal={effectiveMinMax.max}
-            onViewStateChange={colorScaleMode === "viewport" ? handleViewStateChange : undefined}
+            onViewStateChange={handleViewStateChange}
             secondaryMetric={secondaryMetric}
             primaryBreaks={primaryBreaks}
             secondaryBreaks={secondaryBreaks}

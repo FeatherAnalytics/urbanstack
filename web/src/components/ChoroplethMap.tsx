@@ -301,7 +301,7 @@ export function ChoroplethMap({
         layers={layers}
         onClick={handleClick}
         onHover={handleHover}
-        onViewStateChange={onViewStateChange ? ({ viewState }) => onViewStateChange(viewState) : undefined}
+        onViewStateChange={({ viewState }) => onViewStateChange?.(viewState)}
         getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
       >
         <MapGL reuseMaps mapStyle={basemapStyle} />
