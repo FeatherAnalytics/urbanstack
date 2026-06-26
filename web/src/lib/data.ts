@@ -1022,3 +1022,53 @@ export const METRIC_COMBOS: MetricCombo[] = [
     description: "UN-Habitat: denser street grids correlate with lower pedestrian fatalities. Benchmark: 259/sq mi.",
   },
 ];
+
+// ============================================================================
+// Classified (Quantile) Color Scale
+// ============================================================================
+
+export const QUANTILE_BIN_COUNT = 5;
+export const NO_DATA_COLOR: [number, number, number, number] = [200, 200, 200, 80];
+
+export function computeQuantileBreaks(values: number[], binCount: number): number[] {
+  if (values.length === 0) return Array(binCount - 1).fill(0);
+  const sorted = [...values].sort((a, b) => a - b);
+  const breaks: number[] = [];
+  for (let i = 1; i < binCount; i++) {
+    const percentile = i / binCount;
+    const idx = Math.floor(percentile * (sorted.length - 1));
+    breaks.push(sorted[idx]);
+  }
+  return breaks;
+}
+
+export function classifyValue(value: number | null, breaks: number[]): number {
+  if (value === null || value === undefined || !Number.isFinite(value) || value === 0) return -1;
+  for (let i = 0; i < breaks.length; i++) {
+    if (value <= breaks[i]) return i + 1;
+  }
+  return breaks.length + 1;
+}
+
+export function generateClassifiedPalette(
+  colorScale: [number, number, number][],
+  binCount: number,
+): [number, number, number, number][] {
+  const palette: [number, number, number, number][] = [NO_DATA_COLOR];
+  for (let i = 0; i < binCount; i++) {
+    const t = binCount === 1 ? 0.5 : i / (binCount - 1);
+    const color = interpolateColor(t, colorScale);
+    palette.push([color[0], color[1], color[2], 200]);
+  }
+  return palette;
+}
+
+export function stabilizeViewportBounds(bounds: ViewportBounds): ViewportBounds {
+  const snap = (v: number) => Math.round(v * 10) / 10;
+  return {
+    west: snap(bounds.west),
+    east: snap(bounds.east),
+    south: snap(bounds.south),
+    north: snap(bounds.north),
+  };
+}
