@@ -23,6 +23,7 @@ class MetroConfig:
     states: dict[str, dict[str, str]]
     center: tuple[float, float]
     zoom: int
+    bounds: tuple[float, float, float, float]  # (min_lat, max_lat, min_lon, max_lon)
     transit_agencies: dict[str, str]
     gtfs_feeds: dict[str, str]
     umr_names: list[str] = field(default_factory=list)
@@ -66,6 +67,7 @@ DFW = MetroConfig(
     },
     center=(32.78, -96.85),
     zoom=8,
+    bounds=(32.25, 33.45, -97.60, -96.00),
     transit_agencies={
         "60056": "Dallas Area Rapid Transit",
         "60007": "Fort Worth Transportation Authority",
@@ -111,6 +113,7 @@ CHICAGO = MetroConfig(
     },
     center=(41.88, -87.63),
     zoom=8,
+    bounds=(40.80, 42.50, -88.70, -87.20),
     transit_agencies={
         "50066": "Chicago Transit Authority",
         "50064": "Metra",
@@ -169,6 +172,7 @@ NYC = MetroConfig(
     },
     center=(40.71, -74.00),
     zoom=8,
+    bounds=(40.10, 41.60, -74.90, -73.30),
     transit_agencies={
         "20008": "MTA New York City Transit",
         "20188": "NJ Transit",
