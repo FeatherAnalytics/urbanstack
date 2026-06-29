@@ -20,24 +20,9 @@ jobs:
         run: npm ci
         working-directory: web
 
-      - name: Install pipeline dependencies
-        run: |
-          pip install uv
-          cd pipeline && uv sync
-
       - name: Lint
         run: npm run lint
         working-directory: web
-
-      - name: Generate transit GeoJSON
-        timeout-minutes: 15
-        run: |
-          cd pipeline
-          for metro in dfw chicago nyc; do
-            echo "::group::$metro"
-            uv run python scripts/build_transit_geojson.py --metro "$metro"
-            echo "::endgroup::"
-          done
 
       - name: Build static export
         run: npm run build
