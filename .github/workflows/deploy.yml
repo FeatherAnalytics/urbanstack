@@ -58,6 +58,20 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
 
+      - name: Generate transit GeoJSON and upload to R2
+        run: |
+          cd pipeline
+          for metro in dfw chicago nyc; do
+            uv run python scripts/build_transit_geojson.py --metro "$metro"
+            npx wrangler r2 object put "urbanstack/exports/${metro}_transit_routes.geojson" \
+              --file "../web/public/data/${metro}/transit_routes.geojson" --remote
+            npx wrangler r2 object put "urbanstack/exports/${metro}_transit_stops.geojson" \
+              --file "../web/public/data/${metro}/transit_stops.geojson" --remote
+          done
+        env:
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+
       - name: Build static export
         run: npm run build
         working-directory: web
