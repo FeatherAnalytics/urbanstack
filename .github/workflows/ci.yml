@@ -30,10 +30,13 @@ jobs:
         working-directory: web
 
       - name: Generate transit GeoJSON
+        timeout-minutes: 15
         run: |
           cd pipeline
           for metro in dfw chicago nyc; do
+            echo "::group::$metro"
             uv run python scripts/build_transit_geojson.py --metro "$metro"
+            echo "::endgroup::"
           done
 
       - name: Build static export
