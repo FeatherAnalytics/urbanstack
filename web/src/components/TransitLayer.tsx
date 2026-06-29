@@ -37,9 +37,13 @@ export function useTransitLayers(modes: Set<TransitMode>, selectedMetro: string 
 
     const metro = selectedMetro;
     function fetchGeoJSON(filename: string): Promise<GeoJSON.FeatureCollection> {
-      return fetch(`${BASE_PATH}/data/${metro}/${filename}`).then((r) => {
+      const url = `${BASE_PATH}/data/${metro}/${filename}.gz`;
+      return fetch(url).then(async (r) => {
         if (!r.ok) throw new Error(r.statusText);
-        return r.json();
+        const ds = new DecompressionStream("gzip");
+        const decompressed = r.body!.pipeThrough(ds);
+        const text = await new Response(decompressed).text();
+        return JSON.parse(text);
       });
     }
 
