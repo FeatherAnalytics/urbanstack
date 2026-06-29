@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { GeoJsonLayer } from "@deck.gl/layers";
-import { BASE_PATH, R2_BASE_URL } from "@/lib/data";
+import { BASE_PATH } from "@/lib/data";
 
 type TransitMode = "rail" | "bus" | "ferry";
 
@@ -37,14 +37,13 @@ export function useTransitLayers(modes: Set<TransitMode>, selectedMetro: string 
 
     const metro = selectedMetro;
     function fetchGeoJSON(filename: string): Promise<GeoJSON.FeatureCollection> {
-      const r2Url = `${R2_BASE_URL}/${metro}_${filename}`;
-      const localUrl = `${BASE_PATH}/data/${metro}/${filename}`;
-      return fetch(r2Url).then((r) => {
-        if (r.ok) return r.json();
-        return fetch(localUrl).then((r2) => {
-          if (!r2.ok) throw new Error(r2.statusText);
-          return r2.json();
-        });
+      const url = `${BASE_PATH}/data/${metro}/${filename}.gz`;
+      return fetch(url).then(async (r) => {
+        if (!r.ok) throw new Error(r.statusText);
+        const ds = new DecompressionStream("gzip");
+        const decompressed = r.body!.pipeThrough(ds);
+        const text = await new Response(decompressed).text();
+        return JSON.parse(text);
       });
     }
 
