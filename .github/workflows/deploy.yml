@@ -59,6 +59,7 @@ jobs:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
 
       - name: Generate transit GeoJSON and upload to R2
+        timeout-minutes: 15
         run: |
           cd pipeline
           for metro in dfw chicago nyc; do
