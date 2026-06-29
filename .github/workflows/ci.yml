@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install web dependencies
+        run: npm ci
+        working-directory: web
+
+      - name: Install pipeline dependencies
+        run: |
+          pip install uv
+          cd pipeline && uv sync
+
+      - name: Lint
+        run: npm run lint
+        working-directory: web
+
+      - name: Generate transit GeoJSON
+        run: |
+          cd pipeline
+          for metro in dfw chicago nyc; do
+            uv run python scripts/build_transit_geojson.py --metro "$metro"
+          done
+
+      - name: Build static export
+        run: npm run build
+        working-directory: web
+        env:
+          NEXT_PUBLIC_BASE_PATH: /urbanstack
+          NEXT_PUBLIC_R2_URL: https://pub-67ffcc9780314ab6a2cb7c45ad6398eb.r2.dev/exports
