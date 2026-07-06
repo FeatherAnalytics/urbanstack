@@ -1,4 +1,4 @@
-import { METROS } from "@/lib/metro";
+import { METROS, REGIONS, METRO_TO_REGION } from "@/lib/metro";
 
 export interface CountyData {
   county_fips: string;
@@ -77,6 +77,8 @@ export interface MetricConfig {
   description: string;
   source: string;
   dateRange?: string;
+  /** Override aggregation strategy for region rollups. Default: "number" format = sum, everything else = weighted_avg */
+  aggregation?: "sum" | "weighted_avg";
 }
 
 // Sequential green (income/spending)
@@ -380,6 +382,7 @@ export const METRICS: MetricConfig[] = [
     description: "Total federal infrastructure grants obligated",
     source: "USAspending.gov",
     dateRange: "2020–2024",
+    aggregation: "sum",
   },
   {
     key: "federal_per_capita",
@@ -446,6 +449,7 @@ export const METRICS: MetricConfig[] = [
     description: "Estimated total annual hours of delay from congestion, based on number of auto commuters (workers who drive to work alone) and metro-level delay rate",
     source: "UMR + Census ACS",
     dateRange: "2024",
+    aggregation: "sum",
   },
   {
     key: "total_congestion_cost",
@@ -457,6 +461,7 @@ export const METRICS: MetricConfig[] = [
     description: "Estimated total annual cost of congestion, based on number of auto commuters (workers who drive to work alone) and metro-level cost rate",
     source: "UMR + Census ACS",
     dateRange: "2024",
+    aggregation: "sum",
   },
   {
     key: "delay_per_capita",
@@ -620,12 +625,137 @@ export const CATEGORIES: MetricCategory[] = [
 // World Bank benchmark: 100 intersections/km² converted to sq mi
 export const INTERSECTION_DENSITY_BENCHMARK = 259;
 
-export type Granularity = "metro" | "county" | "block_group";
+export type Granularity = "region" | "metro" | "county" | "block_group";
 
 export const BASE_PATH = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 // yagni: inline const, create config.ts when there are 3+ config values
 export const R2_BASE_URL = process.env.NEXT_PUBLIC_R2_URL
   ?? "https://pub-67ffcc9780314ab6a2cb7c45ad6398eb.r2.dev/exports";
+
+/** Aggregate metro-level records into region summaries. */
+export function aggregateToRegions(metroData: CountyData[]): CountyData[] {
+  // Group metro records by region
+  const regionGroups = new Map<string, CountyData[]>();
+  for (const record of metroData) {
+    const metroId = record.metro_id ?? record.county_fips;
+    const regionId = METRO_TO_REGION[metroId];
+    if (!regionId) continue;
+    const group = regionGroups.get(regionId) ?? [];
+    group.push(record);
+    regionGroups.set(regionId, group);
+  }
+
+  const results: CountyData[] = [];
+  for (const [regionId, metros] of regionGroups) {
+    const region = REGIONS[regionId];
+    if (!region) continue;
+
+    // Start with identity fields
+    const summary: CountyData = {
+      county_fips: regionId,
+      county_name: region.region_name,
+      metro_id: regionId,
+      population: null,
+      per_capita_income: null,
+      median_household_income: null,
+      median_rent: null,
+      median_home_value: null,
+      pct_drove_alone: null,
+      pct_transit: null,
+      pct_walked: null,
+      pct_biked: null,
+      pct_wfh: null,
+      avg_walkability: null,
+      avg_transit_frequency: null,
+      pct_zero_car_hh: null,
+      total_annual_ridership: null,
+      ridership_per_capita: null,
+      transit_revenue_miles: null,
+      total_fatalities: null,
+      total_crashes: null,
+      pedestrian_involved_crashes: null,
+      drunk_driver_crashes: null,
+      federal_obligation: null,
+      federal_per_capita: null,
+      pop_density_sqmi: null,
+      travel_time_index: null,
+      planning_time_index: null,
+      annual_delay_hours: null,
+      congestion_cost: null,
+      avg_daily_traffic: null,
+      total_delay_hours: null,
+      total_congestion_cost: null,
+      delay_per_capita: null,
+      congestion_cost_per_capita: null,
+      fatalities_per_capita: null,
+      crashes_per_capita: null,
+      crash_rate_per_1k_commuters: null,
+      ped_fatality_rate_per_100k: null,
+      congestion_cost_pct_income: null,
+      delay_pct_work_hours: null,
+      federal_per_crash: null,
+      vehicle_dependency: null,
+      drunk_driver_crashes_per_capita: null,
+      pedestrian_crashes_per_capita: null,
+      avg_intersection_density: null,
+      park_count_nearby: null,
+      total_park_area_sqm: null,
+      green_sqm_per_capita: null,
+    };
+
+    // Total population for weighted averages
+    const totalPop = metros.reduce((sum, m) => sum + (m.population ?? 0), 0);
+
+    for (const metricConfig of METRICS) {
+      const key = metricConfig.key;
+      // Determine aggregation strategy
+      const strategy = metricConfig.aggregation
+        ?? (metricConfig.format === "number" ? "sum" : "weighted_avg");
+
+      if (strategy === "sum") {
+        let sum = 0;
+        let hasAny = false;
+        for (const m of metros) {
+          const v = m[key] as number | null;
+          if (v !== null && Number.isFinite(v)) {
+            sum += v;
+            hasAny = true;
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic metric key assignment
+        (summary as any)[key] = hasAny ? sum : null;
+      } else {
+        // weighted_avg by population
+        if (totalPop === 0) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic metric key assignment
+          (summary as any)[key] = null;
+          continue;
+        }
+        let weightedSum = 0;
+        let weightTotal = 0;
+        for (const m of metros) {
+          const v = m[key] as number | null;
+          const pop = m.population ?? 0;
+          if (v !== null && Number.isFinite(v) && pop > 0) {
+            weightedSum += v * pop;
+            weightTotal += pop;
+          }
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- dynamic metric key assignment
+        (summary as any)[key] = weightTotal > 0
+          ? weightedSum / weightTotal
+          : null;
+      }
+    }
+
+    // Population is always summed
+    summary.population = totalPop > 0 ? totalPop : null;
+
+    results.push(summary);
+  }
+
+  return results;
+}
 
 function dataPath(metroId: string, granularity: Granularity): string {
   return `${BASE_PATH}/data/${metroId}/${granularity}_summary.json`;
@@ -695,6 +825,10 @@ export function mergeOverlay(
 }
 
 export async function loadAllData(granularity: Granularity): Promise<CountyData[]> {
+  if (granularity === "region") {
+    const metroData = await loadAllData("metro");
+    return aggregateToRegions(metroData);
+  }
   const metroIds = Object.keys(METROS);
   const results = await Promise.allSettled(
     metroIds.map((id) => loadData(id, granularity))
@@ -707,9 +841,11 @@ export async function loadAllData(granularity: Granularity): Promise<CountyData[
 }
 
 export async function loadAllGeoJSON(granularity: Granularity): Promise<GeoJSON.FeatureCollection> {
+  // Region reuses county GeoJSON — same boundaries, different coloring
+  const effectiveGranularity = granularity === "region" ? "county" : granularity;
   const metroIds = Object.keys(METROS);
   const results = await Promise.allSettled(
-    metroIds.map((id) => loadGeoJSON(id, granularity))
+    metroIds.map((id) => loadGeoJSON(id, effectiveGranularity))
   );
   const features = results
     .filter((r): r is PromiseFulfilledResult<GeoJSON.FeatureCollection> => r.status === "fulfilled")

@@ -25,7 +25,7 @@ import {
   type MetricConfig,
   type OverlayIndex,
 } from "@/lib/data";
-import { METROS } from "@/lib/metro";
+import { METROS, REGIONS, METRO_TO_REGION } from "@/lib/metro";
 import { MetricSelector } from "@/components/MetricSelector";
 import { CountyDetailPopup } from "@/components/CountyDetail";
 import { ComparisonChart } from "@/components/ComparisonChart";
@@ -80,7 +80,13 @@ export default function Home() {
   }, [showRail, showBus, showFerry]);
 
   const trafficLayer = useTrafficLayer(showTraffic);
-  const { layers: transitLayers, routes: transitRoutes, availableModes: transitModeAvail } = useTransitLayers(transitModes, selectedMetro);
+  const transitMetroIds = useMemo(() => {
+    if (!selectedMetro) return [];
+    if (METROS[selectedMetro]) return [selectedMetro];
+    const region = REGIONS[selectedMetro];
+    return region ? region.metro_ids : [];
+  }, [selectedMetro]);
+  const { layers: transitLayers, routes: transitRoutes, availableModes: transitModeAvail } = useTransitLayers(transitModes, transitMetroIds);
 
   const [viewport, setViewport] = useState({
     longitude: -92.0,
@@ -93,12 +99,14 @@ export default function Home() {
 
   const flyToMetro = useCallback((metroId: string) => {
     const metro = METROS[metroId];
-    if (!metro) return;
+    const region = REGIONS[metroId];
+    const target = metro ?? region;
+    if (!target) return;
     setSelectedMetro(metroId);
     setViewport({
-      longitude: metro.center[1],
-      latitude: metro.center[0],
-      zoom: metro.zoom,
+      longitude: target.center[1],
+      latitude: target.center[0],
+      zoom: target.zoom,
       pitch: 0,
       bearing: 0,
     });
@@ -122,7 +130,7 @@ export default function Home() {
     }
 
     const granParam = params.get("scale");
-    if (granParam === "metro" || granParam === "county" || granParam === "block_group") {
+    if (granParam === "region" || granParam === "metro" || granParam === "county" || granParam === "block_group") {
       setGranularity(granParam);
     }
 
@@ -231,6 +239,12 @@ export default function Home() {
       return counties.filter(c => visibleIds.has(c.county_fips));
     }
     if (selectedMetro) {
+      // If selectedMetro is a region_id, filter to metros within that region
+      const region = REGIONS[selectedMetro];
+      if (region) {
+        const regionMetroIds = new Set(region.metro_ids);
+        return counties.filter(c => c.metro_id && regionMetroIds.has(c.metro_id));
+      }
       return counties.filter(c => c.metro_id === selectedMetro);
     }
     return counties;
@@ -244,7 +258,32 @@ export default function Home() {
   }, [trafficLayer, transitLayers]);
 
   useEffect(() => {
-    if (granularity !== "county" && granularity !== "metro") return;
+    if (granularity !== "county" && granularity !== "metro" && granularity !== "region") return;
+    if (granularity === "metro") {
+      // Metro view uses county GeoJSON but metro summary data — need county data for FIPS mapping
+      loadAllData("county").then((countyData) => {
+        const map: Record<string, string> = {};
+        for (const c of countyData) {
+          if (c.metro_id) map[c.county_fips] = c.metro_id;
+        }
+        if (Object.keys(map).length > 0) setCountyToMetro(map);
+      }).catch(() => {});
+      return;
+    }
+    if (granularity === "region") {
+      // Region view: map each county FIPS → region_id via metro_id
+      loadAllData("county").then((countyData) => {
+        const map: Record<string, string> = {};
+        for (const c of countyData) {
+          if (c.metro_id) {
+            const regionId = METRO_TO_REGION[c.metro_id];
+            if (regionId) map[c.county_fips] = regionId;
+          }
+        }
+        if (Object.keys(map).length > 0) setCountyToMetro(map);
+      }).catch(() => {});
+      return;
+    }
     const map: Record<string, string> = {};
     for (const c of baseCounties) {
       const mid = c.metro_id;
@@ -381,7 +420,7 @@ export default function Home() {
         </div>
         <div className="ml-auto flex flex-wrap items-center gap-2 lg:gap-3">
           <select
-            aria-label="Select metro area"
+            aria-label={granularity === "region" ? "Select region" : "Select metro area"}
             value={selectedMetro ?? ""}
             onChange={(e) => {
               const v = e.target.value || null;
@@ -393,11 +432,17 @@ export default function Home() {
             className="rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 lg:px-2 lg:text-xs"
           >
             <option value="">All US</option>
-            {Object.values(METROS).map((m) => (
-              <option key={m.metro_id} value={m.metro_id}>
-                {m.metro_name}
-              </option>
-            ))}
+            {granularity === "region"
+              ? Object.values(REGIONS).map((r) => (
+                  <option key={r.region_id} value={r.region_id}>
+                    {r.region_name}
+                  </option>
+                ))
+              : Object.values(METROS).map((m) => (
+                  <option key={m.metro_id} value={m.metro_id}>
+                    {m.metro_name}
+                  </option>
+                ))}
           </select>
           {overlayIndex && (
             <select
@@ -433,6 +478,7 @@ export default function Home() {
             }}
             className="rounded border border-slate-300 bg-white px-1.5 py-1 text-[11px] text-slate-700 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 lg:px-2 lg:text-xs"
           >
+            <option value="region">Region</option>
             <option value="metro">Metro Area</option>
             <option value="county">County</option>
             <option value="block_group">
