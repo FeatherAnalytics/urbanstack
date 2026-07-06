@@ -173,10 +173,123 @@ NYC = MetroConfig(
     ],
 )
 
+HOUSTON = MetroConfig(
+    metro_id="houston",
+    metro_name="Houston-Pasadena-The Woodlands MSA",
+    metro_fips="26420",
+    states={
+        "48": {
+            "Austin": "015",
+            "Brazoria": "039",
+            "Chambers": "071",
+            "Fort Bend": "157",
+            "Galveston": "167",
+            "Harris": "201",
+            "Liberty": "291",
+            "Montgomery": "339",
+            "San Jacinto": "407",
+            "Waller": "473",
+        },
+    },
+    center=(29.76, -95.37),
+    zoom=8,
+    bounds=(28.90, 30.60, -96.10, -94.30),
+    transit_agencies={
+        "60008": "Metropolitan Transit Authority of Harris County",
+        "60108": "Harris County Transit",
+    },
+    umr_names=[
+        "Houston TX",
+    ],
+)
+
+AUSTIN = MetroConfig(
+    metro_id="austin",
+    metro_name="Austin-Round Rock-San Marcos MSA",
+    metro_fips="12420",
+    states={
+        "48": {
+            "Bastrop": "021",
+            "Caldwell": "055",
+            "Hays": "209",
+            "Travis": "453",
+            "Williamson": "491",
+        },
+    },
+    center=(30.27, -97.74),
+    zoom=9,
+    bounds=(29.70, 30.90, -98.20, -97.00),
+    transit_agencies={
+        "60048": "Capital Metropolitan Transportation Authority",
+    },
+    umr_names=[
+        "Austin TX",
+    ],
+)
+
+SAN_ANTONIO = MetroConfig(
+    metro_id="san_antonio",
+    metro_name="San Antonio-New Braunfels MSA",
+    metro_fips="41700",
+    states={
+        "48": {
+            "Atascosa": "013",
+            "Bandera": "019",
+            "Bexar": "029",
+            "Comal": "091",
+            "Guadalupe": "187",
+            "Kendall": "259",
+            "Medina": "325",
+            "Wilson": "493",
+        },
+    },
+    center=(29.42, -98.49),
+    zoom=9,
+    bounds=(28.70, 30.00, -99.50, -97.60),
+    transit_agencies={
+        "60011": "VIA Metropolitan Transit",
+    },
+    umr_names=[
+        "San Antonio TX",
+    ],
+)
+
+BOSTON = MetroConfig(
+    metro_id="boston",
+    metro_name="Boston-Cambridge-Newton MSA",
+    metro_fips="14460",
+    states={
+        "25": {
+            "Essex": "009",
+            "Middlesex": "017",
+            "Norfolk": "021",
+            "Plymouth": "023",
+            "Suffolk": "025",
+        },
+        "33": {
+            "Rockingham": "015",
+            "Strafford": "017",
+        },
+    },
+    center=(42.36, -71.06),
+    zoom=8,
+    bounds=(41.70, 43.20, -71.90, -70.40),
+    transit_agencies={
+        "10003": "Massachusetts Bay Transportation Authority",
+    },
+    umr_names=[
+        "Boston MA-NH-RI",
+    ],
+)
+
 METRO_REGISTRY: dict[str, MetroConfig] = {
     "dfw": DFW,
     "chicago": CHICAGO,
     "nyc": NYC,
+    "houston": HOUSTON,
+    "austin": AUSTIN,
+    "san_antonio": SAN_ANTONIO,
+    "boston": BOSTON,
 }
 
 

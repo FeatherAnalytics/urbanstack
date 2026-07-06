@@ -155,7 +155,7 @@ export function ColorLegend({
 }: ColorLegendProps) {
   const isBivariate = secondaryMetric !== null && secondaryMinMax !== null;
   const isClassified = !isBivariate && quantileBreaks !== null && classifiedPalette !== null;
-  const showToggle = granularity !== "metro";
+  const showToggle = granularity !== "metro" && granularity !== "region";
 
   const effectiveBivariatePalette = bivariatePalette ?? BIVARIATE_PALETTE;
 
