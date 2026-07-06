@@ -234,28 +234,46 @@ Currently, transit data (GTFS routes, stops, ridership) comes from a limited set
 
 ### Regional Granularity (Multi-Metro Regions)
 
-Currently the hierarchy is: All US → Metro → County → Block Group. A natural next step is grouping metros into **regions** for higher-level comparison.
+**Status:** V1 shipped. Basic region view works — aggregates metro summaries client-side, colors by region, comparison chart shows regions ranked. Three regions defined: Northeast (NYC + Boston), Texas (DFW + Houston + Austin + San Antonio), Midwest (Chicago). Transit layers merge across all metros in a selected region.
 
-**Example regions:**
-- **Texas Triangle:** DFW + Houston + San Antonio + Austin
-- **Northeast Corridor:** NYC + Boston + Philadelphia + Washington DC
-- **Great Lakes:** Chicago + Minneapolis + Detroit + Milwaukee
-- **California Megaregion:** SF + LA + San Diego + Sacramento
+**V2: Full Regional Data Coverage**
 
-**Implementation approach:**
-1. Add `RegionConfig` to `lib/metro.ts` — a region is a named collection of metro IDs with a viewport (center + zoom for the combined area)
-2. Add `"region"` to the `Granularity` type — slots between "All US" and "Metro Area" in the scale selector
-3. Region-level data = aggregation of constituent metro summaries. Pipeline computes `region_summary.json` by summing/averaging metro-level values (population-weighted for rates)
-4. Region GeoJSON = merged boundaries of constituent metros (convex hull or union)
-5. ComparisonChart shows metros within the selected region, or regions in the "All US" view
+The current implementation only shows MSA counties — large gaps exist between metros. For example, the Texas region shows DFW and Houston as isolated clusters with empty space between them. A complete regional view needs:
+
+1. **Fill in non-MSA counties.** When "Texas" region is selected, show ALL Texas counties (or at minimum, counties between the MSAs). This requires:
+   - Fetching Census ACS data for non-MSA counties in the region
+   - Running FARS, FHWA, and other extractors for the broader region boundary
+   - GeoJSON boundaries for all counties in the region, not just MSA counties
+   - Region config needs a geographic definition beyond "list of MSA IDs" — either a state FIPS list, a bounding box, or explicit county lists for gap-fill areas
+
+2. **Regional transit discovery.** Use the Mobility Database to discover ALL GTFS feeds with stops inside the region boundary, not just MSA transit agencies. This captures intercity services (Amtrak corridors, Greyhound, regional bus), rural transit authorities, and agencies that serve gaps between metros (e.g., CARTS in central Texas, C&J Bus Lines between Boston and southern NH).
+
+3. **Consistent metric coverage.** Non-MSA counties will have Census ACS and FARS data (national datasets) but may lack UMR congestion data (urban-area only) and NTD ridership (agency-specific). The UI should gracefully handle partial data — show what exists, mark missing metrics as N/A rather than zero.
+
+4. **Region-level derived metrics.** Some metrics only make sense at regional scale:
+   - Intercity connectivity (transit routes connecting different MSAs within the region)
+   - Urban-rural gradient (how metrics change from metro core to rural periphery)
+   - Regional equity (income/transit access variation within the region vs within a single MSA)
+
+**More MSAs to add:**
+Priority metros for expanding regional coverage and enabling meaningful regional comparisons:
+
+| Region | MSAs to Add | Why |
+|--------|------------|-----|
+| Northeast | Philadelphia, Washington DC | Completes the Northeast Corridor — rail-connected megaregion |
+| Texas | El Paso | Adds geographic diversity (border city, different transit profile) |
+| Midwest | Minneapolis, Detroit, Milwaukee | Enables Great Lakes region comparison |
+| Southeast | Atlanta, Miami, Charlotte | New region with different urban patterns |
+| West Coast | LA, SF, Seattle, Portland | Car-dependent vs transit-rich comparison |
+| Mountain | Denver, Phoenix | Fast-growing, car-dependent metros |
 
 **Key questions to resolve:**
-- Which region definitions to use? BEA Economic Areas, Census Combined Statistical Areas (CSAs), or custom groupings?
-- CSAs are official (NYC-Newark CSA, DFW-Texoma CSA) but some are very large. Custom groupings allow thematic comparisons (Sun Belt vs Rust Belt, car-dependent vs transit-rich)
-- Should regions be user-definable? Interesting for exploration but complex UI
+- Which region definitions to use? BEA Economic Areas, Census Combined Statistical Areas (CSAs), or custom groupings? CSAs are official but some are very large. Custom groupings allow thematic comparisons (Sun Belt vs Rust Belt, car-dependent vs transit-rich).
+- Should regions be user-definable? Interesting for exploration but complex UI.
 - How to handle metros that belong to multiple regions? (e.g., DC is both Northeast Corridor and Mid-Atlantic)
+- For gap-fill counties: should the pipeline run all extractors for an entire state, or only for counties within a defined region polygon?
 
-**When to build:** After 6+ metros are in the system. With only 3 metros, regions are trivial. At 8-10 metros, regional patterns become analytically meaningful.
+**When to build:** V2 regional data is a significant pipeline expansion. Prioritize after 10+ metros are in the system and the data backend (DuckDB/API) is in place to handle the larger dataset.
 
 ### Share URL Tracking
 

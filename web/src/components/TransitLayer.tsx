@@ -21,23 +21,23 @@ const NAME_OVERRIDES: Record<string, string> = {
 
 const EMPTY_FC: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
 
-export function useTransitLayers(modes: Set<TransitMode>, selectedMetro: string | null) {
+export function useTransitLayers(modes: Set<TransitMode>, metroIds: string[]) {
   const [routeData, setRouteData] =
     useState<GeoJSON.FeatureCollection | null>(null);
   const [stopData, setStopData] =
     useState<GeoJSON.FeatureCollection | null>(null);
 
-  const enabled = modes.size > 0 && selectedMetro !== null;
+  const cacheKey = metroIds.join(",");
+  const enabled = modes.size > 0 && metroIds.length > 0;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting state when selectedMetro changes
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting state when selection changes
     setRouteData(null);
     setStopData(null);
-    if (!selectedMetro) return;
+    if (metroIds.length === 0) return;
 
-    const metro = selectedMetro;
-    function fetchGeoJSON(filename: string): Promise<GeoJSON.FeatureCollection> {
-      const url = `${BASE_PATH}/data/${metro}/${filename}.gz`;
+    function fetchGeoJSON(metroId: string, filename: string): Promise<GeoJSON.FeatureCollection> {
+      const url = `${BASE_PATH}/data/${metroId}/${filename}.gz`;
       return fetch(url).then(async (r) => {
         if (!r.ok) throw new Error(r.statusText);
         const ds = new DecompressionStream("gzip");
@@ -47,13 +47,21 @@ export function useTransitLayers(modes: Set<TransitMode>, selectedMetro: string 
       });
     }
 
-    fetchGeoJSON("transit_routes.geojson")
-      .then(setRouteData)
-      .catch((err) => { console.error("Failed to load transit routes:", err); setRouteData(EMPTY_FC); });
-    fetchGeoJSON("transit_stops.geojson")
-      .then(setStopData)
-      .catch((err) => { console.error("Failed to load transit stops:", err); setStopData(EMPTY_FC); });
-  }, [selectedMetro]);
+    function mergeResults(results: PromiseSettledResult<GeoJSON.FeatureCollection>[]): GeoJSON.FeatureCollection {
+      const features = results
+        .filter((r): r is PromiseFulfilledResult<GeoJSON.FeatureCollection> => r.status === "fulfilled")
+        .flatMap((r) => r.value.features);
+      return { type: "FeatureCollection", features };
+    }
+
+    Promise.allSettled(metroIds.map((id) => fetchGeoJSON(id, "transit_routes.geojson")))
+      .then((results) => setRouteData(mergeResults(results)))
+      .catch(() => setRouteData(EMPTY_FC));
+    Promise.allSettled(metroIds.map((id) => fetchGeoJSON(id, "transit_stops.geojson")))
+      .then((results) => setStopData(mergeResults(results)))
+      .catch(() => setStopData(EMPTY_FC));
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- cacheKey is the stable dependency for metroIds
+  }, [cacheKey]);
 
   const filteredRoutes = useMemo(() => {
     if (!routeData || !enabled) return null;
