@@ -30,8 +30,17 @@ def fetch_socrata_pages(
     for _ in range(max_pages):
         page_params = {**params, "$limit": str(page_size), "$offset": str(offset)}
 
-        resp = requests.get(base_url, params=page_params, timeout=60)
-        resp.raise_for_status()
+        for attempt in range(3):
+            try:
+                resp = requests.get(base_url, params=page_params, timeout=120)
+                resp.raise_for_status()
+                break
+            except (requests.exceptions.ReadTimeout, requests.exceptions.ConnectionError) as exc:
+                if attempt == 2:
+                    raise
+                wait = 5 * (attempt + 1)
+                logger.warning("Socrata request failed (attempt %d/3), retrying in %ds: %s", attempt + 1, wait, exc)
+                time.sleep(wait)
         page = resp.json()
 
         if not page:

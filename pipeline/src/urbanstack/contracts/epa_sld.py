@@ -9,7 +9,7 @@ class EpaSldRecord(BaseModel):
     county_fips: str = Field(min_length=3, max_length=3)
     tract_fips: str
     blkgrp_fips: str
-    cbsa: str
+    cbsa: str | None = None
 
     # Density (D1)
     d1a: float | None = None  # gross housing unit density
