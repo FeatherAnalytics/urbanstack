@@ -1,0 +1,82 @@
+[
+  {
+    "county_fips": "48157",
+    "total_fatalities": 37,
+    "total_crashes": 36,
+    "pedestrian_involved_crashes": 6,
+    "drunk_driver_crashes": 13,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48407",
+    "total_fatalities": 14,
+    "total_crashes": 14,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 3,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48071",
+    "total_fatalities": 22,
+    "total_crashes": 20,
+    "pedestrian_involved_crashes": 4,
+    "drunk_driver_crashes": 3,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48339",
+    "total_fatalities": 76,
+    "total_crashes": 65,
+    "pedestrian_involved_crashes": 14,
+    "drunk_driver_crashes": 17,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48039",
+    "total_fatalities": 48,
+    "total_crashes": 41,
+    "pedestrian_involved_crashes": 9,
+    "drunk_driver_crashes": 14,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48291",
+    "total_fatalities": 22,
+    "total_crashes": 21,
+    "pedestrian_involved_crashes": 6,
+    "drunk_driver_crashes": 5,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48015",
+    "total_fatalities": 10,
+    "total_crashes": 9,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48473",
+    "total_fatalities": 7,
+    "total_crashes": 7,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48201",
+    "total_fatalities": 447,
+    "total_crashes": 427,
+    "pedestrian_involved_crashes": 150,
+    "drunk_driver_crashes": 165,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48167",
+    "total_fatalities": 45,
+    "total_crashes": 41,
+    "pedestrian_involved_crashes": 18,
+    "drunk_driver_crashes": 12,
+    "total_annual_ridership": null
+  }
+]
