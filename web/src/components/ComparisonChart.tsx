@@ -97,7 +97,7 @@ export function ComparisonChart({
   const metroLabel = selectedMetro && granularity === "county"
     ? METROS[selectedMetro]?.metro_name.split(" MSA")[0] ?? "Selected Metro"
     : "All";
-  const granLabel = granularity === "metro" ? "Metro Areas" : isBlockGroup ? "Block Groups" : "Counties";
+  const granLabel = granularity === "region" ? "Regions" : granularity === "metro" ? "Metro Areas" : isBlockGroup ? "Block Groups" : "Counties";
   const bucketLabel = selectedBins.size > 0 ? ` (${selectedBins.size} bucket${selectedBins.size > 1 ? "s" : ""} selected)` : "";
   const heading = isBlockGroup
     ? `${metric.label}${isBivariate ? ` × ${secondaryMetric!.label}` : ""}${bucketLabel} — Top/Bottom ${BLOCK_GROUP_LIMIT} ${granLabel}`

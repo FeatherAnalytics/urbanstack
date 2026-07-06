@@ -481,6 +481,11 @@ def main() -> int:
     routes_path.write_text(json.dumps(routes_geojson))
     stops_path.write_text(json.dumps(stops_geojson))
 
+    import gzip
+    for path in (routes_path, stops_path):
+        gz_path = Path(str(path) + ".gz")
+        gz_path.write_bytes(gzip.compress(path.read_bytes()))
+
     routes_kb = routes_path.stat().st_size / 1024
     stops_kb = stops_path.stat().st_size / 1024
 
