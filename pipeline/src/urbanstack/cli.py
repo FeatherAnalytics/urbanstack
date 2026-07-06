@@ -15,6 +15,19 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger("urbanstack.cli")
 
+
+def _setup_ssl() -> None:
+    """Inject OS trust store if default certs fail."""
+    import requests
+
+    try:
+        requests.head("https://data.transportation.gov", timeout=5)
+    except requests.exceptions.SSLError:
+        import truststore
+
+        truststore.inject_into_ssl()
+        logger.info("Injected OS trust store for SSL")
+
 EXTRACTORS: dict[str, str] = {
     "acs": "acs",
     "fars": "fars",
@@ -26,6 +39,7 @@ EXTRACTORS: dict[str, str] = {
     "gazetteer": "gazetteer",
     "usaspending": "usaspending",
     "tmas_stations": "tmas_stations",
+    "osm_parks": "osm_parks",
 }
 
 
@@ -78,6 +92,10 @@ def _run_extractor(
         from urbanstack.extract.tmas_stations import extract_tmas_stations
 
         extract_tmas_stations(settings, metro, force=force)
+    elif name == "osm_parks":
+        from urbanstack.extract.osm_parks import extract_osm_parks
+
+        extract_osm_parks(settings, metro, force=force)
     else:
         raise ValueError(f"Unknown extractor: {name}")
 
@@ -213,6 +231,7 @@ def main() -> None:
 
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    _setup_ssl()
     settings = load_settings()
     settings.ensure_dirs()
 
