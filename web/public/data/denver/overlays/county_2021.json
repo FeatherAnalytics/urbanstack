@@ -1,0 +1,74 @@
+[
+  {
+    "county_fips": "08039",
+    "total_fatalities": 6,
+    "total_crashes": 4,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08093",
+    "total_fatalities": 8,
+    "total_crashes": 7,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08059",
+    "total_fatalities": 52,
+    "total_crashes": 50,
+    "pedestrian_involved_crashes": 9,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08014",
+    "total_fatalities": 6,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08001",
+    "total_fatalities": 65,
+    "total_crashes": 60,
+    "pedestrian_involved_crashes": 17,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08019",
+    "total_fatalities": 3,
+    "total_crashes": 3,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08031",
+    "total_fatalities": 68,
+    "total_crashes": 64,
+    "pedestrian_involved_crashes": 22,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08035",
+    "total_fatalities": 28,
+    "total_crashes": 27,
+    "pedestrian_involved_crashes": 7,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08005",
+    "total_fatalities": 51,
+    "total_crashes": 47,
+    "pedestrian_involved_crashes": 8,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  }
+]

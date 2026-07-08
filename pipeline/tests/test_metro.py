@@ -1,6 +1,15 @@
 import pytest
 
-from urbanstack.metro import CHICAGO, DFW, FIPS_TO_ABBR, NYC, get_metro
+from urbanstack.metro import (
+    CHICAGO,
+    DFW,
+    FIPS_TO_ABBR,
+    METRO_REGISTRY,
+    NYC,
+    REGION_CONFIGS,
+    RegionMeta,
+    get_metro,
+)
 
 
 def test_dfw_single_state() -> None:
@@ -70,3 +79,17 @@ def test_nyc_bounds() -> None:
     min_lat, max_lat, min_lon, max_lon = NYC.bounds
     assert min_lat < 40.71 < max_lat
     assert min_lon < -74.00 < max_lon
+
+
+def test_region_meta_fields() -> None:
+    texas = REGION_CONFIGS["texas"]
+    assert isinstance(texas, RegionMeta)
+    assert texas.region_name == "Texas"
+    assert len(texas.center) == 2
+    assert texas.zoom > 0
+
+
+def test_all_metros_have_region() -> None:
+    for metro_id, metro in METRO_REGISTRY.items():
+        assert metro.region, f"{metro_id} missing region"
+        assert metro.region in REGION_CONFIGS, f"{metro_id} region '{metro.region}' not in REGION_CONFIGS"
