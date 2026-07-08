@@ -16,6 +16,13 @@ FIPS_TO_ABBR: dict[str, str] = {
 
 
 @dataclass(frozen=True)
+class RegionMeta:
+    region_name: str
+    center: tuple[float, float]
+    zoom: int
+
+
+@dataclass(frozen=True)
 class MetroConfig:
     metro_id: str
     metro_name: str
@@ -26,6 +33,7 @@ class MetroConfig:
     bounds: tuple[float, float, float, float]  # (min_lat, max_lat, min_lon, max_lon)
     transit_agencies: dict[str, str]
     umr_names: list[str] = field(default_factory=list)
+    region: str = ""
 
     @property
     def state_fips_set(self) -> set[str]:
@@ -77,6 +85,7 @@ DFW = MetroConfig(
         "Dallas-Fort Worth-Arlington TX",
         "Dallas-Fort Worth-Arlington, TX",
     ],
+    region="texas",
 )
 
 CHICAGO = MetroConfig(
@@ -118,6 +127,7 @@ CHICAGO = MetroConfig(
         "Chicago-Naperville",
         "Chicago-Naperville IL-IN-WI",
     ],
+    region="midwest",
 )
 
 # yagni: CT counties omitted — 2020 Census redesigned CT
@@ -171,6 +181,7 @@ NYC = MetroConfig(
         "New York-Newark NY-NJ-CT",
         "New York-Newark",
     ],
+    region="northeast",
 )
 
 HOUSTON = MetroConfig(
@@ -201,6 +212,7 @@ HOUSTON = MetroConfig(
     umr_names=[
         "Houston TX",
     ],
+    region="texas",
 )
 
 AUSTIN = MetroConfig(
@@ -225,6 +237,7 @@ AUSTIN = MetroConfig(
     umr_names=[
         "Austin TX",
     ],
+    region="texas",
 )
 
 SAN_ANTONIO = MetroConfig(
@@ -252,6 +265,7 @@ SAN_ANTONIO = MetroConfig(
     umr_names=[
         "San Antonio TX",
     ],
+    region="texas",
 )
 
 BOSTON = MetroConfig(
@@ -280,6 +294,60 @@ BOSTON = MetroConfig(
     umr_names=[
         "Boston MA-NH-RI",
     ],
+    region="northeast",
+)
+
+DENVER = MetroConfig(
+    metro_id="denver",
+    metro_name="Denver-Aurora-Centennial MSA",
+    metro_fips="19740",
+    states={
+        "08": {
+            "Adams": "001",
+            "Arapahoe": "005",
+            "Broomfield": "014",
+            "Clear Creek": "019",
+            "Denver": "031",
+            "Douglas": "035",
+            "Elbert": "039",
+            "Gilpin": "047",
+            "Jefferson": "059",
+            "Park": "093",
+        },
+    },
+    center=(39.74, -104.99),
+    zoom=8,
+    # Tight around the RTD service area: excludes Fort Collins (Transfort, ~40.4)
+    # and Colorado Springs (Mountain Metro, ~38.8) so GTFS discovery only catches RTD.
+    bounds=(39.20, 40.15, -105.45, -104.40),
+    transit_agencies={
+        "80006": "Regional Transportation District",
+    },
+    umr_names=[
+        "Denver-Aurora CO",
+        "Denver-Aurora",
+        "Denver-Aurora, CO",
+    ],
+    region="mountain",
+)
+
+CHEYENNE = MetroConfig(
+    metro_id="cheyenne",
+    metro_name="Cheyenne MSA",
+    metro_fips="16940",
+    states={
+        "56": {
+            "Laramie": "021",
+        },
+    },
+    center=(41.14, -104.82),
+    zoom=10,
+    bounds=(40.80, 41.50, -105.20, -104.40),
+    transit_agencies={
+        "80020": "City of Cheyenne Transit Program",
+    },
+    umr_names=[],
+    region="mountain",
 )
 
 METRO_REGISTRY: dict[str, MetroConfig] = {
@@ -290,6 +358,15 @@ METRO_REGISTRY: dict[str, MetroConfig] = {
     "austin": AUSTIN,
     "san_antonio": SAN_ANTONIO,
     "boston": BOSTON,
+    "denver": DENVER,
+    "cheyenne": CHEYENNE,
+}
+
+REGION_CONFIGS: dict[str, RegionMeta] = {
+    "texas": RegionMeta(region_name="Texas", center=(30.5, -97.0), zoom=6),
+    "northeast": RegionMeta(region_name="Northeast", center=(41.5, -72.5), zoom=6),
+    "midwest": RegionMeta(region_name="Midwest", center=(41.88, -87.63), zoom=7),
+    "mountain": RegionMeta(region_name="Mountain", center=(40.44, -104.90), zoom=7),
 }
 
 

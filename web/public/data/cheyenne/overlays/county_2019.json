@@ -1,0 +1,9 @@
+[
+  {
+    "county_fips": "56021",
+    "total_fatalities": 15,
+    "total_crashes": 11,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 6
+  }
+]
