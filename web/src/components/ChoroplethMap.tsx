@@ -316,6 +316,7 @@ export function ChoroplethMap({
     highlightedBins,
     bivariatePalette,
     highlightedBivariateCell,
+    countyToMetro,
   ]);
 
   const handleClick = useCallback(
