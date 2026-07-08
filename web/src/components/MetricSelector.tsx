@@ -149,13 +149,6 @@ export function MetricSelector({
   const grouped = useMemo(() => groupMetricsByCategory(), []);
   const navRef = useRef<HTMLElement>(null);
   const [comboTooltip, setComboTooltip] = useState<TooltipState | null>(null);
-  const prevMetricRef = useRef(selected.key);
-  const prevSecondaryRef = useRef(secondaryMetric?.key);
-  if (prevMetricRef.current !== selected.key || prevSecondaryRef.current !== secondaryMetric?.key) {
-    prevMetricRef.current = selected.key;
-    prevSecondaryRef.current = secondaryMetric?.key;
-    if (comboTooltip) setComboTooltip(null);
-  }
 
   const activeComboKey = useMemo(
     () => METRIC_COMBOS.find(
@@ -172,6 +165,7 @@ export function MetricSelector({
 
   const handleComboClick = useCallback(
     (combo: MetricCombo) => {
+      setComboTooltip(null);
       const primary = METRICS.find((m) => m.key === combo.primary);
       const secondary = METRICS.find((m) => m.key === combo.secondary);
       if (primary && secondary) {
@@ -232,7 +226,7 @@ export function MetricSelector({
         grouped={grouped}
         visibleCategories={visibleCategories}
         selected={activeComboKey ? null : selected}
-        onSelect={onSelect}
+        onSelect={(m) => { setComboTooltip(null); onSelect(m); }}
         counties={counties}
         exclude={secondaryMetric?.key ?? null}
         navRef={navRef}
