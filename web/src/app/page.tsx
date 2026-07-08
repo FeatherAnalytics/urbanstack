@@ -182,10 +182,11 @@ export default function Home() {
   );
 
   const visibleIds = useMemo(() => {
+    if (granularity === "metro" || granularity === "region") return null;
     if (colorScaleMode !== "viewport" || !viewportBounds || !geojson) return null;
     const ids = getVisibleGeoIds(geojson, viewportBounds);
     return ids.size > 0 ? ids : null;
-  }, [colorScaleMode, viewportBounds, geojson]);
+  }, [colorScaleMode, viewportBounds, geojson, granularity]);
 
   const effectiveMinMax = useMemo(
     () => computeDisplayRange(counties, selectedMetric.key, visibleIds),
@@ -218,7 +219,7 @@ export default function Home() {
     const source = (colorScaleMode === "viewport" && visibleIds)
       ? counties.filter(c => visibleIds.has(c.county_fips))
       : counties;
-    const values = source
+    const values = (source.length > 0 ? source : counties)
       .map(c => c[selectedMetric.key] as number | null)
       .filter((v): v is number => v !== null && v !== 0 && Number.isFinite(v));
     return computeQuantileBreaks(values, QUANTILE_BIN_COUNT);
@@ -433,12 +434,12 @@ export default function Home() {
           >
             <option value="">All US</option>
             {granularity === "region"
-              ? Object.values(REGIONS).map((r) => (
+              ? Object.values(REGIONS).sort((a, b) => a.region_name.localeCompare(b.region_name)).map((r) => (
                   <option key={r.region_id} value={r.region_id}>
                     {r.region_name}
                   </option>
                 ))
-              : Object.values(METROS).map((m) => (
+              : Object.values(METROS).sort((a, b) => a.metro_name.localeCompare(b.metro_name)).map((m) => (
                   <option key={m.metro_id} value={m.metro_id}>
                     {m.metro_name}
                   </option>

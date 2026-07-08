@@ -109,45 +109,13 @@ export function ChoroplethMap({
   // Fill alpha varies by granularity: block groups need transparency so labels show through
   const fillAlpha = isBlockGroup ? 120 : 200;
 
-  const getFillColor = useCallback(
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck.gl feature type
-    (feature: any): [number, number, number, number] => {
-      // Metro: map each county to its metro's data record
-      if (isMetroOrRegion) {
-        const fips = feature.properties?.GEOID as string | undefined;
-        const metroId = fips ? countyToMetro[fips] : undefined;
-        const record = metroId ? dataByFips.get(metroId) : counties.length === 1 ? counties[0] : null;
-        if (!record) return [40, 40, 40, 120];
-        const val = record[metric.key] as number | null;
-        if (val === null || val === undefined || Number.isNaN(val)) return [40, 40, 40, 120];
-        if (quantileBreaks && classifiedPalette) {
-          const binIdx = classifyValue(val, quantileBreaks);
-          const paletteIdx = binIdx === -1 ? 0 : binIdx;
-          const color = classifiedPalette[paletteIdx];
-          const isHighlighted = !highlightedBins || highlightedBins.size === 0 || highlightedBins.has(binIdx);
-          return [color[0], color[1], color[2], isHighlighted ? fillAlpha : 40];
-        }
-        const range = maxVal - minVal;
-        const t = range > 0 ? (val - minVal) / range : 0.5;
-        const color = interpolateColor(t, metric.colorScale);
-        color[3] = fillAlpha;
-        return color;
-      }
-
-      const fips = feature.properties?.GEOID as string | undefined;
-      if (!fips) return [40, 40, 40, 160];
-      const county = dataByFips.get(fips);
-      if (!county) return [40, 40, 40, 160];
-
-      const rawVal = county[metric.key];
-      const primaryVal = rawVal === null || rawVal === undefined ? null : Number(rawVal);
-      if (primaryVal === null || !Number.isFinite(primaryVal)) return [40, 40, 40, 120];
-
-      // Bivariate mode
+  /** Shared coloring: bivariate → classified → continuous fallback */
+  const colorFromRecord = useCallback(
+    (record: CountyData, val: number): [number, number, number, number] => {
       if (secondaryMetric && primaryBreaks && secondaryBreaks) {
-        const secVal = county[secondaryMetric.key] as number | null;
+        const secVal = record[secondaryMetric.key] as number | null;
         if (secVal === null || secVal === undefined || Number.isNaN(secVal)) return [200, 200, 200, fillAlpha];
-        const pBin = classifyBin(primaryVal, primaryBreaks);
+        const pBin = classifyBin(val, primaryBreaks);
         const sBin = classifyBin(secVal, secondaryBreaks);
         if (bivariatePalette) {
           const row = Math.max(0, Math.min(2, pBin));
@@ -159,24 +127,48 @@ export function ChoroplethMap({
         }
         return getBivariateColor(pBin, sBin, fillAlpha);
       }
-
-      // Single-metric mode — classified
       if (quantileBreaks && classifiedPalette) {
-        const binIdx = classifyValue(primaryVal, quantileBreaks);
+        const binIdx = classifyValue(val, quantileBreaks);
         const paletteIdx = binIdx === -1 ? 0 : binIdx;
         const color = classifiedPalette[paletteIdx];
         const isHighlighted = !highlightedBins || highlightedBins.size === 0 || highlightedBins.has(binIdx);
         return [color[0], color[1], color[2], isHighlighted ? fillAlpha : 40];
       }
-
-      // Single-metric mode — continuous (fallback)
       const range = maxVal - minVal;
-      const t = range > 0 ? (primaryVal - minVal) / range : 0.5;
+      const t = range > 0 ? (val - minVal) / range : 0.5;
       const color = interpolateColor(t, metric.colorScale);
       color[3] = fillAlpha;
       return color;
     },
-    [dataByFips, metric, minVal, maxVal, isMetroOrRegion, counties, fillAlpha, secondaryMetric, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell, countyToMetro],
+    [fillAlpha, secondaryMetric, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell, minVal, maxVal, metric.colorScale],
+  );
+
+  const getFillColor = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- deck.gl feature type
+    (feature: any): [number, number, number, number] => {
+      // Metro/region: map each county to its metro's data record
+      if (isMetroOrRegion) {
+        const fips = feature.properties?.GEOID as string | undefined;
+        const metroId = fips ? countyToMetro[fips] : undefined;
+        const record = metroId ? dataByFips.get(metroId) : counties.length === 1 ? counties[0] : null;
+        if (!record) return [40, 40, 40, 120];
+        const val = record[metric.key] as number | null;
+        if (val === null || val === undefined || Number.isNaN(val)) return [40, 40, 40, 120];
+        return colorFromRecord(record, val);
+      }
+
+      const fips = feature.properties?.GEOID as string | undefined;
+      if (!fips) return [40, 40, 40, 160];
+      const county = dataByFips.get(fips);
+      if (!county) return [40, 40, 40, 160];
+
+      const rawVal = county[metric.key];
+      const primaryVal = rawVal === null || rawVal === undefined ? null : Number(rawVal);
+      if (primaryVal === null || !Number.isFinite(primaryVal)) return [40, 40, 40, 120];
+
+      return colorFromRecord(county, primaryVal);
+    },
+    [dataByFips, metric, isMetroOrRegion, counties, countyToMetro, colorFromRecord],
   );
 
   const getLineColor = useCallback(
@@ -296,7 +288,7 @@ export function ChoroplethMap({
         getLineWidth,
         lineWidthUnits: "pixels",
         updateTriggers: {
-          getFillColor: [metric.key, minVal, maxVal, granularity, secondaryMetric?.key, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell],
+          getFillColor: [metric.key, minVal, maxVal, granularity, secondaryMetric?.key, primaryBreaks, secondaryBreaks, quantileBreaks, classifiedPalette, highlightedBins, bivariatePalette, highlightedBivariateCell, countyToMetro],
           getLineColor: [selectedFips, isDark, granularity, highlightedBins, quantileBreaks, highlightedBivariateCell],
           getLineWidth: [selectedFips, granularity],
         },
@@ -377,7 +369,7 @@ export function ChoroplethMap({
         onViewStateChange={({ viewState }) => onViewStateChange?.(viewState)}
         getCursor={({ isHovering }) => (isHovering ? "pointer" : "grab")}
       >
-        <MapGL reuseMaps mapStyle={basemapStyle} />
+        <MapGL mapStyle={basemapStyle} />
       </DeckGL>
     </div>
   );

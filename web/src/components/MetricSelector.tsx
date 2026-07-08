@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import {
   CATEGORIES,
@@ -149,6 +149,9 @@ export function MetricSelector({
   const grouped = useMemo(() => groupMetricsByCategory(), []);
   const navRef = useRef<HTMLElement>(null);
   const [comboTooltip, setComboTooltip] = useState<TooltipState | null>(null);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- counties excluded: data changes don't need to clear tooltip
+  useEffect(() => setComboTooltip(null), [selected.key, secondaryMetric?.key]);
 
   const activeComboKey = useMemo(
     () => METRIC_COMBOS.find(
