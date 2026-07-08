@@ -148,6 +148,10 @@ def extract_umr(
     *,
     force: bool = False,
 ) -> pl.DataFrame:
+    if not metro.umr_names:
+        logger.info("No UMR names configured for %s, skipping", metro.metro_id)
+        return pl.DataFrame()
+
     parquet_dir = settings.metro_staging_dir(metro.metro_id) / "umr"
     parquet_path = parquet_dir / f"umr_{metro.metro_id}.parquet"
 
