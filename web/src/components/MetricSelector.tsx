@@ -163,18 +163,15 @@ export function MetricSelector({
     );
   }, [counties, grouped]);
 
-  const handleComboClick = useCallback(
-    (combo: MetricCombo) => {
-      setComboTooltip(null);
-      const primary = METRICS.find((m) => m.key === combo.primary);
-      const secondary = METRICS.find((m) => m.key === combo.secondary);
-      if (primary && secondary) {
-        onSelect(primary);
-        onSelectSecondary(secondary);
-      }
-    },
-    [onSelect, onSelectSecondary],
-  );
+  const handleComboClick = (combo: MetricCombo) => {
+    setComboTooltip(null);
+    const primary = METRICS.find((m) => m.key === combo.primary);
+    const secondary = METRICS.find((m) => m.key === combo.secondary);
+    if (primary && secondary) {
+      onSelect(primary);
+      onSelectSecondary(secondary);
+    }
+  };
 
   const availableCombos = useMemo(() => {
     return METRIC_COMBOS.filter(
