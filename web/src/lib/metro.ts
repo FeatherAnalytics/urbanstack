@@ -48,6 +48,12 @@ export const METROS: Record<string, MetroConfig> = {
     center: [42.36, -71.06],
     zoom: 8,
   },
+  denver: {
+    metro_id: "denver",
+    metro_name: "Denver-Aurora-Centennial MSA",
+    center: [39.74, -104.99],
+    zoom: 8,
+  },
 };
 
 export interface RegionConfig {
@@ -78,6 +84,13 @@ export const REGIONS: Record<string, RegionConfig> = {
     region_name: "Midwest",
     metro_ids: ["chicago"],
     center: [41.88, -87.63],
+    zoom: 7,
+  },
+  mountain: {
+    region_id: "mountain",
+    region_name: "Mountain",
+    metro_ids: ["denver"],
+    center: [39.74, -104.99],
     zoom: 7,
   },
 };

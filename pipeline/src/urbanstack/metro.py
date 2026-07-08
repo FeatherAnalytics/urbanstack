@@ -282,6 +282,39 @@ BOSTON = MetroConfig(
     ],
 )
 
+DENVER = MetroConfig(
+    metro_id="denver",
+    metro_name="Denver-Aurora-Centennial MSA",
+    metro_fips="19740",
+    states={
+        "08": {
+            "Adams": "001",
+            "Arapahoe": "005",
+            "Broomfield": "014",
+            "Clear Creek": "019",
+            "Denver": "031",
+            "Douglas": "035",
+            "Elbert": "039",
+            "Gilpin": "047",
+            "Jefferson": "059",
+            "Park": "093",
+        },
+    },
+    center=(39.74, -104.99),
+    zoom=8,
+    # Tight around the RTD service area: excludes Fort Collins (Transfort, ~40.4)
+    # and Colorado Springs (Mountain Metro, ~38.8) so GTFS discovery only catches RTD.
+    bounds=(39.20, 40.15, -105.45, -104.40),
+    transit_agencies={
+        "80006": "Regional Transportation District",
+    },
+    umr_names=[
+        "Denver-Aurora CO",
+        "Denver-Aurora",
+        "Denver-Aurora, CO",
+    ],
+)
+
 METRO_REGISTRY: dict[str, MetroConfig] = {
     "dfw": DFW,
     "chicago": CHICAGO,
@@ -290,6 +323,7 @@ METRO_REGISTRY: dict[str, MetroConfig] = {
     "austin": AUSTIN,
     "san_antonio": SAN_ANTONIO,
     "boston": BOSTON,
+    "denver": DENVER,
 }
 
 
