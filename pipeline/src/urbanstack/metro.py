@@ -331,6 +331,74 @@ DENVER = MetroConfig(
     region="mountain",
 )
 
+MSP = MetroConfig(
+    metro_id="msp",
+    metro_name="Minneapolis-St. Paul-Bloomington MSA",
+    metro_fips="33460",
+    states={
+        "27": {
+            "Anoka": "003",
+            "Carver": "019",
+            "Chisago": "025",
+            "Dakota": "037",
+            "Hennepin": "053",
+            "Isanti": "059",
+            "Le Sueur": "079",
+            "Mille Lacs": "095",
+            "Ramsey": "123",
+            "Scott": "139",
+            "Sherburne": "141",
+            "Washington": "163",
+            "Wright": "171",
+        },
+        "55": {
+            "Pierce": "093",
+            "St. Croix": "109",
+        },
+    },
+    center=(44.98, -93.27),
+    zoom=8,
+    bounds=(44.0, 46.2, -94.5, -92.0),
+    transit_agencies={
+        "50027": "Metro Transit",
+    },
+    umr_names=[
+        "Minneapolis-St. Paul MN-WI",
+        "Minneapolis-St Paul MN-WI",
+    ],
+    region="midwest",
+)
+
+PORTLAND = MetroConfig(
+    metro_id="portland",
+    metro_name="Portland-Vancouver-Hillsboro MSA",
+    metro_fips="38900",
+    states={
+        "41": {
+            "Clackamas": "005",
+            "Columbia": "009",
+            "Multnomah": "051",
+            "Washington": "067",
+            "Yamhill": "071",
+        },
+        "53": {
+            "Clark": "011",
+            "Skamania": "059",
+        },
+    },
+    center=(45.52, -122.68),
+    zoom=8,
+    bounds=(45.0, 46.3, -123.5, -121.5),
+    transit_agencies={
+        "00008": "TriMet",
+    },
+    umr_names=[
+        "Portland OR-WA",
+        "Portland-Vancouver OR-WA",
+    ],
+    region="pacific_northwest",
+)
+
 CHEYENNE = MetroConfig(
     metro_id="cheyenne",
     metro_name="Cheyenne MSA",
@@ -360,6 +428,8 @@ METRO_REGISTRY: dict[str, MetroConfig] = {
     "boston": BOSTON,
     "denver": DENVER,
     "cheyenne": CHEYENNE,
+    "msp": MSP,
+    "portland": PORTLAND,
 }
 
 REGION_CONFIGS: dict[str, RegionMeta] = {
@@ -367,6 +437,7 @@ REGION_CONFIGS: dict[str, RegionMeta] = {
     "northeast": RegionMeta(region_name="Northeast", center=(41.5, -72.5), zoom=6),
     "midwest": RegionMeta(region_name="Midwest", center=(41.88, -87.63), zoom=7),
     "mountain": RegionMeta(region_name="Mountain", center=(40.44, -104.90), zoom=7),
+    "pacific_northwest": RegionMeta(region_name="Pacific Northwest", center=(45.52, -122.68), zoom=7),
 }
 
 
