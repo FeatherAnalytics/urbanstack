@@ -51,10 +51,22 @@ export const METROS: Record<string, MetroConfig> = {
     center: [29.76, -95.37],
     zoom: 8,
   },
+  msp: {
+    metro_id: "msp",
+    metro_name: "Minneapolis-St. Paul-Bloomington MSA",
+    center: [44.98, -93.27],
+    zoom: 8,
+  },
   nyc: {
     metro_id: "nyc",
     metro_name: "New York-Newark-Jersey City MSA",
     center: [40.71, -74.0],
+    zoom: 8,
+  },
+  portland: {
+    metro_id: "portland",
+    metro_name: "Portland-Vancouver-Hillsboro MSA",
+    center: [45.52, -122.68],
     zoom: 8,
   },
   san_antonio: {
@@ -77,7 +89,7 @@ export const REGIONS: Record<string, RegionConfig> = {
   midwest: {
     region_id: "midwest",
     region_name: "Midwest",
-    metro_ids: ["chicago"],
+    metro_ids: ["chicago", "msp"],
     center: [41.88, -87.63],
     zoom: 7,
   },
@@ -94,6 +106,13 @@ export const REGIONS: Record<string, RegionConfig> = {
     metro_ids: ["boston", "nyc"],
     center: [41.5, -72.5],
     zoom: 6,
+  },
+  pacific_northwest: {
+    region_id: "pacific_northwest",
+    region_name: "Pacific Northwest",
+    metro_ids: ["portland"],
+    center: [45.52, -122.68],
+    zoom: 7,
   },
   texas: {
     region_id: "texas",
