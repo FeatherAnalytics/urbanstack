@@ -1,5 +1,6 @@
 import logging
 import math
+import time
 
 import polars as pl
 import requests
@@ -14,7 +15,7 @@ from urbanstack.transform.spatial import compute_bbox, load_boundaries
 logger = logging.getLogger(__name__)
 
 OVERPASS_URL = "https://overpass-api.de/api/interpreter"
-REQUEST_TIMEOUT = 120
+REQUEST_TIMEOUT = 180
 
 
 USER_AGENT = "UrbanStack/1.0 (https://github.com/FeatherAnalytics/urbanstack)"
@@ -23,7 +24,12 @@ USER_AGENT = "UrbanStack/1.0 (https://github.com/FeatherAnalytics/urbanstack)"
 def _overpass_session() -> requests.Session:
     session = requests.Session()
     session.headers["User-Agent"] = USER_AGENT
-    retries = Retry(total=3, backoff_factor=2, status_forcelist=[429, 500, 502, 503])
+    retries = Retry(
+        total=4,
+        backoff_factor=10,
+        status_forcelist=[429, 500, 502, 503, 504],
+        allowed_methods=["GET", "POST"],
+    )
     session.mount("https://", HTTPAdapter(max_retries=retries))
     return session
 
@@ -93,19 +99,52 @@ def _dedup_parks(records: list[dict]) -> list[dict]:
     return deduped
 
 
+def _split_bbox(
+    bbox: tuple[float, float, float, float], max_deg: float = 1.0
+) -> list[tuple[float, float, float, float]]:
+    south, west, north, east = bbox
+    lat_span = north - south
+    lon_span = east - west
+    if lat_span <= max_deg and lon_span <= max_deg:
+        return [bbox]
+    lat_steps = max(1, math.ceil(lat_span / max_deg))
+    lon_steps = max(1, math.ceil(lon_span / max_deg))
+    lat_size = lat_span / lat_steps
+    lon_size = lon_span / lon_steps
+    tiles = []
+    for i in range(lat_steps):
+        for j in range(lon_steps):
+            tiles.append((
+                south + i * lat_size,
+                west + j * lon_size,
+                south + (i + 1) * lat_size,
+                east if j == lon_steps - 1 else west + (j + 1) * lon_size,
+            ))
+    return tiles
+
+
 def _fetch_parks(bbox: tuple[float, float, float, float]) -> list[dict]:
-    query = _build_overpass_query(bbox)
-    logger.info("Querying Overpass API for parks in bbox %s", bbox)
-
+    tiles = _split_bbox(bbox)
     session = _overpass_session()
-    resp = session.post(OVERPASS_URL, data={"data": query}, timeout=REQUEST_TIMEOUT)
-    resp.raise_for_status()
+    all_records: list[dict] = []
 
-    elements = resp.json().get("elements", [])
-    logger.info("Overpass returned %d elements", len(elements))
+    for idx, tile in enumerate(tiles):
+        if idx > 0 and len(tiles) > 1:
+            time.sleep(15)
+        query = _build_overpass_query(tile)
+        label = f"tile {idx + 1}/{len(tiles)}" if len(tiles) > 1 else "bbox"
+        logger.info("Querying Overpass API for parks (%s) %s", label, tile)
 
-    records = [r for el in elements if (r := _parse_element(el)) is not None]
-    return _dedup_parks(records)
+        resp = session.post(OVERPASS_URL, data={"data": query}, timeout=REQUEST_TIMEOUT)
+        resp.raise_for_status()
+
+        elements = resp.json().get("elements", [])
+        logger.info("Overpass returned %d elements (%s)", len(elements), label)
+        all_records.extend(
+            r for el in elements if (r := _parse_element(el)) is not None
+        )
+
+    return _dedup_parks(all_records)
 
 
 def extract_osm_parks(
