@@ -414,7 +414,9 @@ CHEYENNE = MetroConfig(
     transit_agencies={
         "80020": "City of Cheyenne Transit Program",
     },
-    umr_names=[],
+    umr_names=[
+        "Cheyenne WY",
+    ],
     region="mountain",
 )
 
