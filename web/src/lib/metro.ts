@@ -15,6 +15,12 @@ export const METROS: Record<string, MetroConfig> = {
     center: [30.27, -97.74],
     zoom: 9,
   },
+  baltimore: {
+    metro_id: "baltimore",
+    metro_name: "Baltimore-Columbia-Towson MSA",
+    center: [39.29, -76.61],
+    zoom: 9,
+  },
   boston: {
     metro_id: "boston",
     metro_name: "Boston-Cambridge-Newton MSA",
@@ -31,6 +37,12 @@ export const METROS: Record<string, MetroConfig> = {
     metro_id: "chicago",
     metro_name: "Chicago-Naperville-Elgin MSA",
     center: [41.88, -87.63],
+    zoom: 8,
+  },
+  dc: {
+    metro_id: "dc",
+    metro_name: "Washington-Arlington-Alexandria MSA",
+    center: [38.9, -77.04],
     zoom: 8,
   },
   denver: {
@@ -63,11 +75,23 @@ export const METROS: Record<string, MetroConfig> = {
     center: [40.71, -74.0],
     zoom: 8,
   },
+  philadelphia: {
+    metro_id: "philadelphia",
+    metro_name: "Philadelphia-Camden-Wilmington MSA",
+    center: [39.95, -75.16],
+    zoom: 8,
+  },
   portland: {
     metro_id: "portland",
     metro_name: "Portland-Vancouver-Hillsboro MSA",
     center: [45.52, -122.68],
     zoom: 8,
+  },
+  richmond: {
+    metro_id: "richmond",
+    metro_name: "Richmond MSA",
+    center: [37.54, -77.44],
+    zoom: 9,
   },
   san_antonio: {
     metro_id: "san_antonio",
@@ -86,6 +110,13 @@ export interface RegionConfig {
 }
 
 export const REGIONS: Record<string, RegionConfig> = {
+  mid_atlantic: {
+    region_id: "mid_atlantic",
+    region_name: "Mid-Atlantic",
+    metro_ids: ["baltimore", "dc", "richmond"],
+    center: [38.6, -77.2],
+    zoom: 7,
+  },
   midwest: {
     region_id: "midwest",
     region_name: "Midwest",
@@ -103,7 +134,7 @@ export const REGIONS: Record<string, RegionConfig> = {
   northeast: {
     region_id: "northeast",
     region_name: "Northeast",
-    metro_ids: ["boston", "nyc"],
+    metro_ids: ["boston", "nyc", "philadelphia"],
     center: [41.5, -72.5],
     zoom: 6,
   },

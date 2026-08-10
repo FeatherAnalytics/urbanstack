@@ -1,26 +1,10 @@
 [
   {
-    "county_fips": "41005",
-    "total_fatalities": 29,
-    "total_crashes": 26,
-    "pedestrian_involved_crashes": 10,
-    "drunk_driver_crashes": 10,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "53059",
-    "total_fatalities": 2,
-    "total_crashes": 2,
-    "pedestrian_involved_crashes": 1,
-    "drunk_driver_crashes": 1,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "41071",
-    "total_fatalities": 12,
-    "total_crashes": 10,
-    "pedestrian_involved_crashes": 0,
-    "drunk_driver_crashes": 3,
+    "county_fips": "53011",
+    "total_fatalities": 28,
+    "total_crashes": 28,
+    "pedestrian_involved_crashes": 9,
+    "drunk_driver_crashes": 9,
     "total_annual_ridership": null
   },
   {
@@ -32,19 +16,19 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "53011",
-    "total_fatalities": 28,
-    "total_crashes": 28,
-    "pedestrian_involved_crashes": 9,
-    "drunk_driver_crashes": 9,
+    "county_fips": "41071",
+    "total_fatalities": 12,
+    "total_crashes": 10,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 3,
     "total_annual_ridership": null
   },
   {
-    "county_fips": "41051",
-    "total_fatalities": 58,
-    "total_crashes": 56,
-    "pedestrian_involved_crashes": 26,
-    "drunk_driver_crashes": 15,
+    "county_fips": "53059",
+    "total_fatalities": 2,
+    "total_crashes": 2,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 1,
     "total_annual_ridership": null
   },
   {
@@ -53,6 +37,22 @@
     "total_crashes": 5,
     "pedestrian_involved_crashes": 1,
     "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "41005",
+    "total_fatalities": 29,
+    "total_crashes": 26,
+    "pedestrian_involved_crashes": 10,
+    "drunk_driver_crashes": 10,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "41051",
+    "total_fatalities": 58,
+    "total_crashes": 56,
+    "pedestrian_involved_crashes": 26,
+    "drunk_driver_crashes": 15,
     "total_annual_ridership": null
   }
 ]

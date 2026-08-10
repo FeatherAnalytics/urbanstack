@@ -1,33 +1,9 @@
 [
   {
-    "county_fips": "33015",
-    "total_fatalities": 20,
-    "total_crashes": 19,
-    "pedestrian_involved_crashes": 2,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "25021",
-    "total_fatalities": 43,
-    "total_crashes": 43,
-    "pedestrian_involved_crashes": 13,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "33017",
-    "total_fatalities": 21,
-    "total_crashes": 18,
-    "pedestrian_involved_crashes": 3,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "25025",
-    "total_fatalities": 28,
-    "total_crashes": 26,
-    "pedestrian_involved_crashes": 13,
+    "county_fips": "25009",
+    "total_fatalities": 31,
+    "total_crashes": 30,
+    "pedestrian_involved_crashes": 9,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   },
@@ -40,6 +16,14 @@
     "total_annual_ridership": null
   },
   {
+    "county_fips": "33015",
+    "total_fatalities": 20,
+    "total_crashes": 19,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
     "county_fips": "25017",
     "total_fatalities": 75,
     "total_crashes": 74,
@@ -48,10 +32,26 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "25009",
-    "total_fatalities": 31,
-    "total_crashes": 30,
-    "pedestrian_involved_crashes": 9,
+    "county_fips": "25021",
+    "total_fatalities": 43,
+    "total_crashes": 43,
+    "pedestrian_involved_crashes": 13,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "25025",
+    "total_fatalities": 28,
+    "total_crashes": 26,
+    "pedestrian_involved_crashes": 13,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "33017",
+    "total_fatalities": 21,
+    "total_crashes": 18,
+    "pedestrian_involved_crashes": 3,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   }
