@@ -8,35 +8,11 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "25025",
-    "total_fatalities": 25,
-    "total_crashes": 24,
-    "pedestrian_involved_crashes": 14,
-    "drunk_driver_crashes": 7,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "25021",
-    "total_fatalities": 32,
-    "total_crashes": 31,
-    "pedestrian_involved_crashes": 11,
-    "drunk_driver_crashes": 8,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "33015",
-    "total_fatalities": 16,
-    "total_crashes": 16,
-    "pedestrian_involved_crashes": 2,
-    "drunk_driver_crashes": 5,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "25017",
-    "total_fatalities": 34,
-    "total_crashes": 33,
-    "pedestrian_involved_crashes": 10,
-    "drunk_driver_crashes": 10,
+    "county_fips": "25023",
+    "total_fatalities": 45,
+    "total_crashes": 43,
+    "pedestrian_involved_crashes": 6,
+    "drunk_driver_crashes": 19,
     "total_annual_ridership": null
   },
   {
@@ -48,11 +24,35 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "25023",
-    "total_fatalities": 45,
-    "total_crashes": 43,
-    "pedestrian_involved_crashes": 6,
-    "drunk_driver_crashes": 19,
+    "county_fips": "33015",
+    "total_fatalities": 16,
+    "total_crashes": 16,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 5,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "25021",
+    "total_fatalities": 32,
+    "total_crashes": 31,
+    "pedestrian_involved_crashes": 11,
+    "drunk_driver_crashes": 8,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "25017",
+    "total_fatalities": 34,
+    "total_crashes": 33,
+    "pedestrian_involved_crashes": 10,
+    "drunk_driver_crashes": 10,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "25025",
+    "total_fatalities": 25,
+    "total_crashes": 24,
+    "pedestrian_involved_crashes": 14,
+    "drunk_driver_crashes": 7,
     "total_annual_ridership": null
   }
 ]
