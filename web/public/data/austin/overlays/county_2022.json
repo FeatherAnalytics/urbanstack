@@ -1,9 +1,9 @@
 [
   {
-    "county_fips": "48021",
-    "total_fatalities": 27,
-    "total_crashes": 23,
-    "pedestrian_involved_crashes": 1,
+    "county_fips": "48055",
+    "total_fatalities": 19,
+    "total_crashes": 17,
+    "pedestrian_involved_crashes": 3,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   },
@@ -16,18 +16,18 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "48055",
-    "total_fatalities": 19,
-    "total_crashes": 17,
-    "pedestrian_involved_crashes": 3,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
     "county_fips": "48491",
     "total_fatalities": 66,
     "total_crashes": 59,
     "pedestrian_involved_crashes": 12,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "48021",
+    "total_fatalities": 27,
+    "total_crashes": 23,
+    "pedestrian_involved_crashes": 1,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   },

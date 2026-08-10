@@ -212,6 +212,13 @@ def build_metro_mart(settings: Settings, metro: MetroConfig, *, force: bool = Fa
     else:
         result["transit_revenue_miles"] = None
 
+    park_cols = ["park_count_nearby", "total_park_area_sqm"]
+    for c in park_cols:
+        if c in county.columns:
+            result[c] = county.select(pl.col(c).sum()).item()
+        else:
+            result[c] = None
+
     if "avg_daily_traffic" in county.columns:
         result["avg_daily_traffic"] = county.select(
             pl.col("avg_daily_traffic").mean()
