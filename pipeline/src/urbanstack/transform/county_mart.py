@@ -112,32 +112,30 @@ def _aggregate_fars(fars: pl.DataFrame) -> pl.DataFrame:
 def _aggregate_fhwa(fhwa: pl.DataFrame, stations: pl.DataFrame) -> pl.DataFrame:
     """Join volumes to station-county mapping and compute avg daily traffic per county.
 
-    TMAS station IDs are unique only within a state, so every join is qualified by
+    TMAS station IDs are unique only within a state, so the join is qualified by
     state FIPS. Joining on station ID alone attributes one state's volumes to
     another state's counties.
+
+    The two feeds disagree on zero-padding — the volume dataset pads to six
+    characters while the station inventory often does not, and a single metro can
+    carry both conventions across its states. Leading zeros are therefore stripped
+    on both sides before matching. Stripping is idempotent for already-unpadded IDs
+    and, verified across every configured metro, never collides two stations within
+    one state.
     """
     stations = stations.with_columns(
         pl.col("county_fips").str.slice(0, 2).alias("state_fips"),
+        pl.col("station_id").str.strip_chars_start("0").alias("_sid"),
+    )
+    fhwa = fhwa.with_columns(
+        pl.col("station_id").str.strip_chars_start("0").alias("_sid"),
     )
 
     joined = fhwa.join(
-        stations.select("station_id", "state_fips", "county_fips"),
-        on=["station_id", "state_fips"],
+        stations.select("_sid", "state_fips", "county_fips"),
+        on=["_sid", "state_fips"],
         how="inner",
     )
-
-    if joined.is_empty():
-        fhwa_norm = fhwa.with_columns(
-            pl.col("station_id").str.strip_chars_start("0").alias("_sid"),
-        )
-        stations_norm = stations.with_columns(
-            pl.col("station_id").str.strip_chars_start("0").alias("_sid"),
-        )
-        joined = fhwa_norm.join(
-            stations_norm.select("_sid", "state_fips", "county_fips"),
-            on=["_sid", "state_fips"],
-            how="inner",
-        )
 
     if joined.is_empty():
         logger.warning("FHWA: no stations matched after join")
