@@ -420,6 +420,165 @@ CHEYENNE = MetroConfig(
     region="mountain",
 )
 
+PHILADELPHIA = MetroConfig(
+    metro_id="philadelphia",
+    metro_name="Philadelphia-Camden-Wilmington MSA",
+    metro_fips="37980",
+    states={
+        "10": {
+            "New Castle": "003",
+        },
+        "24": {
+            "Cecil": "015",
+        },
+        "34": {
+            "Burlington": "005",
+            "Camden": "007",
+            "Gloucester": "015",
+            "Salem": "033",
+        },
+        "42": {
+            "Bucks": "017",
+            "Chester": "029",
+            "Delaware": "045",
+            "Montgomery": "091",
+            "Philadelphia": "101",
+        },
+    },
+    center=(39.95, -75.16),
+    zoom=8,
+    bounds=(39.27, 40.63, -76.25, -74.37),
+    transit_agencies={
+        "30019": "Southeastern Pennsylvania Transportation Authority",
+        "20075": "Port Authority Transit Corporation",
+        "30075": "Delaware Transit Corporation",
+    },
+    umr_names=[
+        "Philadelphia PA-NJ-DE-MD",
+    ],
+    region="northeast",
+)
+
+DC = MetroConfig(
+    metro_id="dc",
+    metro_name="Washington-Arlington-Alexandria MSA",
+    metro_fips="47900",
+    states={
+        "11": {
+            "District of Columbia": "001",
+        },
+        "24": {
+            "Charles": "017",
+            "Frederick": "021",
+            "Montgomery": "031",
+            "Prince George's": "033",
+        },
+        "51": {
+            "Alexandria city": "510",
+            "Arlington": "013",
+            "Clarke": "043",
+            "Culpeper": "047",
+            "Fairfax": "059",
+            "Fairfax city": "600",
+            "Falls Church city": "610",
+            "Fauquier": "061",
+            "Fredericksburg city": "630",
+            "Loudoun": "107",
+            "Manassas Park city": "685",
+            "Manassas city": "683",
+            "Prince William": "153",
+            "Rappahannock": "157",
+            "Spotsylvania": "177",
+            "Stafford": "179",
+            "Warren": "187",
+        },
+        "54": {
+            "Jefferson": "037",
+        },
+    },
+    center=(38.90, -77.04),
+    zoom=8,
+    bounds=(37.97, 39.74, -78.41, -76.64),
+    transit_agencies={
+        "30030": "Washington Metropolitan Area Transit Authority",
+        "30051": "Montgomery County Ride On",
+        "30068": "Fairfax Connector",
+        "30071": "City of Alexandria DASH",
+        "30073": "Virginia Railway Express",
+        "30070": "Potomac and Rappahannock Transportation Commission",
+    },
+    umr_names=[
+        "Washington DC-VA-MD",
+    ],
+    region="mid_atlantic",
+)
+
+BALTIMORE = MetroConfig(
+    metro_id="baltimore",
+    metro_name="Baltimore-Columbia-Towson MSA",
+    metro_fips="12580",
+    states={
+        "24": {
+            "Anne Arundel": "003",
+            "Baltimore": "005",
+            "Baltimore city": "510",
+            "Carroll": "013",
+            "Harford": "025",
+            "Howard": "027",
+            "Queen Anne's": "035",
+        },
+    },
+    center=(39.29, -76.61),
+    zoom=9,
+    bounds=(38.69, 39.74, -77.33, -75.73),
+    transit_agencies={
+        "30034": "Maryland Transit Administration",
+        "30201": "City of Baltimore",
+        "30129": "Anne Arundel County",
+    },
+    umr_names=[
+        "Baltimore MD",
+    ],
+    region="mid_atlantic",
+)
+
+RICHMOND = MetroConfig(
+    metro_id="richmond",
+    metro_name="Richmond MSA",
+    metro_fips="40060",
+    states={
+        "51": {
+            "Amelia": "007",
+            "Charles City": "036",
+            "Chesterfield": "041",
+            "Colonial Heights city": "570",
+            "Dinwiddie": "053",
+            "Goochland": "075",
+            "Hanover": "085",
+            "Henrico": "087",
+            "Hopewell city": "670",
+            "King William": "101",
+            "King and Queen": "097",
+            "New Kent": "127",
+            "Petersburg city": "730",
+            "Powhatan": "145",
+            "Prince George": "149",
+            "Richmond city": "760",
+            "Sussex": "183",
+        },
+    },
+    center=(37.54, -77.44),
+    zoom=9,
+    bounds=(36.69, 38.03, -78.26, -76.63),
+    transit_agencies={
+        "30006": "Greater Richmond Transit Company",
+    },
+    umr_names=[
+        "Richmond VA",
+    ],
+    region="mid_atlantic",
+)
+
 METRO_REGISTRY: dict[str, MetroConfig] = {
     "dfw": DFW,
     "chicago": CHICAGO,
@@ -432,6 +591,10 @@ METRO_REGISTRY: dict[str, MetroConfig] = {
     "cheyenne": CHEYENNE,
     "msp": MSP,
     "portland": PORTLAND,
+    "philadelphia": PHILADELPHIA,
+    "dc": DC,
+    "baltimore": BALTIMORE,
+    "richmond": RICHMOND,
 }
 
 REGION_CONFIGS: dict[str, RegionMeta] = {
@@ -440,6 +603,7 @@ REGION_CONFIGS: dict[str, RegionMeta] = {
     "midwest": RegionMeta(region_name="Midwest", center=(41.88, -87.63), zoom=7),
     "mountain": RegionMeta(region_name="Mountain", center=(40.44, -104.90), zoom=7),
     "pacific_northwest": RegionMeta(region_name="Pacific Northwest", center=(45.52, -122.68), zoom=7),
+    "mid_atlantic": RegionMeta(region_name="Mid-Atlantic", center=(38.60, -77.20), zoom=7),
 }
 
 
