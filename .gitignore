@@ -59,6 +59,7 @@ web/screenshots/
 
 # Local agent tooling — contains machine-specific account references
 .claude/
+CLAUDE.local.md
 .wrangler/
 thoughts/handoffs/
 thoughts/shared/handoffs/

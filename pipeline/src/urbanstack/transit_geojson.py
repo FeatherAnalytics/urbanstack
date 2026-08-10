@@ -15,6 +15,70 @@ if TYPE_CHECKING:
 logger = logging.getLogger("urbanstack.transit_geojson")
 
 
+def _feature_vertices(geometry: dict) -> list[list[float]]:
+    if geometry["type"] == "LineString":
+        return geometry["coordinates"]
+    if geometry["type"] == "MultiLineString":
+        return [c for part in geometry["coordinates"] for c in part]
+    return []
+
+
+def _keep_servicing_routes(
+    features: list[dict],
+    settings: Settings,
+    metro: MetroConfig,
+) -> list[dict]:
+    """Drop routes that never enter the metro's counties.
+
+    Clipping is rectangular, and in dense corridors that rectangle reaches well past
+    the MSA — a Philadelphia box spans Allentown, Reading, Lancaster, and north Jersey.
+    Operators with no service inside the counties would otherwise dominate the map.
+    """
+    from urbanstack.transform.spatial import (
+        load_boundaries,
+        point_in_bounded_areas,
+        prepare_bounded_areas,
+    )
+
+    counties_path = settings.web_data_dir(metro.metro_id) / "counties.geojson"
+    if not counties_path.exists():
+        logger.warning(
+            "No county boundaries for %s — keeping all routes inside the clip box",
+            metro.metro_id,
+        )
+        return features
+
+    areas = prepare_bounded_areas(load_boundaries(counties_path))
+    kept: list[dict] = []
+    dropped_by_agency: dict[str, int] = {}
+
+    for feat in features:
+        # Every vertex is tested, not a sample — a route may clip the MSA for only a
+        # point or two, and sampling would discard real service. The bbox prefilter
+        # keeps the common all-outside case cheap, and the scan exits on first hit.
+        servicing = any(
+            point_in_bounded_areas(v[1], v[0], areas)
+            for v in _feature_vertices(feat["geometry"])
+        )
+        if servicing:
+            kept.append(feat)
+        else:
+            agency = feat["properties"].get("agency", "unknown")
+            dropped_by_agency[agency] = dropped_by_agency.get(agency, 0) + 1
+
+    if dropped_by_agency:
+        total = sum(dropped_by_agency.values())
+        worst = sorted(dropped_by_agency.items(), key=lambda kv: -kv[1])[:5]
+        logger.info(
+            "%s: dropped %d of %d route shapes with no service in the MSA (%s)",
+            metro.metro_id,
+            total,
+            len(features),
+            ", ".join(f"{a}={n}" for a, n in worst),
+        )
+    return kept
+
+
 def build_transit_geojson(
     settings: Settings,
     metro: MetroConfig,
@@ -71,6 +135,9 @@ def build_transit_geojson(
     clip = (metro.bounds[0] - pad, metro.bounds[1] + pad, metro.bounds[2] - pad, metro.bounds[3] + pad)
 
     routes_geojson = build_routes_geojson(all_shapes, all_routes, trips_df, clip_bounds=clip)
+    routes_geojson["features"] = _keep_servicing_routes(
+        routes_geojson["features"], settings, metro
+    )
     route_count = len(routes_geojson["features"])
 
     rendered_routes: set[tuple[str, str]] = set()

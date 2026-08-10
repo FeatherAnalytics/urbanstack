@@ -1,0 +1,122 @@
+[
+  {
+    "county_fips": "51760",
+    "total_fatalities": 27,
+    "total_crashes": 26,
+    "pedestrian_involved_crashes": 10,
+    "drunk_driver_crashes": 8,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51007",
+    "total_fatalities": 6,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 4,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51730",
+    "total_fatalities": 7,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 3,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51145",
+    "total_fatalities": 5,
+    "total_crashes": 5,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51085",
+    "total_fatalities": 18,
+    "total_crashes": 18,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 6,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51149",
+    "total_fatalities": 3,
+    "total_crashes": 3,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 2,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51053",
+    "total_fatalities": 6,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51041",
+    "total_fatalities": 34,
+    "total_crashes": 31,
+    "pedestrian_involved_crashes": 10,
+    "drunk_driver_crashes": 9,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51087",
+    "total_fatalities": 29,
+    "total_crashes": 26,
+    "pedestrian_involved_crashes": 8,
+    "drunk_driver_crashes": 6,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51036",
+    "total_fatalities": 5,
+    "total_crashes": 5,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51097",
+    "total_fatalities": 3,
+    "total_crashes": 3,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51075",
+    "total_fatalities": 1,
+    "total_crashes": 1,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51101",
+    "total_fatalities": 5,
+    "total_crashes": 4,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51127",
+    "total_fatalities": 6,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "51183",
+    "total_fatalities": 11,
+    "total_crashes": 9,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  }
+]

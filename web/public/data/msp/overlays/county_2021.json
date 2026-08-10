@@ -1,48 +1,16 @@
 [
   {
-    "county_fips": "27141",
-    "total_fatalities": 6,
-    "total_crashes": 6,
-    "pedestrian_involved_crashes": 1,
+    "county_fips": "27079",
+    "total_fatalities": 8,
+    "total_crashes": 5,
+    "pedestrian_involved_crashes": 0,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   },
   {
-    "county_fips": "27163",
-    "total_fatalities": 10,
-    "total_crashes": 10,
-    "pedestrian_involved_crashes": 1,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "27123",
-    "total_fatalities": 36,
-    "total_crashes": 34,
-    "pedestrian_involved_crashes": 10,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "27025",
-    "total_fatalities": 12,
-    "total_crashes": 10,
-    "pedestrian_involved_crashes": 1,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "27053",
-    "total_fatalities": 74,
-    "total_crashes": 68,
-    "pedestrian_involved_crashes": 28,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "27019",
-    "total_fatalities": 13,
-    "total_crashes": 13,
+    "county_fips": "27059",
+    "total_fatalities": 4,
+    "total_crashes": 4,
     "pedestrian_involved_crashes": 1,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
@@ -56,7 +24,31 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "27139",
+    "county_fips": "27095",
+    "total_fatalities": 5,
+    "total_crashes": 5,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "27025",
+    "total_fatalities": 12,
+    "total_crashes": 10,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "27019",
+    "total_fatalities": 13,
+    "total_crashes": 13,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "27141",
     "total_fatalities": 6,
     "total_crashes": 6,
     "pedestrian_involved_crashes": 1,
@@ -64,10 +56,10 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "27059",
-    "total_fatalities": 4,
-    "total_crashes": 4,
-    "pedestrian_involved_crashes": 1,
+    "county_fips": "27053",
+    "total_fatalities": 74,
+    "total_crashes": 68,
+    "pedestrian_involved_crashes": 28,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   },
@@ -80,10 +72,26 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "27079",
-    "total_fatalities": 8,
-    "total_crashes": 5,
-    "pedestrian_involved_crashes": 0,
+    "county_fips": "27123",
+    "total_fatalities": 36,
+    "total_crashes": 34,
+    "pedestrian_involved_crashes": 10,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "27003",
+    "total_fatalities": 27,
+    "total_crashes": 25,
+    "pedestrian_involved_crashes": 3,
+    "drunk_driver_crashes": 0,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "27163",
+    "total_fatalities": 10,
+    "total_crashes": 10,
+    "pedestrian_involved_crashes": 1,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   },
@@ -96,14 +104,6 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "27095",
-    "total_fatalities": 5,
-    "total_crashes": 5,
-    "pedestrian_involved_crashes": 1,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
     "county_fips": "27171",
     "total_fatalities": 14,
     "total_crashes": 14,
@@ -112,10 +112,10 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "27003",
-    "total_fatalities": 27,
-    "total_crashes": 25,
-    "pedestrian_involved_crashes": 3,
+    "county_fips": "27139",
+    "total_fatalities": 6,
+    "total_crashes": 6,
+    "pedestrian_involved_crashes": 1,
     "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   }

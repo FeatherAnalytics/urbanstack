@@ -172,6 +172,40 @@ def _point_in_area(
     return False
 
 
+# Each entry pairs an area's polygons with its bbox, for cheap rejection before ray casting.
+BoundedAreas = list[tuple[tuple[float, float, float, float], list[list[list[list[float]]]]]]
+
+
+def prepare_bounded_areas(boundaries: Boundaries) -> BoundedAreas:
+    """Attach a bounding box to each area so containment tests can reject quickly.
+
+    Worth the setup when testing many points against the same areas — a full
+    ray cast per area per point is orders of magnitude slower.
+    """
+    areas: BoundedAreas = []
+    for _area_id, polygons in boundaries:
+        lats: list[float] = []
+        lons: list[float] = []
+        for polygon_rings in polygons:
+            for ring in polygon_rings:
+                for lon, lat in ((c[0], c[1]) for c in ring):
+                    lons.append(lon)
+                    lats.append(lat)
+        if lats:
+            areas.append(((min(lats), max(lats), min(lons), max(lons)), polygons))
+    return areas
+
+
+def point_in_bounded_areas(lat: float, lon: float, areas: BoundedAreas) -> bool:
+    """True when the point falls inside any of the prepared areas."""
+    for (min_lat, max_lat, min_lon, max_lon), polygons in areas:
+        if not (min_lat <= lat <= max_lat and min_lon <= lon <= max_lon):
+            continue
+        if _point_in_area(lat, lon, polygons):
+            return True
+    return False
+
+
 def assign_points_to_areas(
     points: pl.DataFrame,
     boundaries: Boundaries,

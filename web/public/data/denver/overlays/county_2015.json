@@ -1,18 +1,34 @@
 [
   {
-    "county_fips": "08031",
-    "total_fatalities": 52,
-    "total_crashes": 51,
-    "pedestrian_involved_crashes": 19,
-    "drunk_driver_crashes": 19,
-    "total_annual_ridership": null
-  },
-  {
     "county_fips": "08059",
     "total_fatalities": 55,
     "total_crashes": 50,
     "pedestrian_involved_crashes": 14,
     "drunk_driver_crashes": 22,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08019",
+    "total_fatalities": 4,
+    "total_crashes": 4,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 3,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08047",
+    "total_fatalities": 5,
+    "total_crashes": 4,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08035",
+    "total_fatalities": 13,
+    "total_crashes": 12,
+    "pedestrian_involved_crashes": 2,
+    "drunk_driver_crashes": 6,
     "total_annual_ridership": null
   },
   {
@@ -32,35 +48,11 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "08035",
-    "total_fatalities": 13,
-    "total_crashes": 12,
-    "pedestrian_involved_crashes": 2,
-    "drunk_driver_crashes": 6,
-    "total_annual_ridership": null
-  },
-  {
     "county_fips": "08093",
     "total_fatalities": 3,
     "total_crashes": 3,
     "pedestrian_involved_crashes": 0,
     "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "08014",
-    "total_fatalities": 1,
-    "total_crashes": 1,
-    "pedestrian_involved_crashes": 1,
-    "drunk_driver_crashes": 0,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "08019",
-    "total_fatalities": 4,
-    "total_crashes": 4,
-    "pedestrian_involved_crashes": 0,
-    "drunk_driver_crashes": 3,
     "total_annual_ridership": null
   },
   {
@@ -72,11 +64,19 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "08047",
-    "total_fatalities": 5,
-    "total_crashes": 4,
-    "pedestrian_involved_crashes": 0,
-    "drunk_driver_crashes": 1,
+    "county_fips": "08031",
+    "total_fatalities": 52,
+    "total_crashes": 51,
+    "pedestrian_involved_crashes": 19,
+    "drunk_driver_crashes": 19,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "08014",
+    "total_fatalities": 1,
+    "total_crashes": 1,
+    "pedestrian_involved_crashes": 1,
+    "drunk_driver_crashes": 0,
     "total_annual_ridership": null
   }
 ]

@@ -56,9 +56,14 @@ def discover_feeds(
 
     metro_min_lat, metro_max_lat, metro_min_lon, metro_max_lon = metro.bounds
 
+    # "future" feeds are in-service schedules the catalog has not reclassified yet —
+    # SEPTA's only static feeds carry that status while covering the current service
+    # window. Excluding them drops a metro's primary operator entirely.
+    usable_status = ("active", "future")
+
     df = df.filter(
         (pl.col("data_type") == "gtfs")
-        & (pl.col("status") == "active")
+        & pl.col("status").is_in(usable_status)
         & (pl.col("urls.authentication_type") == "0")
     )
 

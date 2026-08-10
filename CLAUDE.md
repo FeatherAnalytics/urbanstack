@@ -57,6 +57,24 @@ Pilot city: Dallas-Fort Worth. Storage: local Parquet + DuckDB (Snowflake later)
 - Conventional commits: `feat:`, `fix:`, `docs:`, `data:`, `refactor:`, `test:`
 - Feature branches — no direct commits to main
 - Run `/code-review` and `/yagni` before merging
+- Use `/ship-it` to commit, push, and open PRs — it enforces the identity rules below
+
+### Git identity
+
+This repo is owned by the `FeatherAnalytics` GitHub account and every commit in its
+history must be authored by it. No other identity may appear in the log.
+
+- **Commit author is separate from the API token.** `gh auth switch` changes only the
+  token. `git config --local user.email` is what gets recorded in history, and it must
+  stay `FeatherAnalytics@users.noreply.github.com` permanently — do not switch it back
+  and forth.
+- **Hold `FeatherAnalytics` only for the git operation itself.** Switch to it
+  immediately before a push, PR, or merge, and return to the machine's default account
+  as soon as the operation completes. It is not the resting state.
+- **Verify before committing, not after.** `git config --local user.email` and
+  `gh api user --jq .login` should both read FeatherAnalytics. Abort if either does not.
+- The machine-specific default account is named in `CLAUDE.local.md`, which is
+  untracked — this file must never name a non-FeatherAnalytics account.
 
 ## Data Sources
 

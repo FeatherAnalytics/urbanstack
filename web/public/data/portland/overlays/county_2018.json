@@ -1,21 +1,5 @@
 [
   {
-    "county_fips": "53011",
-    "total_fatalities": 33,
-    "total_crashes": 28,
-    "pedestrian_involved_crashes": 8,
-    "drunk_driver_crashes": 8,
-    "total_annual_ridership": null
-  },
-  {
-    "county_fips": "41005",
-    "total_fatalities": 39,
-    "total_crashes": 34,
-    "pedestrian_involved_crashes": 8,
-    "drunk_driver_crashes": 13,
-    "total_annual_ridership": null
-  },
-  {
     "county_fips": "41009",
     "total_fatalities": 6,
     "total_crashes": 6,
@@ -24,10 +8,10 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "41051",
-    "total_fatalities": 50,
-    "total_crashes": 49,
-    "pedestrian_involved_crashes": 21,
+    "county_fips": "41005",
+    "total_fatalities": 39,
+    "total_crashes": 34,
+    "pedestrian_involved_crashes": 8,
     "drunk_driver_crashes": 13,
     "total_annual_ridership": null
   },
@@ -40,11 +24,11 @@
     "total_annual_ridership": null
   },
   {
-    "county_fips": "53059",
-    "total_fatalities": 4,
-    "total_crashes": 4,
-    "pedestrian_involved_crashes": 0,
-    "drunk_driver_crashes": 1,
+    "county_fips": "41051",
+    "total_fatalities": 50,
+    "total_crashes": 49,
+    "pedestrian_involved_crashes": 21,
+    "drunk_driver_crashes": 13,
     "total_annual_ridership": null
   },
   {
@@ -53,6 +37,22 @@
     "total_crashes": 8,
     "pedestrian_involved_crashes": 0,
     "drunk_driver_crashes": 2,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "53059",
+    "total_fatalities": 4,
+    "total_crashes": 4,
+    "pedestrian_involved_crashes": 0,
+    "drunk_driver_crashes": 1,
+    "total_annual_ridership": null
+  },
+  {
+    "county_fips": "53011",
+    "total_fatalities": 33,
+    "total_crashes": 28,
+    "pedestrian_involved_crashes": 8,
+    "drunk_driver_crashes": 8,
     "total_annual_ridership": null
   }
 ]

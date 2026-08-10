@@ -42,7 +42,7 @@
     "federal_per_capita": 1083.6,
     "avg_daily_traffic": 10375.14447592068,
     "park_count_nearby": 106,
-    "total_park_area_sqm": 146188608.14433077,
+    "total_park_area_sqm": 146188608.14433074,
     "crash_rate_per_1k_commuters": 5.730944609174495,
     "ped_fatality_rate_per_100k": 32.23600664257106,
     "congestion_cost_pct_income": 0.014436017307940505,
@@ -50,7 +50,7 @@
     "federal_per_crash": 554438.3934736842,
     "vehicle_dependency": 0.7770970111574846,
     "drunk_driver_crashes_per_capita": 46.88873693464882,
-    "green_sqm_per_capita": 1428.0414979420805,
+    "green_sqm_per_capita": 1428.04149794208,
     "pedestrian_crashes_per_capita": 32.23600664257106,
     "metro_id": "austin"
   },
@@ -152,7 +152,7 @@
     "federal_per_capita": 16396.3,
     "avg_daily_traffic": 126568.07741935484,
     "park_count_nearby": 513,
-    "total_park_area_sqm": 28299000.998569157,
+    "total_park_area_sqm": 28299000.99856916,
     "crash_rate_per_1k_commuters": 2.001968321795379,
     "ped_fatality_rate_per_100k": 14.428945244102657,
     "congestion_cost_pct_income": 0.013551666280971923,
@@ -160,7 +160,7 @@
     "federal_per_crash": 18911996.671913873,
     "vehicle_dependency": 0.7635039103316306,
     "drunk_driver_crashes_per_capita": 18.32866017494121,
-    "green_sqm_per_capita": 110.35803672193533,
+    "green_sqm_per_capita": 110.35803672193535,
     "pedestrian_crashes_per_capita": 14.428945244102657,
     "metro_id": "austin"
   },
@@ -262,7 +262,7 @@
     "federal_per_capita": 691.25,
     "avg_daily_traffic": 83937.7753254103,
     "park_count_nearby": 1704,
-    "total_park_area_sqm": 88791534.23769388,
+    "total_park_area_sqm": 88791534.23769382,
     "crash_rate_per_1k_commuters": 1.2087604178205822,
     "ped_fatality_rate_per_100k": 9.318376303990282,
     "congestion_cost_pct_income": 0.01043646366281315,
@@ -270,7 +270,7 @@
     "federal_per_crash": 1256672.690835821,
     "vehicle_dependency": 0.7078626133875293,
     "drunk_driver_crashes_per_capita": 9.628988847456627,
-    "green_sqm_per_capita": 137.89882143924478,
+    "green_sqm_per_capita": 137.89882143924467,
     "pedestrian_crashes_per_capita": 9.318376303990282,
     "metro_id": "austin"
   }
