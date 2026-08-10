@@ -1,7 +1,7 @@
-# Data files (large, regenerable)
-data/raw/
-data/staging/
-data/marts/
+# Data files (large, regenerable) — matched at any depth, not just repo root
+**/data/raw/
+**/data/staging/
+**/data/marts/
 *.parquet
 *.duckdb
 *.duckdb.wal
@@ -56,6 +56,12 @@ web/public/data/*/transit_stops.geojson
 
 # Screenshots (debug/validation artifacts)
 web/screenshots/
+
+# Local agent tooling — contains machine-specific account references
+.claude/
+.wrangler/
+thoughts/handoffs/
+thoughts/shared/handoffs/
 
 # Misc
 *.log
