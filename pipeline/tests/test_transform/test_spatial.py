@@ -11,8 +11,10 @@ from urbanstack.transform.spatial import (
     compute_amenity_proximity,
     haversine_m,
     load_boundaries,
+    point_in_bounded_areas,
     point_in_polygon,
     polygon_area_sqm,
+    prepare_bounded_areas,
 )
 
 MOCK_GEOJSON = {
@@ -131,6 +133,49 @@ def test_point_in_area_no_holes() -> None:
 
 def test_point_in_area_empty() -> None:
     assert _point_in_area(32.5, -96.5, []) is False
+
+
+def test_prepare_bounded_areas_computes_bbox() -> None:
+    outer = [[-97, 32], [-96, 32], [-96, 33], [-97, 33], [-97, 32]]
+    areas = prepare_bounded_areas([("a", [[outer]])])
+
+    assert len(areas) == 1
+    assert areas[0][0] == (32.0, 33.0, -97.0, -96.0), "(min_lat, max_lat, min_lon, max_lon)"
+
+
+def test_prepare_bounded_areas_skips_empty_geometry() -> None:
+    assert prepare_bounded_areas([("empty", [])]) == []
+
+
+def test_point_in_bounded_areas_matches_any_area() -> None:
+    poly1 = [[[-97, 32], [-96, 32], [-96, 33], [-97, 33], [-97, 32]]]
+    poly2 = [[[-95, 34], [-94, 34], [-94, 35], [-95, 35], [-95, 34]]]
+    areas = prepare_bounded_areas([("one", [poly1]), ("two", [poly2])])
+
+    assert point_in_bounded_areas(32.5, -96.5, areas) is True
+    assert point_in_bounded_areas(34.5, -94.5, areas) is True
+    assert point_in_bounded_areas(33.5, -95.5, areas) is False, "between areas"
+
+
+def test_point_in_bounded_areas_respects_holes() -> None:
+    outer = [[-97, 32], [-96, 32], [-96, 33], [-97, 33], [-97, 32]]
+    hole = [[-96.7, 32.3], [-96.3, 32.3], [-96.3, 32.7], [-96.7, 32.7], [-96.7, 32.3]]
+    areas = prepare_bounded_areas([("holed", [[outer, hole]])])
+
+    assert point_in_bounded_areas(32.5, -96.5, areas) is False, "inside hole"
+    assert point_in_bounded_areas(32.1, -96.5, areas) is True, "outer only"
+
+
+def test_point_in_bounded_areas_rejects_outside_bbox() -> None:
+    outer = [[-97, 32], [-96, 32], [-96, 33], [-97, 33], [-97, 32]]
+    areas = prepare_bounded_areas([("a", [[outer]])])
+
+    # A point far outside must be rejected by the bbox before any ray casting.
+    assert point_in_bounded_areas(0.0, 0.0, areas) is False
+
+
+def test_point_in_bounded_areas_no_areas() -> None:
+    assert point_in_bounded_areas(32.5, -96.5, []) is False
 
 
 def test_load_boundaries_multipolygon(tmp_path: Path) -> None:
