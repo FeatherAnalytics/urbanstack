@@ -67,3 +67,6 @@ thoughts/shared/handoffs/
 # Misc
 *.log
 .superpowers/
+
+# Local agent tooling (alternate layout)
+.agents/
